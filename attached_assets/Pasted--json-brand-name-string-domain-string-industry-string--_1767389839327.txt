@@ -1,0 +1,260 @@
+```json
+{
+  "brand": {
+    "name": "string",
+    "domain": "string",
+    "industry": "string",
+    "business_model": "B2B | DTC | Marketplace | Hybrid",
+    "primary_geography": ["string"],
+    "revenue_band": "string"
+  }
+}
+```
+
+**Why this matters**
+
+- Informs confidence thresholds
+- Shapes seasonality interpretation
+- Prevents one-size-fits-all logic
+
+---
+
+### **B. Category Definition (Semantic Fence)**
+
+Defines **what category we are operating in**.
+
+```json
+{
+  "category_definition": {
+    "primary_category": "string",
+    "included": [
+      "included product or service types"
+    ],
+    "excluded": [
+      "explicitly out-of-scope categories"
+    ]
+  }
+}
+```
+
+This creates a **semantic fence**, not just keyword filtering.
+
+---
+
+### **C. Competitive Set (Explicit & Reviewable)**
+
+Defines **who we compare against**.
+
+```json
+{
+  "competitors": {
+    "direct": ["domain"],
+    "indirect": ["domain"],
+    "marketplaces": ["domain"]
+  }
+}
+```
+
+**Rules**
+
+- Direct vs indirect must be distinguished
+- Marketplace competition must be explicit
+- Model may suggest competitors
+- Humans must approve or override
+
+---
+
+### **D. Demand Definition (Critical)**
+
+Defines **what demand we care about**.
+
+```json
+{
+  "demand_definition": {
+    "brand_keywords": {
+      "seed_terms": ["string"],
+      "top_n": 20
+    },
+    "non_brand_keywords": {
+      "category_terms": ["string"],
+      "problem_terms": ["string"],
+      "top_n": 50
+    }
+  }
+}
+```
+
+**Why this matters**
+
+- Anchors brand vs non-brand logic
+- Prevents keyword noise
+- Governs SEO, demand, and cannibalization modules
+
+---
+
+### **E. Strategic Intent & Guardrails**
+
+Defines **how aggressive or conservative the system should be**.
+
+```json
+{
+  "strategic_intent": {
+    "growth_priority": "string",
+    "risk_tolerance": "low | medium | high",
+    "primary_goal": "string",
+    "secondary_goals": ["string"],
+    "avoid": ["string"]
+  }
+}
+```
+
+This is **operator intent**, not data.
+
+---
+
+### **F. Channel Context (Qualitative Only)**
+
+Provides **high-level reality** without internal access.
+
+```json
+{
+  "channel_context": {
+    "paid_media_active": true,
+    "seo_investment_level": "low | medium | high",
+    "marketplace_dependence": "low | medium | high"
+  }
+}
+```
+
+**Rule**
+
+> Channel Context is qualitative only — never quantitative.
+> 
+
+---
+
+### **G. Negative Scope & Exclusions (Required)**
+
+Defines **explicit “NOT THIS” boundaries**.
+
+```json
+{
+  "negative_scope": {
+    "excluded_categories": [
+      "adjacent but non-core categories",
+      "unrelated product classes",
+      "services or products not sold by the brand"
+    ],
+    "excluded_keywords": [
+      "keywords tied to excluded categories",
+      "keywords signaling different buyer intent",
+      "out-of-scope vertical terms"
+    ],
+    "excluded_use_cases": [
+      "use cases outside the brand’s value proposition",
+      "audiences the brand does not serve"
+    ],
+    "excluded_competitors": [
+      "brands competing in adjacent but irrelevant markets",
+      "marketplaces not strategically relevant"
+    ],
+    "enforcement_rules": {
+      "hard_exclusion": true,
+      "allow_model_suggestion": false,
+      "require_human_override_for_expansion": true
+    }
+  }
+}
+```
+
+If something is excluded here, **it must never appear anywhere downstream**.
+
+---
+
+### **H. Governance, Confidence & Overrides (Non-Negotiable)**
+
+Defines **human control and auditability**.
+
+```json
+{
+  "governance": {
+    "model_suggested": true,
+    "human_overrides": {
+      "competitors": [],
+      "keywords": [],
+      "categories": []
+    },
+    "context_confidence": {
+      "level": "high | medium | low",
+      "notes": "string"
+    },
+    "last_reviewed": "YYYY-MM-DD",
+    "reviewed_by": "string",
+    "context_valid_until": "YYYY-MM-DD",
+    "cmo_safe": true
+  }
+}
+```
+
+**Key principle**
+
+> The model may suggest.
+> 
+
+> Humans decide.
+> 
+
+> The system remembers.
+> 
+
+---
+
+## **🔒 Enforcement Rules (System-Wide)**
+
+### **1️⃣ Hard Pre-Filter (Before Any Analysis)**
+
+Before:
+
+- Keyword expansion
+- Competitor suggestion
+- SERP scraping
+- Trend analysis
+
+Apply:
+
+```python
+if item in negative_scope:
+    reject
+```
+
+If excluded here, it **never enters the system**.
+
+---
+
+### **2️⃣ Module Inheritance (No Silent Expansion)**
+
+All modules receive:
+
+- Positive scope (what’s included)
+- Negative scope (what’s excluded)
+
+Modules are **not allowed** to:
+
+- Add categories
+- Expand verticals
+- Override exclusions
+
+Any proposed expansion must:
+
+- Be flagged
+- Require human approval
+
+---
+
+### **3️⃣ Council-Level Enforcement**
+
+Councils treat context as **non-negotiable guardrails**.
+
+If output includes excluded scope → **fail the run**.
+
+---
