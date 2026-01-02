@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pgTable, serial, text, jsonb, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Re-export auth and chat models
@@ -22,6 +22,52 @@ export const configurations = pgTable("configurations", {
   created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+// Bulk generation jobs table
+export const bulkJobs = pgTable("bulk_jobs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  status: varchar("status").notNull().default("pending"),
+  totalBrands: integer("total_brands").notNull(),
+  completedBrands: integer("completed_brands").notNull().default(0),
+  failedBrands: integer("failed_brands").notNull().default(0),
+  primaryCategory: text("primary_category").notNull(),
+  brands: jsonb("brands").notNull(),
+  results: jsonb("results").notNull().default([]),
+  errors: jsonb("errors").notNull().default([]),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Bulk brand input schema
+export const bulkBrandInputSchema = z.object({
+  domain: z.string().min(1),
+  name: z.string().optional(),
+});
+
+// Bulk job request schema
+export const bulkJobRequestSchema = z.object({
+  primaryCategory: z.string().min(1, "Primary category is required"),
+  brands: z.array(bulkBrandInputSchema).min(1).max(5000),
+});
+
+export type BulkBrandInput = z.infer<typeof bulkBrandInputSchema>;
+export type BulkJobRequest = z.infer<typeof bulkJobRequestSchema>;
+
+export interface BulkJob {
+  id: number;
+  userId: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  totalBrands: number;
+  completedBrands: number;
+  failedBrands: number;
+  primaryCategory: string;
+  brands: BulkBrandInput[];
+  results: InsertConfiguration[];
+  errors: { domain: string; error: string }[];
+  created_at: Date;
+  updated_at: Date;
+}
 
 // Brand Context Schema - validation is optional to allow partial saves
 export const brandSchema = z.object({

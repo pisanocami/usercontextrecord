@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { configurations } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { configurations, bulkJobs } from "@shared/schema";
+import { eq, and, desc } from "drizzle-orm";
 import type {
   Brand,
   CategoryDefinition,
@@ -11,6 +11,8 @@ import type {
   NegativeScope,
   Governance,
   InsertConfiguration,
+  BulkJob,
+  BulkBrandInput,
 } from "@shared/schema";
 
 // Database configuration type (includes userId for security)
@@ -33,6 +35,10 @@ export interface DbConfiguration {
 export interface IStorage {
   getConfiguration(userId: string): Promise<DbConfiguration | undefined>;
   saveConfiguration(userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
+  createBulkJob(userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob>;
+  getBulkJob(id: number): Promise<BulkJob | undefined>;
+  getBulkJobs(userId: string): Promise<BulkJob[]>;
+  updateBulkJob(id: number, updates: Partial<BulkJob>): Promise<BulkJob>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -130,6 +136,119 @@ export class DatabaseStorage implements IStorage {
       governance: created.governance as Governance,
       created_at: created.created_at,
       updated_at: created.updated_at,
+    };
+  }
+
+  async createBulkJob(userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob> {
+    const [job] = await db
+      .insert(bulkJobs)
+      .values({
+        userId,
+        primaryCategory,
+        totalBrands: brands.length,
+        brands: brands,
+        status: "pending",
+        completedBrands: 0,
+        failedBrands: 0,
+        results: [],
+        errors: [],
+      })
+      .returning();
+    
+    return {
+      id: job.id,
+      userId: job.userId,
+      status: job.status as BulkJob["status"],
+      totalBrands: job.totalBrands,
+      completedBrands: job.completedBrands,
+      failedBrands: job.failedBrands,
+      primaryCategory: job.primaryCategory,
+      brands: job.brands as BulkBrandInput[],
+      results: job.results as InsertConfiguration[],
+      errors: job.errors as { domain: string; error: string }[],
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    };
+  }
+
+  async getBulkJob(id: number): Promise<BulkJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkJobs)
+      .where(eq(bulkJobs.id, id))
+      .limit(1);
+    
+    if (!job) return undefined;
+    
+    return {
+      id: job.id,
+      userId: job.userId,
+      status: job.status as BulkJob["status"],
+      totalBrands: job.totalBrands,
+      completedBrands: job.completedBrands,
+      failedBrands: job.failedBrands,
+      primaryCategory: job.primaryCategory,
+      brands: job.brands as BulkBrandInput[],
+      results: job.results as InsertConfiguration[],
+      errors: job.errors as { domain: string; error: string }[],
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    };
+  }
+
+  async getBulkJobs(userId: string): Promise<BulkJob[]> {
+    const jobs = await db
+      .select()
+      .from(bulkJobs)
+      .where(eq(bulkJobs.userId, userId))
+      .orderBy(desc(bulkJobs.created_at));
+    
+    return jobs.map(job => ({
+      id: job.id,
+      userId: job.userId,
+      status: job.status as BulkJob["status"],
+      totalBrands: job.totalBrands,
+      completedBrands: job.completedBrands,
+      failedBrands: job.failedBrands,
+      primaryCategory: job.primaryCategory,
+      brands: job.brands as BulkBrandInput[],
+      results: job.results as InsertConfiguration[],
+      errors: job.errors as { domain: string; error: string }[],
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    }));
+  }
+
+  async updateBulkJob(id: number, updates: Partial<BulkJob>): Promise<BulkJob> {
+    const updateData: Record<string, any> = {
+      updated_at: new Date(),
+    };
+    
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.completedBrands !== undefined) updateData.completedBrands = updates.completedBrands;
+    if (updates.failedBrands !== undefined) updateData.failedBrands = updates.failedBrands;
+    if (updates.results !== undefined) updateData.results = updates.results;
+    if (updates.errors !== undefined) updateData.errors = updates.errors;
+    
+    const [updated] = await db
+      .update(bulkJobs)
+      .set(updateData)
+      .where(eq(bulkJobs.id, id))
+      .returning();
+    
+    return {
+      id: updated.id,
+      userId: updated.userId,
+      status: updated.status as BulkJob["status"],
+      totalBrands: updated.totalBrands,
+      completedBrands: updated.completedBrands,
+      failedBrands: updated.failedBrands,
+      primaryCategory: updated.primaryCategory,
+      brands: updated.brands as BulkBrandInput[],
+      results: updated.results as InsertConfiguration[],
+      errors: updated.errors as { domain: string; error: string }[],
+      created_at: updated.created_at,
+      updated_at: updated.updated_at,
     };
   }
 }

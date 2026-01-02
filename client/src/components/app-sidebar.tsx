@@ -10,6 +10,7 @@ import {
   Shield,
   Settings,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -104,6 +105,39 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent className="px-2">
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Tools
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/bulk">
+                  <SidebarMenuButton
+                    isActive={activeSection === "bulk"}
+                    className={`group relative ${
+                      activeSection === "bulk"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-bulk"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">Bulk Generation</span>
+                    </div>
+                    <ChevronRight
+                      className={`h-4 w-4 transition-transform ${
+                        activeSection === "bulk" ? "rotate-90" : ""
+                      }`}
+                    />
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
             Configuration Sections
