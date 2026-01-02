@@ -11,13 +11,13 @@ export function NegativeScopeSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-          <Ban className="h-6 w-6" />
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:h-12 sm:w-12">
+          <Ban className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Negative Scope & Exclusions</h2>
-          <p className="text-muted-foreground">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Negative Scope & Exclusions</h2>
+          <p className="text-sm text-muted-foreground sm:text-base">
             Define explicit "NOT THIS" boundaries. If excluded here, it never enters the system.
           </p>
         </div>

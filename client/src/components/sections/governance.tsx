@@ -22,13 +22,13 @@ export function GovernanceSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Shield className="h-6 w-6" />
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-12 sm:w-12">
+          <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Governance, Confidence & Overrides</h2>
-          <p className="text-muted-foreground">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Governance, Confidence & Overrides</h2>
+          <p className="text-sm text-muted-foreground sm:text-base">
             Define human control and auditability. The model may suggest. Humans decide. The system remembers.
           </p>
         </div>

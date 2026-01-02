@@ -70,14 +70,14 @@ export function BrandContextSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Building2 className="h-6 w-6" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-12 sm:w-12">
+            <Building2 className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Brand Context</h2>
-            <p className="text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Brand Context</h2>
+            <p className="text-sm text-muted-foreground sm:text-base">
               Define your brand identity and market positioning to inform confidence thresholds and seasonality interpretation.
             </p>
           </div>

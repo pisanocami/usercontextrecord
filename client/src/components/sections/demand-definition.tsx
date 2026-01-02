@@ -12,13 +12,13 @@ export function DemandDefinitionSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Search className="h-6 w-6" />
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-12 sm:w-12">
+          <Search className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Demand Definition</h2>
-          <p className="text-muted-foreground">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Demand Definition</h2>
+          <p className="text-sm text-muted-foreground sm:text-base">
             Define what demand you care about. This anchors brand vs non-brand logic.
           </p>
         </div>

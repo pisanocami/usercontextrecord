@@ -185,42 +185,47 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
   return (
     <FormProvider {...form}>
       <div className="flex h-full flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-background px-6 py-3">
-          <div className="flex items-center gap-4 flex-wrap">
+        <header className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
+          <div className="flex items-center gap-2 flex-wrap sm:gap-4">
             <Input
               {...form.register("name")}
-              className="h-9 w-64 font-medium"
+              className="h-9 w-full font-medium sm:w-64"
               placeholder="Configuration name"
               data-testid="input-config-name"
             />
-            {cmoSafe && (
-              <Badge variant="default" className="gap-1">
-                <Check className="h-3 w-3" />
-                CMO Safe
-              </Badge>
-            )}
-            {isDirty && (
-              <Badge variant="secondary" className="gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Unsaved changes
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {cmoSafe && (
+                <Badge variant="default" className="gap-1">
+                  <Check className="h-3 w-3" />
+                  <span className="hidden xs:inline">CMO Safe</span>
+                </Badge>
+              )}
+              {isDirty && (
+                <Badge variant="secondary" className="gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  <span className="hidden xs:inline">Unsaved</span>
+                </Badge>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {lastSaved && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                Last saved {lastSaved.toLocaleTimeString()}
-              </span>
-            )}
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <span className="hidden text-xs text-muted-foreground sm:flex sm:items-center sm:gap-1.5">
+              {lastSaved && (
+                <>
+                  <Clock className="h-3 w-3" />
+                  Last saved {lastSaved.toLocaleTimeString()}
+                </>
+              )}
+            </span>
 
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
                 onClick={handleCopyJSON}
+                aria-label="Copy JSON"
                 data-testid="button-copy-json"
               >
                 <Copy className="h-4 w-4" />
@@ -231,6 +236,7 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
                 size="icon"
                 variant="ghost"
                 onClick={handleExport}
+                aria-label="Export configuration"
                 data-testid="button-export"
               >
                 <Download className="h-4 w-4" />
@@ -244,7 +250,7 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
                   asChild
                   data-testid="button-import"
                 >
-                  <span>
+                  <span aria-label="Import configuration">
                     <Upload className="h-4 w-4" />
                   </span>
                 </Button>
@@ -255,20 +261,24 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
                   onChange={handleImport}
                 />
               </label>
-            </div>
 
-            <Button
-              onClick={handleSave}
-              disabled={saveMutation.isPending}
-              data-testid="button-save"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {saveMutation.isPending ? "Saving..." : "Save Configuration"}
-            </Button>
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending}
+                aria-label="Save configuration"
+                data-testid="button-save"
+                className="ml-2"
+              >
+                <Save className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">
+                  {saveMutation.isPending ? "Saving..." : "Save"}
+                </span>
+              </Button>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="mx-auto max-w-4xl">
             {ActiveSection && <ActiveSection />}
           </div>

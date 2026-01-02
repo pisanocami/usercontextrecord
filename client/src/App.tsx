@@ -41,7 +41,7 @@ function ConfigurationLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection={activeSection}
@@ -50,7 +50,7 @@ function ConfigurationLayout() {
           cmoSafe={cmoSafe}
         />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4">
+          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
               <ThemeToggle />
