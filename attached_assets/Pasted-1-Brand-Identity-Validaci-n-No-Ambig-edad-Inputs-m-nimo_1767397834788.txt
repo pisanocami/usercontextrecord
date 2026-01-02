@@ -1,0 +1,288 @@
+1) Brand Identity — Validación “No Ambigüedad”
+✅ Inputs mínimos requeridos
+
+ Dominio (client_domain)
+
+ País / mercado (US, EU, etc.)
+
+ Modelo de negocio (DTC / SaaS / Marketplace / Hybrid)
+
+ Primary category (seleccionada o confirmada)
+
+✅ Reglas de calidad
+
+ Category + Alternatives deben ser editables y guardarse como approved_categories
+
+ Si la IA propone alternativas, deben venir con:
+
+ razón (“por qué cree esto”)
+
+ evidencia (ej: snippet SERP / término Trends / top ranking keywords)
+
+ El sistema debe generar: context_hash (huella determinística)
+
+📌 Meta: que el contexto sea “frozen and reproducible”.
+
+2) Competitive Set — El punto más crítico
+
+Susan tiene razón: el riesgo #1 es que la IA elija competidores incorrectos.
+
+✅ Campos a agregar (para hacerlo perfecto)
+
+ Competitor Tiering
+
+Tier 1 = direct (misma categoría + mismo precio/segmento)
+
+Tier 2 = adjacent
+
+Tier 3 = aspirational/giant
+
+ Company Size Guardrails (lo que Susan pide)
+
+ revenue range (si está disponible)
+
+ employee count
+
+ funding stage / public vs private
+
+ geo overlap
+
+✅ Reglas de calidad (no negociables)
+
+ La IA debe devolver Competitor Candidates con score:
+
+similarity score (category overlap)
+
+SERP overlap score
+
+ad overlap (si está disponible)
+
+size proximity score
+
+ El usuario puede “approve” competidores
+
+ El sistema guarda:
+
+approved_competitors
+
+rejected_competitors
+
+unknown_competitors_pending_review
+
+✅ Plan B (si IA falla)
+
+ fallback: Ahrefs / SEMrush / Similarweb competitor suggestions
+
+ fallback: SERP-based co-occurrence (quién aparece al buscar keywords core)
+
+ fallback: manual list upload (CSV)
+
+📌 Meta: IA propone → humano valida (solo si se requiere) → contexto queda locked.
+
+3) Negative Scope — El escudo anti-polución
+
+Esto está MUY bien planteado en tu arquitectura.
+
+✅ Debe incluir 4 bloques mínimo
+
+ excluded_keywords (string list)
+
+ excluded_categories (string list)
+
+ excluded_competitors (domain list)
+
+ exclusion_reasoning (texto simple)
+
+✅ Mejoras “perfectas”
+
+ Soportar dos tipos:
+
+Exact match
+
+Semantic match (v2)
+
+ Campo adicional:
+
+semantic_sensitivity: low/medium/high
+
+ Campo adicional:
+
+override_expires_at obligatorio para overrides
+
+✅ Enforcement (CMO-safe)
+
+ Pre-filter gate antes de APIs (para reducir costos)
+
+ Post-validation después de LLM
+
+ Audit log por cada item filtrado
+
+ El output final incluye: filters_applied
+
+📌 Meta: nunca pagar por datos que vas a descartar.
+
+4) Strategic Intent — Para que el scoring sea coherente
+
+Tu UI ya lo tiene (Growth Priority, Risk Tolerance).
+
+✅ Campos mínimos
+
+ growth_priority: aggressive/balanced/conservative
+
+ risk_tolerance: high/medium/low
+
+✅ Perfecto si agregás:
+
+ goal_type: ROI / Volume / Authority (como tu diagrama)
+
+ time_horizon: 30/60/90+ días
+
+ constraint flags:
+
+“No new content”
+
+“Only optimize existing pages”
+
+“Brand compliance strict”
+
+📌 Meta: que el sistema recomiende cosas que el operador pueda ejecutar.
+
+5) Context Validation — Fail Closed pero sin bloquear producción
+
+Acá está el matiz: human review no frena generación, pero:
+
+si el contexto está incompleto → el sistema corre con bandera needs_review
+
+si hay violación → fail closed
+
+✅ Reglas
+
+ Si falta negative_scope → BLOCK
+
+ Si falta categoría primaria → BLOCK
+
+ Si hay menos de 3 competidores tier1 → WARNING, pero corre
+
+ Si no fue revisado por humano → output con confidence_band downgraded
+
+📌 Meta: producir reportes sin estrellarse, pero nunca entregar algo inseguro.
+
+6) “Context Quality Score” (para tranquilidad de Susan)
+
+Esto es CLAVE: un score tipo “AI Confidence 95/100” no sirve si no sabemos por qué.
+
+✅ Score compuesto recomendado
+
+ Completeness score (campos llenos)
+
+ Competitor confidence score
+
+ Negative scope strength score
+
+ Evidence coverage score
+
+ Human verified flag (sí/no)
+
+Output visible (ejemplo):
+
+Context Quality: High / Medium / Low
+
+Competitor Set Confidence: Medium (3/6 verified)
+
+Human Review: Pending
+
+This report is generated with safe constraints ✅
+
+📌 Meta: “CMO-safe by construction”.
+
+7) Evidence Pack (para que sea defendible)
+
+Todo output debería poder explicar:
+
+✅ de dónde salió cada cosa.
+
+✅ Por cada competidor:
+
+ why_selected
+
+ top_overlap_keywords (5)
+
+ SERP overlap examples (3)
+
+✅ Por cada category alternative:
+
+ supporting queries
+
+ volume/velocity evidence
+
+📌 Meta: que el CMO lo pueda defender en la reunión.
+
+8) Versioning + Determinismo
+
+Esto completa tu contrato.
+
+ context_version
+
+ context_hash
+
+ outputs guardan ambos
+
+ si cambia contexto, se crea nueva versión
+
+📌 Meta: reproducibilidad total.
+
+9) AI Behavior Contract (lo que Susan quiere que definamos)
+
+Esto se define en 4 decisiones:
+
+✅ A) Exclusion matching
+
+ v1 = exact match + partial substring
+
+ v2 = semantic match configurable
+
+✅ B) Competitors wrong
+
+ IA propone + score
+
+ si confidence < threshold → pide validación humana
+
+✅ C) Context incomplete
+
+ No bloquea reporte, pero:
+
+band de confianza baja
+
+warning visible
+
+requiere review para “locked”
+
+✅ D) Output self-check
+
+ Post validator escanea output
+
+ Si violación:
+
+regenerate 1x
+
+si sigue → redacción automática + flag
+
+📌 Meta: comportamiento explícito, sin debate.
+
+✅ TL;DR — Lo que le falta a tu generador actual para ser “perfecto”
+
+Según lo que mostrás en UI (oofos ejemplo), lo más importante que falta es:
+
+Competitor guardrails por tamaño (employee/revenue)
+
+Tiering y scoring de competidores (tier 1 vs tier 2)
+
+Evidence pack (por qué cada competidor está ahí)
+
+Context Quality score compuesto (explicable)
+
+Versioning + context_hash
+
+Validación humana “solo cuando confidence es baja”
+
+semantic_sensitivity + override TTL (para Negative Scope)
