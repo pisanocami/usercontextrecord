@@ -20,13 +20,10 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
   
-  // Get current configuration (protected)
-  app.get("/api/configuration", isAuthenticated, async (req: any, res) => {
+  // Get current configuration (bypass auth)
+  app.get("/api/configuration", async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ error: "User not authenticated" });
-      }
+      const userId = "anonymous-user";
       
       let config = await storage.getConfiguration(userId);
       
@@ -42,13 +39,10 @@ export async function registerRoutes(
     }
   });
 
-  // Save configuration (protected)
-  app.post("/api/configuration", isAuthenticated, async (req: any, res) => {
+  // Save configuration (bypass auth)
+  app.post("/api/configuration", async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ error: "User not authenticated" });
-      }
+      const userId = "anonymous-user";
       
       const result = insertConfigurationSchema.safeParse(req.body);
       
@@ -65,8 +59,8 @@ export async function registerRoutes(
     }
   });
 
-  // AI-powered generation endpoint (protected)
-  app.post("/api/ai/generate", isAuthenticated, async (req: any, res: Response) => {
+  // AI-powered generation endpoint (bypass auth)
+  app.post("/api/ai/generate", async (req: any, res: Response) => {
     try {
       const { section, context, currentData } = req.body;
       
