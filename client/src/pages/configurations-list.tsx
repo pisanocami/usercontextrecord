@@ -43,6 +43,8 @@ import {
   FileCheck,
   Search,
   Layers,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -174,10 +176,14 @@ function ConfigurationCard({
   config,
   onEdit,
   onDelete,
+  onRegenerate,
+  isRegenerating,
 }: {
   config: Configuration;
   onEdit: () => void;
   onDelete: () => void;
+  onRegenerate: () => void;
+  isRegenerating: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -210,6 +216,23 @@ function ConfigurationCard({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRegenerate();
+                  }}
+                  disabled={isRegenerating}
+                  title="Regenerate all sections with AI"
+                  data-testid={`button-regenerate-${config.id}`}
+                >
+                  {isRegenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -292,6 +315,7 @@ export default function ConfigurationsList() {
   const [selectedConfig, setSelectedConfig] = useState<Configuration | null>(null);
   const [editReason, setEditReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
 
   const { data: configurations, isLoading } = useQuery<Configuration[]>({
     queryKey: ["/api/configurations"],
@@ -311,6 +335,41 @@ export default function ConfigurationsList() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  const regenerateMutation = useMutation({
+    mutationFn: async (config: Configuration) => {
+      const response = await apiRequest("POST", "/api/ai/generate-complete", {
+        domain: config.brand.domain,
+        name: config.brand.name,
+        primaryCategory: config.category_definition.primary_category || config.brand.industry,
+      });
+      const data = await response.json();
+      
+      const updateResponse = await apiRequest("PUT", `/api/configurations/${config.id}`, {
+        ...data.configuration,
+        name: config.name,
+        editReason: "AI regeneration of all sections",
+      });
+      return updateResponse.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/configurations"] });
+      toast({ 
+        title: "Configuration regenerated", 
+        description: "All sections have been regenerated with AI." 
+      });
+      setRegeneratingId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setRegeneratingId(null);
+    },
+  });
+
+  const handleRegenerate = (config: Configuration) => {
+    setRegeneratingId(config.id);
+    regenerateMutation.mutate(config);
+  };
 
   const handleEdit = (config: Configuration) => {
     setSelectedConfig(config);
@@ -424,6 +483,8 @@ export default function ConfigurationsList() {
                 config={config}
                 onEdit={() => handleEdit(config)}
                 onDelete={() => handleDelete(config)}
+                onRegenerate={() => handleRegenerate(config)}
+                isRegenerating={regeneratingId === config.id}
               />
             ))}
           </div>

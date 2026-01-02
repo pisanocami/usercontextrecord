@@ -1,0 +1,123 @@
+
+Brand Intelligence
+Configuration
+Navigation
+
+All Configurations
+
+New Configuration
+Tools
+
+Bulk Generation
+Configuration Sections
+
+Brand Context
+
+Category Definition
+
+Competitive Set
+
+Demand Definition
+
+Strategic Intent
+
+Channel Context
+
+Negative Scope
+
+Governance
+Not Validated
+Toggle Sidebar
+
+
+Brand Configurations
+View and manage all saved brand intelligence configurations
+
+New Configuration
+Search by name, domain, or industry...
+1 configuration
+
+New Configuration
+Oofos.com
+Footwear and Apparel
+
+
+Brand Context
+Name:
+Oofos
+Domain:
+Oofos.com
+Industry:
+Footwear and Apparel
+Business Model:
+DTC
+Primary Geography:
+US, CA, AU, UK, DE
+Revenue Band:
+$100M-$500M
+Category Definition
+Primary Category:
+Footwear and Apparel
+Included:
+Athletic Footwear, Casual Footwear, Dress Shoes, Sports Apparel, Casual Wear, Outdoor Gear, Activewear, Sustainable Apparel, Athleisure, Sneakers, Kids Footwear, Performance Wear, Accessories (e.g., Socks, Hats, Belts)
+Excluded:
+Formal Wear (e.g., Suits, Gowns), Strictly Luxury Accessories (e.g., Watches, Jewelry), Intimate Wear, Costumes, Non-wearable equipment (e.g., Gym Machines), Unrelated Tech Gear (e.g., Smart Watches, Fitness Trackers), Pet Apparel, Industrial Footwear (e.g., Work Boots for Heavy-duty Use)
+Competitive Set
+Direct Competitors:
+Hoka One One, Crocs, Birkenstock, Vionic, Skechers
+Indirect Competitors:
+Nike, Adidas, Under Armour, Allbirds, Teva
+Marketplaces:
+Amazon, Zappos, eBay, Walmart, Nordstrom
+Demand Definition
+Brand Seed Terms:
+-
+Top N Brand:
+20
+Category Terms:
+-
+Problem Terms:
+-
+Top N Non-Brand:
+50
+Strategic Intent
+Growth Priority:
+Risk Tolerance:
+medium
+Primary Goal:
+Secondary Goals:
+-
+Avoid:
+-
+Channel Context
+Paid Media Active:
+No
+SEO Investment Level:
+medium
+Marketplace Dependence:
+low
+Negative Scope
+Excluded Categories:
+-
+Excluded Keywords:
+-
+Excluded Use Cases:
+-
+Excluded Competitors:
+-
+Governance
+Model Suggested:
+Yes
+Last Reviewed:
+2026-01-02
+Reviewed By:
+Valid Until:
+2026-04-02
+CMO Safe:
+No
+Confidence Level:
+medium
+Notes:
+Created: 2/1/2026
+Updated: 2/1/2026
+Last Reviewed: 2026-01-02
