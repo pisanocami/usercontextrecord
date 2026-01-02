@@ -77,6 +77,15 @@ export const brandSchema = z.object({
   business_model: z.enum(["B2B", "DTC", "Marketplace", "Hybrid"]),
   primary_geography: z.array(z.string()).default([]),
   revenue_band: z.string().default(""),
+  target_market: z.string().default(""), // Country/market (US, EU, LATAM, etc.)
+});
+
+// Category Alternative Schema (for AI-suggested alternatives with evidence)
+export const categoryAlternativeSchema = z.object({
+  category: z.string(),
+  reason: z.string(), // Why AI suggests this
+  evidence: z.array(z.string()).default([]), // SERP snippets, trends, keywords
+  confidence: z.number().min(0).max(100).default(50),
 });
 
 // Category Definition Schema - allows partial saves
@@ -84,6 +93,8 @@ export const categoryDefinitionSchema = z.object({
   primary_category: z.string().default(""),
   included: z.array(z.string()).default([]),
   excluded: z.array(z.string()).default([]),
+  approved_categories: z.array(z.string()).default([]), // Human-approved categories
+  alternative_categories: z.array(categoryAlternativeSchema).default([]), // AI-suggested with evidence
 });
 
 // Competitive Set Schema
@@ -151,6 +162,13 @@ export const governanceSchema = z.object({
   reviewed_by: z.string(),
   context_valid_until: z.string(),
   cmo_safe: z.boolean(),
+  // Phase 1: Validation & Versioning
+  context_hash: z.string().default(""), // Deterministic fingerprint for reproducibility
+  context_version: z.number().default(1), // Incrementing version number
+  validation_status: z.enum(["complete", "incomplete", "blocked", "needs_review"]).default("incomplete"),
+  human_verified: z.boolean().default(false),
+  human_verified_at: z.string().optional(), // ISO date when human verified
+  blocked_reasons: z.array(z.string()).default([]), // Why validation is blocked
 });
 
 // Full Configuration Schema
@@ -188,6 +206,9 @@ export type Governance = z.infer<typeof governanceSchema>;
 export type Configuration = z.infer<typeof configurationSchema>;
 export type InsertConfiguration = z.infer<typeof insertConfigurationSchema>;
 
+// Category Alternative type export
+export type CategoryAlternative = z.infer<typeof categoryAlternativeSchema>;
+
 // Default configuration for new configurations
 export const defaultConfiguration: InsertConfiguration = {
   name: "New Configuration",
@@ -198,11 +219,14 @@ export const defaultConfiguration: InsertConfiguration = {
     business_model: "B2B",
     primary_geography: [],
     revenue_band: "",
+    target_market: "",
   },
   category_definition: {
     primary_category: "",
     included: [],
     excluded: [],
+    approved_categories: [],
+    alternative_categories: [],
   },
   competitors: {
     direct: [],
@@ -258,5 +282,10 @@ export const defaultConfiguration: InsertConfiguration = {
     reviewed_by: "",
     context_valid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     cmo_safe: false,
+    context_hash: "",
+    context_version: 1,
+    validation_status: "incomplete",
+    human_verified: false,
+    blocked_reasons: [],
   },
 };

@@ -65,6 +65,12 @@ Return a complete JSON object with ALL sections filled.`;
   const today = new Date().toISOString().split("T")[0];
   const validUntil = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+  // Generate context hash for determinism
+  const configData = JSON.stringify({
+    domain, brandName, primaryCategory, generated
+  });
+  const contextHash = Buffer.from(configData).toString('base64').slice(0, 32);
+
   return {
     name: generated.brand?.name || brandName || domain,
     brand: {
@@ -74,11 +80,14 @@ Return a complete JSON object with ALL sections filled.`;
       business_model: generated.brand?.business_model || "B2B",
       primary_geography: generated.brand?.primary_geography || ["US"],
       revenue_band: generated.brand?.revenue_band || "Unknown",
+      target_market: generated.brand?.target_market || "US",
     },
     category_definition: {
       primary_category: primaryCategory,
       included: generated.category_definition?.included || [],
       excluded: generated.category_definition?.excluded || [],
+      approved_categories: [primaryCategory],
+      alternative_categories: generated.category_definition?.alternative_categories || [],
     },
     competitors: {
       direct: generated.competitors?.direct || [],
@@ -134,6 +143,11 @@ Return a complete JSON object with ALL sections filled.`;
       reviewed_by: "AI Generator",
       context_valid_until: validUntil,
       cmo_safe: false,
+      context_hash: contextHash,
+      context_version: 1,
+      validation_status: "needs_review" as const,
+      human_verified: false,
+      blocked_reasons: [],
     },
   };
 }

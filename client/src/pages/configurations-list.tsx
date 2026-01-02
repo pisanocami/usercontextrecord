@@ -45,6 +45,10 @@ import {
   Layers,
   Sparkles,
   Loader2,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -82,6 +86,7 @@ const sectionDefinitions: Record<string, SectionData> = {
       { label: "Domain", key: "domain" },
       { label: "Industry", key: "industry" },
       { label: "Business Model", key: "business_model" },
+      { label: "Target Market", key: "target_market" },
       { label: "Primary Geography", key: "primary_geography", isArray: true },
       { label: "Revenue Band", key: "revenue_band" },
     ],
@@ -91,6 +96,7 @@ const sectionDefinitions: Record<string, SectionData> = {
     icon: Layers,
     fields: [
       { label: "Primary Category", key: "primary_category" },
+      { label: "Approved Categories", key: "approved_categories", isArray: true },
       { label: "Included", key: "included", isArray: true },
       { label: "Excluded", key: "excluded", isArray: true },
     ],
@@ -155,6 +161,10 @@ const sectionDefinitions: Record<string, SectionData> = {
       { label: "Valid Until", key: "context_valid_until" },
       { label: "CMO Safe", key: "cmo_safe" },
       { label: "Confidence Level", key: "context_confidence.level", isNested: true },
+      { label: "Validation Status", key: "validation_status" },
+      { label: "Human Verified", key: "human_verified" },
+      { label: "Context Version", key: "context_version" },
+      { label: "Context Hash", key: "context_hash" },
       { label: "Notes", key: "context_confidence.notes", isNested: true },
     ],
   },
@@ -210,6 +220,30 @@ function ConfigurationCard({
                     {config.governance.cmo_safe && (
                       <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                         CMO Safe
+                      </Badge>
+                    )}
+                    {config.governance.validation_status === "complete" && (
+                      <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Validated
+                      </Badge>
+                    )}
+                    {config.governance.validation_status === "needs_review" && (
+                      <Badge className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Needs Review
+                      </Badge>
+                    )}
+                    {config.governance.validation_status === "blocked" && (
+                      <Badge className="text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Blocked
+                      </Badge>
+                    )}
+                    {config.governance.validation_status === "incomplete" && (
+                      <Badge className="text-xs bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Incomplete
                       </Badge>
                     )}
                   </div>
