@@ -81,9 +81,9 @@ export function BrandContextSection() {
           if (suggestions.included) form.setValue("category_definition.included", suggestions.included, { shouldDirty: true });
           if (suggestions.excluded) form.setValue("category_definition.excluded", suggestions.excluded, { shouldDirty: true });
         } else if (section === "competitors") {
-          if (suggestions.direct) form.setValue("competitive_set.direct", suggestions.direct, { shouldDirty: true });
-          if (suggestions.indirect) form.setValue("competitive_set.indirect", suggestions.indirect, { shouldDirty: true });
-          if (suggestions.marketplaces) form.setValue("competitive_set.marketplaces", suggestions.marketplaces, { shouldDirty: true });
+          if (suggestions.direct) form.setValue("competitors.direct", suggestions.direct, { shouldDirty: true });
+          if (suggestions.indirect) form.setValue("competitors.indirect", suggestions.indirect, { shouldDirty: true });
+          if (suggestions.marketplaces) form.setValue("competitors.marketplaces", suggestions.marketplaces, { shouldDirty: true });
         } else if (section === "demand") {
           if (suggestions.brand_keywords?.seed_terms) form.setValue("demand_definition.brand_keywords.seed_terms", suggestions.brand_keywords.seed_terms, { shouldDirty: true });
           if (suggestions.non_brand_keywords?.category_terms) form.setValue("demand_definition.non_brand_keywords.category_terms", suggestions.non_brand_keywords.category_terms, { shouldDirty: true });
@@ -95,17 +95,18 @@ export function BrandContextSection() {
           if (suggestions.secondary_goals) form.setValue("strategic_intent.secondary_goals", suggestions.secondary_goals, { shouldDirty: true });
           if (suggestions.avoid) form.setValue("strategic_intent.avoid", suggestions.avoid, { shouldDirty: true });
         } else if (section === "channels") {
-          if (suggestions.primary_channels) form.setValue("channel_context.primary_channels", suggestions.primary_channels, { shouldDirty: true });
-          if (suggestions.paid_social) form.setValue("channel_context.paid_social", suggestions.paid_social, { shouldDirty: true });
-          if (suggestions.search_engines) form.setValue("channel_context.search_engines", suggestions.search_engines, { shouldDirty: true });
+          if (suggestions.paid_media_active !== undefined) form.setValue("channel_context.paid_media_active", suggestions.paid_media_active, { shouldDirty: true });
+          if (suggestions.seo_investment_level) form.setValue("channel_context.seo_investment_level", suggestions.seo_investment_level, { shouldDirty: true });
+          if (suggestions.marketplace_dependence) form.setValue("channel_context.marketplace_dependence", suggestions.marketplace_dependence, { shouldDirty: true });
         } else if (section === "negative") {
+          if (suggestions.excluded_categories) form.setValue("negative_scope.excluded_categories", suggestions.excluded_categories, { shouldDirty: true });
           if (suggestions.excluded_keywords) form.setValue("negative_scope.excluded_keywords", suggestions.excluded_keywords, { shouldDirty: true });
-          if (suggestions.excluded_placements) form.setValue("negative_scope.excluded_placements", suggestions.excluded_placements, { shouldDirty: true });
-          if (suggestions.brand_safety) form.setValue("negative_scope.brand_safety", suggestions.brand_safety, { shouldDirty: true });
+          if (suggestions.excluded_use_cases) form.setValue("negative_scope.excluded_use_cases", suggestions.excluded_use_cases, { shouldDirty: true });
+          if (suggestions.excluded_competitors) form.setValue("negative_scope.excluded_competitors", suggestions.excluded_competitors, { shouldDirty: true });
         } else if (section === "governance") {
-          if (suggestions.approval_workflow) form.setValue("governance.approval_workflow", suggestions.approval_workflow, { shouldDirty: true });
-          if (suggestions.change_management) form.setValue("governance.change_management", suggestions.change_management, { shouldDirty: true });
-          if (suggestions.compliance_level) form.setValue("governance.compliance_level", suggestions.compliance_level, { shouldDirty: true });
+          if (suggestions.context_confidence?.level) form.setValue("governance.context_confidence.level", suggestions.context_confidence.level, { shouldDirty: true });
+          if (suggestions.context_confidence?.notes) form.setValue("governance.context_confidence.notes", suggestions.context_confidence.notes, { shouldDirty: true });
+          if (suggestions.cmo_safe !== undefined) form.setValue("governance.cmo_safe", suggestions.cmo_safe, { shouldDirty: true });
         }
       } catch (err) {
         console.error(`Error generating section ${section}:`, err);
