@@ -186,6 +186,106 @@ export async function registerRoutes(
     }
   });
 
+  // Get all configurations for user
+  app.get("/api/configurations", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const configs = await storage.getAllConfigurations(userId);
+      res.json(configs);
+    } catch (error) {
+      console.error("Error fetching configurations:", error);
+      res.status(500).json({ error: "Failed to fetch configurations" });
+    }
+  });
+
+  // Get single configuration by ID
+  app.get("/api/configurations/:id", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const config = await storage.getConfigurationById(id, userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching configuration:", error);
+      res.status(500).json({ error: "Failed to fetch configuration" });
+    }
+  });
+
+  // Create new configuration
+  app.post("/api/configurations", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      
+      const result = insertConfigurationSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        const validationError = fromZodError(result.error);
+        return res.status(400).json({ error: validationError.message });
+      }
+      
+      const config = await storage.createConfiguration(userId, result.data);
+      res.json(config);
+    } catch (error) {
+      console.error("Error creating configuration:", error);
+      res.status(500).json({ error: "Failed to create configuration" });
+    }
+  });
+
+  // Update configuration with edit reason
+  app.put("/api/configurations/:id", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const { editReason, ...configData } = req.body;
+      
+      if (!editReason || typeof editReason !== "string" || editReason.trim().length < 5) {
+        return res.status(400).json({ error: "Edit reason is required (minimum 5 characters)" });
+      }
+      
+      const result = insertConfigurationSchema.safeParse(configData);
+      
+      if (!result.success) {
+        const validationError = fromZodError(result.error);
+        return res.status(400).json({ error: validationError.message });
+      }
+      
+      const config = await storage.updateConfiguration(id, userId, result.data, editReason.trim());
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating configuration:", error);
+      res.status(500).json({ error: "Failed to update configuration" });
+    }
+  });
+
+  // Delete configuration
+  app.delete("/api/configurations/:id", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      await storage.deleteConfiguration(id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting configuration:", error);
+      res.status(500).json({ error: "Failed to delete configuration" });
+    }
+  });
+
   // AI-powered generation endpoint (bypass auth)
   app.post("/api/ai/generate", async (req: any, res: Response) => {
     try {

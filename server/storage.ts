@@ -34,7 +34,12 @@ export interface DbConfiguration {
 
 export interface IStorage {
   getConfiguration(userId: string): Promise<DbConfiguration | undefined>;
+  getConfigurationById(id: number, userId?: string): Promise<DbConfiguration | undefined>;
+  getAllConfigurations(userId: string): Promise<DbConfiguration[]>;
   saveConfiguration(userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
+  createConfiguration(userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
+  updateConfiguration(id: number, userId: string, config: InsertConfiguration, editReason: string): Promise<DbConfiguration>;
+  deleteConfiguration(id: number, userId: string): Promise<void>;
   createBulkJob(userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob>;
   getBulkJob(id: number): Promise<BulkJob | undefined>;
   getBulkJobs(userId: string): Promise<BulkJob[]>;
@@ -137,6 +142,152 @@ export class DatabaseStorage implements IStorage {
       created_at: created.created_at,
       updated_at: created.updated_at,
     };
+  }
+
+  async getConfigurationById(id: number, userId?: string): Promise<DbConfiguration | undefined> {
+    const conditions = userId 
+      ? and(eq(configurations.id, id), eq(configurations.userId, userId))
+      : eq(configurations.id, id);
+    
+    const [config] = await db
+      .select()
+      .from(configurations)
+      .where(conditions)
+      .limit(1);
+    
+    if (!config) return undefined;
+    
+    return {
+      id: config.id,
+      userId: config.userId,
+      name: config.name,
+      brand: config.brand as Brand,
+      category_definition: config.category_definition as CategoryDefinition,
+      competitors: config.competitors as Competitors,
+      demand_definition: config.demand_definition as DemandDefinition,
+      strategic_intent: config.strategic_intent as StrategicIntent,
+      channel_context: config.channel_context as ChannelContext,
+      negative_scope: config.negative_scope as NegativeScope,
+      governance: config.governance as Governance,
+      created_at: config.created_at,
+      updated_at: config.updated_at,
+    };
+  }
+
+  async getAllConfigurations(userId: string): Promise<DbConfiguration[]> {
+    const configs = await db
+      .select()
+      .from(configurations)
+      .where(eq(configurations.userId, userId))
+      .orderBy(desc(configurations.updated_at));
+    
+    return configs.map(config => ({
+      id: config.id,
+      userId: config.userId,
+      name: config.name,
+      brand: config.brand as Brand,
+      category_definition: config.category_definition as CategoryDefinition,
+      competitors: config.competitors as Competitors,
+      demand_definition: config.demand_definition as DemandDefinition,
+      strategic_intent: config.strategic_intent as StrategicIntent,
+      channel_context: config.channel_context as ChannelContext,
+      negative_scope: config.negative_scope as NegativeScope,
+      governance: config.governance as Governance,
+      created_at: config.created_at,
+      updated_at: config.updated_at,
+    }));
+  }
+
+  async createConfiguration(userId: string, insertConfig: InsertConfiguration): Promise<DbConfiguration> {
+    const [created] = await db
+      .insert(configurations)
+      .values({
+        userId,
+        name: insertConfig.name,
+        brand: insertConfig.brand,
+        category_definition: insertConfig.category_definition,
+        competitors: insertConfig.competitors,
+        demand_definition: insertConfig.demand_definition,
+        strategic_intent: insertConfig.strategic_intent,
+        channel_context: insertConfig.channel_context,
+        negative_scope: insertConfig.negative_scope,
+        governance: insertConfig.governance,
+      })
+      .returning();
+    
+    return {
+      id: created.id,
+      userId: created.userId,
+      name: created.name,
+      brand: created.brand as Brand,
+      category_definition: created.category_definition as CategoryDefinition,
+      competitors: created.competitors as Competitors,
+      demand_definition: created.demand_definition as DemandDefinition,
+      strategic_intent: created.strategic_intent as StrategicIntent,
+      channel_context: created.channel_context as ChannelContext,
+      negative_scope: created.negative_scope as NegativeScope,
+      governance: created.governance as Governance,
+      created_at: created.created_at,
+      updated_at: created.updated_at,
+    };
+  }
+
+  async updateConfiguration(id: number, userId: string, insertConfig: InsertConfiguration, editReason: string): Promise<DbConfiguration> {
+    const existing = await this.getConfigurationById(id, userId);
+    if (!existing) {
+      throw new Error("Configuration not found");
+    }
+
+    const updatedGovernance = {
+      ...insertConfig.governance,
+      human_overrides: {
+        ...insertConfig.governance.human_overrides,
+      },
+      context_confidence: {
+        ...insertConfig.governance.context_confidence,
+        notes: editReason + (insertConfig.governance.context_confidence.notes ? `\n\n${insertConfig.governance.context_confidence.notes}` : ""),
+      },
+      last_reviewed: new Date().toISOString().split("T")[0],
+    };
+
+    const [updated] = await db
+      .update(configurations)
+      .set({
+        name: insertConfig.name,
+        brand: insertConfig.brand,
+        category_definition: insertConfig.category_definition,
+        competitors: insertConfig.competitors,
+        demand_definition: insertConfig.demand_definition,
+        strategic_intent: insertConfig.strategic_intent,
+        channel_context: insertConfig.channel_context,
+        negative_scope: insertConfig.negative_scope,
+        governance: updatedGovernance,
+        updated_at: new Date(),
+      })
+      .where(and(eq(configurations.id, id), eq(configurations.userId, userId)))
+      .returning();
+    
+    return {
+      id: updated.id,
+      userId: updated.userId,
+      name: updated.name,
+      brand: updated.brand as Brand,
+      category_definition: updated.category_definition as CategoryDefinition,
+      competitors: updated.competitors as Competitors,
+      demand_definition: updated.demand_definition as DemandDefinition,
+      strategic_intent: updated.strategic_intent as StrategicIntent,
+      channel_context: updated.channel_context as ChannelContext,
+      negative_scope: updated.negative_scope as NegativeScope,
+      governance: updated.governance as Governance,
+      created_at: updated.created_at,
+      updated_at: updated.updated_at,
+    };
+  }
+
+  async deleteConfiguration(id: number, userId: string): Promise<void> {
+    await db.delete(configurations).where(
+      and(eq(configurations.id, id), eq(configurations.userId, userId))
+    );
   }
 
   async createBulkJob(userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob> {

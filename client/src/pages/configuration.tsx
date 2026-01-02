@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Save, Copy, Download, Upload, Clock, Check, AlertCircle } from "lucide-react";
+import { Save, Copy, Download, Upload, Clock, Check, AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   type InsertConfiguration,
   type Configuration,
 } from "@shared/schema";
+import { Link, useSearch } from "wouter";
 
 interface ConfigurationPageProps {
   activeSection: string;
@@ -43,9 +44,26 @@ const sectionComponents: Record<string, () => JSX.Element> = {
 export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChange }: ConfigurationPageProps) {
   const { toast } = useToast();
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const searchString = useSearch();
+  
+  const { editId, editReason } = useMemo(() => {
+    const params = new URLSearchParams(searchString);
+    return {
+      editId: params.get("editId") ? parseInt(params.get("editId")!) : null,
+      editReason: params.get("reason") || null,
+    };
+  }, [searchString]);
+
+  const isEditMode = editId !== null;
+
+  const { data: existingConfig, isLoading: isLoadingExisting } = useQuery<Configuration>({
+    queryKey: ["/api/configurations", editId],
+    enabled: isEditMode,
+  });
 
   const { data: configuration, isLoading } = useQuery<Configuration>({
     queryKey: ["/api/configuration"],
+    enabled: !isEditMode,
   });
 
   const form = useForm<InsertConfiguration>({
@@ -58,21 +76,22 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
   const cmoSafe = form.watch("governance.cmo_safe");
 
   useEffect(() => {
-    if (configuration) {
+    const configToLoad = isEditMode ? existingConfig : configuration;
+    if (configToLoad) {
       form.reset({
-        name: configuration.name,
-        brand: configuration.brand,
-        category_definition: configuration.category_definition,
-        competitors: configuration.competitors,
-        demand_definition: configuration.demand_definition,
-        strategic_intent: configuration.strategic_intent,
-        channel_context: configuration.channel_context,
-        negative_scope: configuration.negative_scope,
-        governance: configuration.governance,
+        name: configToLoad.name,
+        brand: configToLoad.brand,
+        category_definition: configToLoad.category_definition,
+        competitors: configToLoad.competitors,
+        demand_definition: configToLoad.demand_definition,
+        strategic_intent: configToLoad.strategic_intent,
+        channel_context: configToLoad.channel_context,
+        negative_scope: configToLoad.negative_scope,
+        governance: configToLoad.governance,
       });
-      setLastSaved(new Date(configuration.updated_at));
+      setLastSaved(new Date(configToLoad.updated_at));
     }
-  }, [configuration, form]);
+  }, [configuration, existingConfig, form, isEditMode]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -84,11 +103,20 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
 
   const saveMutation = useMutation({
     mutationFn: async (data: InsertConfiguration) => {
-      const res = await apiRequest("POST", "/api/configuration", data);
-      return res.json() as Promise<Configuration>;
+      if (isEditMode && editId) {
+        const res = await apiRequest("PUT", `/api/configurations/${editId}`, {
+          ...data,
+          editReason: editReason || "Update via configuration editor",
+        });
+        return res.json() as Promise<Configuration>;
+      } else {
+        const res = await apiRequest("POST", "/api/configurations", data);
+        return res.json() as Promise<Configuration>;
+      }
     },
     onSuccess: (savedConfig: Configuration) => {
       queryClient.invalidateQueries({ queryKey: ["/api/configuration"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/configurations"] });
       setLastSaved(new Date());
       const resetData: InsertConfiguration = {
         name: savedConfig.name,
@@ -103,9 +131,14 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
       };
       form.reset(resetData);
       toast({
-        title: "Configuration saved",
-        description: "Your configuration has been saved successfully.",
+        title: isEditMode ? "Configuration updated" : "Configuration saved",
+        description: isEditMode 
+          ? "Your changes have been saved with the provided reason." 
+          : "Your configuration has been saved successfully.",
       });
+      if (isEditMode) {
+        window.location.href = "/";
+      }
     },
     onError: (error) => {
       toast({
@@ -171,7 +204,7 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
 
   const ActiveSection = sectionComponents[activeSection];
 
-  if (isLoading) {
+  if (isLoading || isLoadingExisting) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -185,6 +218,20 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
   return (
     <FormProvider {...form}>
       <div className="flex h-full flex-col">
+        {isEditMode && editReason && (
+          <div className="flex items-center gap-3 border-b bg-amber-50 px-4 py-2 dark:bg-amber-950/30">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              <span className="font-medium">Editing with reason:</span> {editReason}
+            </p>
+            <Link href="/" className="ml-auto">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Cancel
+              </Button>
+            </Link>
+          </div>
+        )}
         <header className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
           <div className="flex items-center gap-2 flex-wrap sm:gap-4">
             <Input
