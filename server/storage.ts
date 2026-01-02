@@ -1,37 +1,44 @@
-import { type User, type InsertUser } from "@shared/schema";
 import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import type {
+  Configuration,
+  InsertConfiguration,
+} from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getConfiguration(): Promise<Configuration | undefined>;
+  saveConfiguration(config: InsertConfiguration): Promise<Configuration>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private configuration: Configuration | undefined;
 
   constructor() {
-    this.users = new Map();
+    this.configuration = undefined;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getConfiguration(): Promise<Configuration | undefined> {
+    return this.configuration;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async saveConfiguration(insertConfig: InsertConfiguration): Promise<Configuration> {
+    const now = new Date().toISOString();
+    
+    if (this.configuration) {
+      this.configuration = {
+        ...this.configuration,
+        ...insertConfig,
+        updated_at: now,
+      };
+    } else {
+      this.configuration = {
+        id: randomUUID(),
+        ...insertConfig,
+        created_at: now,
+        updated_at: now,
+      };
+    }
+    
+    return this.configuration;
   }
 }
 
