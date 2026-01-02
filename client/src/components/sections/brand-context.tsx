@@ -43,7 +43,80 @@ const INDUSTRIES = [
 export function BrandContextSection() {
   const form = useFormContext<InsertConfiguration>();
   const { toast } = useToast();
-  const { generate, isGenerating } = useAIGenerate();
+  const { generate, isGenerating, generateAsync } = useAIGenerate();
+
+  const handleGenerateAll = async (brandData: any) => {
+    const sections = [
+      "category",
+      "competitors",
+      "demand",
+      "strategic",
+      "channels",
+      "negative",
+      "governance",
+    ];
+
+    toast({
+      title: "Generating full profile",
+      description: "AI is crafting all configuration sections. This will take a moment...",
+    });
+
+    for (const section of sections) {
+      try {
+        const data = await generateAsync({
+          section,
+          context: {
+            name: brandData.name,
+            domain: brandData.domain,
+            industry: brandData.industry,
+            business_model: brandData.business_model,
+            revenue_band: brandData.revenue_band,
+          },
+        });
+
+        const suggestions = data.suggestions as Record<string, any>;
+        
+        if (section === "category") {
+          if (suggestions.primary_category) form.setValue("category_definition.primary_category", suggestions.primary_category, { shouldDirty: true });
+          if (suggestions.included) form.setValue("category_definition.included", suggestions.included, { shouldDirty: true });
+          if (suggestions.excluded) form.setValue("category_definition.excluded", suggestions.excluded, { shouldDirty: true });
+        } else if (section === "competitors") {
+          if (suggestions.direct) form.setValue("competitive_set.direct", suggestions.direct, { shouldDirty: true });
+          if (suggestions.indirect) form.setValue("competitive_set.indirect", suggestions.indirect, { shouldDirty: true });
+          if (suggestions.marketplaces) form.setValue("competitive_set.marketplaces", suggestions.marketplaces, { shouldDirty: true });
+        } else if (section === "demand") {
+          if (suggestions.brand_keywords?.seed_terms) form.setValue("demand_definition.brand_keywords.seed_terms", suggestions.brand_keywords.seed_terms, { shouldDirty: true });
+          if (suggestions.non_brand_keywords?.category_terms) form.setValue("demand_definition.non_brand_keywords.category_terms", suggestions.non_brand_keywords.category_terms, { shouldDirty: true });
+          if (suggestions.non_brand_keywords?.problem_terms) form.setValue("demand_definition.non_brand_keywords.problem_terms", suggestions.non_brand_keywords.problem_terms, { shouldDirty: true });
+        } else if (section === "strategic") {
+          if (suggestions.growth_priority) form.setValue("strategic_intent.growth_priority", suggestions.growth_priority, { shouldDirty: true });
+          if (suggestions.risk_tolerance) form.setValue("strategic_intent.risk_tolerance", suggestions.risk_tolerance, { shouldDirty: true });
+          if (suggestions.primary_goal) form.setValue("strategic_intent.primary_goal", suggestions.primary_goal, { shouldDirty: true });
+          if (suggestions.secondary_goals) form.setValue("strategic_intent.secondary_goals", suggestions.secondary_goals, { shouldDirty: true });
+          if (suggestions.avoid) form.setValue("strategic_intent.avoid", suggestions.avoid, { shouldDirty: true });
+        } else if (section === "channels") {
+          if (suggestions.primary_channels) form.setValue("channel_context.primary_channels", suggestions.primary_channels, { shouldDirty: true });
+          if (suggestions.paid_social) form.setValue("channel_context.paid_social", suggestions.paid_social, { shouldDirty: true });
+          if (suggestions.search_engines) form.setValue("channel_context.search_engines", suggestions.search_engines, { shouldDirty: true });
+        } else if (section === "negative") {
+          if (suggestions.excluded_keywords) form.setValue("negative_scope.excluded_keywords", suggestions.excluded_keywords, { shouldDirty: true });
+          if (suggestions.excluded_placements) form.setValue("negative_scope.excluded_placements", suggestions.excluded_placements, { shouldDirty: true });
+          if (suggestions.brand_safety) form.setValue("negative_scope.brand_safety", suggestions.brand_safety, { shouldDirty: true });
+        } else if (section === "governance") {
+          if (suggestions.approval_workflow) form.setValue("governance.approval_workflow", suggestions.approval_workflow, { shouldDirty: true });
+          if (suggestions.change_management) form.setValue("governance.change_management", suggestions.change_management, { shouldDirty: true });
+          if (suggestions.compliance_level) form.setValue("governance.compliance_level", suggestions.compliance_level, { shouldDirty: true });
+        }
+      } catch (err) {
+        console.error(`Error generating section ${section}:`, err);
+      }
+    }
+
+    toast({
+      title: "Profile generation complete",
+      description: "All 8 sections have been configured by AI. Please review the tabs.",
+    });
+  };
 
   const handleGenerate = () => {
     const brand = form.getValues("brand");
@@ -59,9 +132,15 @@ export function BrandContextSection() {
           if (suggestions.business_model) form.setValue("brand.business_model", suggestions.business_model as "B2B" | "DTC" | "Marketplace" | "Hybrid", { shouldDirty: true });
           if (suggestions.primary_geography) form.setValue("brand.primary_geography", suggestions.primary_geography as string[], { shouldDirty: true });
           if (suggestions.revenue_band) form.setValue("brand.revenue_band", suggestions.revenue_band as string, { shouldDirty: true });
+          
           toast({
-            title: "AI suggestions applied",
-            description: "Review and adjust the generated values as needed.",
+            title: "Brand context generated",
+            description: "Initiating full profile generation based on this context...",
+          });
+
+          handleGenerateAll({
+            ...brand,
+            ...suggestions
           });
         },
       }
