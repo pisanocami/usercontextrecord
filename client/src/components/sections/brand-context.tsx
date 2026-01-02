@@ -4,6 +4,9 @@ import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessa
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TagInput } from "@/components/tag-input";
+import { AIGenerateButton } from "@/components/ai-generate-button";
+import { useAIGenerate } from "@/hooks/use-ai-generate";
+import { useToast } from "@/hooks/use-toast";
 import { Building2, Info } from "lucide-react";
 import type { InsertConfiguration } from "@shared/schema";
 
@@ -39,19 +42,51 @@ const INDUSTRIES = [
 
 export function BrandContextSection() {
   const form = useFormContext<InsertConfiguration>();
+  const { toast } = useToast();
+  const { generate, isGenerating } = useAIGenerate();
+
+  const handleGenerate = () => {
+    const brand = form.getValues("brand");
+    generate(
+      {
+        section: "brand",
+        context: { name: brand.name, domain: brand.domain },
+      },
+      {
+        onSuccess: (data) => {
+          const suggestions = data.suggestions as Record<string, unknown>;
+          if (suggestions.industry) form.setValue("brand.industry", suggestions.industry as string, { shouldDirty: true });
+          if (suggestions.business_model) form.setValue("brand.business_model", suggestions.business_model as "B2B" | "DTC" | "Marketplace" | "Hybrid", { shouldDirty: true });
+          if (suggestions.primary_geography) form.setValue("brand.primary_geography", suggestions.primary_geography as string[], { shouldDirty: true });
+          if (suggestions.revenue_band) form.setValue("brand.revenue_band", suggestions.revenue_band as string, { shouldDirty: true });
+          toast({
+            title: "AI suggestions applied",
+            description: "Review and adjust the generated values as needed.",
+          });
+        },
+      }
+    );
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Building2 className="h-6 w-6" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Building2 className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Brand Context</h2>
+            <p className="text-muted-foreground">
+              Define your brand identity and market positioning to inform confidence thresholds and seasonality interpretation.
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Brand Context</h2>
-          <p className="text-muted-foreground">
-            Define your brand identity and market positioning to inform confidence thresholds and seasonality interpretation.
-          </p>
-        </div>
+        <AIGenerateButton
+          onClick={handleGenerate}
+          isGenerating={isGenerating}
+          disabled={!form.getValues("brand.name") && !form.getValues("brand.domain")}
+        />
       </div>
 
       <Card>

@@ -2,13 +2,19 @@
 
 ## Overview
 
-This is a B2B SaaS configuration platform for marketing intelligence. The application allows enterprise users to configure brand context, competitive sets, demand definitions, and strategic guardrails for marketing intelligence systems. It follows an enterprise-grade design system (Carbon/IBM-inspired) with robust form handling and governance controls.
+This is a B2B SaaS configuration platform for marketing intelligence with enterprise-grade security. The application allows authenticated users to configure brand context, competitive sets, demand definitions, and strategic guardrails with AI-powered suggestions and persistent storage.
 
-The platform is a full-stack TypeScript application with a React frontend and Express backend, using in-memory storage that can be extended to PostgreSQL.
+Key features:
+- **Secure Authentication**: Sign in with Google, GitHub, Apple, or email via Replit Auth
+- **AI-Powered Suggestions**: Generate configuration values using OpenAI (via Replit AI Integrations)
+- **Persistent Storage**: PostgreSQL database for secure data persistence
+- **8 Configuration Sections**: Brand Context, Category Definition, Competitive Set, Demand Definition, Strategic Intent, Channel Context, Negative Scope, and Governance
+- **Full Auditability**: CMO-safe governance with human override tracking
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Language: Spanish preferred for communication.
 
 ## System Architecture
 
@@ -19,46 +25,75 @@ Preferred communication style: Simple, everyday language.
 - **UI Components**: shadcn/ui component library built on Radix UI primitives
 - **Styling**: Tailwind CSS with CSS variables for theming (light/dark mode support)
 - **Build Tool**: Vite with hot module replacement
+- **Authentication**: useAuth hook with Replit Auth integration
 
-The frontend follows a section-based configuration wizard pattern with a persistent sidebar navigation. Each configuration section (Brand Context, Category Definition, Competitive Set, etc.) is a separate form component that shares state through React Hook Form's FormProvider.
+The frontend features:
+- Landing page for unauthenticated users
+- Section-based configuration wizard with persistent sidebar navigation
+- AI generation buttons on each section for intelligent suggestions
+- User avatar dropdown with logout functionality
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
 - **API Pattern**: RESTful JSON API with `/api` prefix
+- **Authentication**: Replit Auth with OIDC (OpenID Connect), session-based with PostgreSQL storage
 - **Validation**: Zod schemas shared between client and server (in `shared/schema.ts`)
-- **Storage**: Memory-based storage with interface abstraction for future database integration
+- **Storage**: PostgreSQL database via Drizzle ORM
+- **AI Integration**: OpenAI via Replit AI Integrations (no API key required)
 
-The backend serves both the API and static files in production. Development uses Vite's dev server with proxy to Express.
+### Database Schema
+- **users**: User accounts from Replit Auth
+- **sessions**: Session storage for authentication
+- **configurations**: User configuration data (JSON columns for each section)
+- **conversations/messages**: Chat storage (for future AI chat features)
 
-### Data Flow
-1. Configuration data flows from the form UI → React Hook Form → TanStack Query mutations → Express API → Storage layer
-2. Zod schemas in `shared/schema.ts` provide type-safe validation on both client and server
-3. The storage interface (`IStorage`) abstracts persistence, currently using `MemStorage` but designed for easy PostgreSQL migration via Drizzle ORM
+### API Endpoints
+- `GET/POST /api/configuration` - Protected configuration CRUD (user-scoped)
+- `POST /api/ai/generate` - AI-powered section suggestions
+- `GET /api/auth/user` - Current authenticated user
+- `/api/login`, `/api/logout`, `/api/callback` - Auth flow
 
-### Key Design Decisions
-- **Shared Schema Pattern**: Zod schemas are defined once in `shared/` and used for both TypeScript types and runtime validation on client and server
-- **Section-Based Navigation**: The UI is organized into logical configuration sections with unsaved changes tracking and "CMO Safe" status indicators
-- **Form-Heavy UX**: Extensive use of tag inputs, radio groups, sliders, and switches for complex nested configuration objects
-- **Theme Support**: CSS variable-based theming with light/dark mode toggle persisted to localStorage
+### Security Features
+- All configuration routes protected with `isAuthenticated` middleware
+- User-scoped data (each user sees only their own configurations)
+- Session-based auth with PostgreSQL storage
+- HTTPS-only cookies in production
 
 ## External Dependencies
 
 ### Database
-- **Drizzle ORM**: Configured for PostgreSQL but currently using in-memory storage
-- **PostgreSQL**: Database schema defined in `shared/schema.ts`, requires `DATABASE_URL` environment variable when using Drizzle
+- **PostgreSQL**: Primary database via Neon
+- **Drizzle ORM**: Type-safe database queries
+- **connect-pg-simple**: PostgreSQL session storage
+
+### Authentication
+- **openid-client**: OIDC protocol implementation
+- **passport**: Authentication middleware
+- **express-session**: Session management
+
+### AI
+- **OpenAI SDK**: AI completions (via Replit AI Integrations)
+- Uses `gpt-4o` model for intelligent suggestions
+- No API key required - uses Replit's integrated AI
 
 ### UI Libraries
-- **Radix UI**: Headless component primitives (dialog, dropdown, tabs, etc.)
-- **shadcn/ui**: Pre-styled component collection built on Radix
+- **Radix UI**: Headless component primitives
+- **shadcn/ui**: Pre-styled component collection
 - **Lucide React**: Icon library
-- **Embla Carousel**: Carousel component
-- **CMDK**: Command palette component
 
 ### Form & Validation
-- **React Hook Form**: Form state management with `@hookform/resolvers` for Zod integration
-- **Zod**: Schema validation and TypeScript type inference
-- **zod-validation-error**: Human-readable validation error messages
+- **React Hook Form**: Form state management
+- **Zod**: Schema validation
+- **zod-validation-error**: Human-readable errors
 
 ### Fonts
-- **IBM Plex Sans**: Primary UI font (loaded via Google Fonts CDN)
+- **IBM Plex Sans**: Primary UI font (Carbon Design System)
 - **IBM Plex Mono**: Monospace font for code/JSON display
+
+## Recent Changes
+
+- Added PostgreSQL database for persistent storage
+- Integrated Replit Auth for secure authentication
+- Added AI-powered "Generate with AI" buttons on configuration sections
+- Created landing page for unauthenticated users
+- User-scoped configurations (each user has their own data)

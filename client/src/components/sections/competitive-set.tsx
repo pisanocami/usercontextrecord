@@ -2,24 +2,58 @@ import { useFormContext } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { TagInput } from "@/components/tag-input";
+import { AIGenerateButton } from "@/components/ai-generate-button";
+import { useAIGenerate } from "@/hooks/use-ai-generate";
+import { useToast } from "@/hooks/use-toast";
 import { Users, Info, Target, TrendingUp, Store } from "lucide-react";
 import type { InsertConfiguration } from "@shared/schema";
 
 export function CompetitiveSetSection() {
   const form = useFormContext<InsertConfiguration>();
+  const { toast } = useToast();
+  const { generate, isGenerating } = useAIGenerate();
+
+  const handleGenerate = () => {
+    const brand = form.getValues("brand");
+    generate(
+      {
+        section: "competitors",
+        context: { name: brand.name, industry: brand.industry, business_model: brand.business_model },
+      },
+      {
+        onSuccess: (data) => {
+          const suggestions = data.suggestions as Record<string, unknown>;
+          if (suggestions.direct) form.setValue("competitors.direct", suggestions.direct as string[], { shouldDirty: true });
+          if (suggestions.indirect) form.setValue("competitors.indirect", suggestions.indirect as string[], { shouldDirty: true });
+          if (suggestions.marketplaces) form.setValue("competitors.marketplaces", suggestions.marketplaces as string[], { shouldDirty: true });
+          toast({
+            title: "AI suggestions applied",
+            description: "Review and adjust the generated competitors as needed.",
+          });
+        },
+      }
+    );
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Users className="h-6 w-6" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Users className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Competitive Set</h2>
+            <p className="text-muted-foreground">
+              Define who you compare against. Direct vs indirect must be distinguished.
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Competitive Set</h2>
-          <p className="text-muted-foreground">
-            Define who you compare against. Direct vs indirect must be distinguished.
-          </p>
-        </div>
+        <AIGenerateButton
+          onClick={handleGenerate}
+          isGenerating={isGenerating}
+          disabled={!form.getValues("brand.name")}
+        />
       </div>
 
       <div className="grid gap-6">

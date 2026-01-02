@@ -3,24 +3,58 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { TagInput } from "@/components/tag-input";
+import { AIGenerateButton } from "@/components/ai-generate-button";
+import { useAIGenerate } from "@/hooks/use-ai-generate";
+import { useToast } from "@/hooks/use-toast";
 import { Layers, Info, Check, X } from "lucide-react";
 import type { InsertConfiguration } from "@shared/schema";
 
 export function CategoryDefinitionSection() {
   const form = useFormContext<InsertConfiguration>();
+  const { toast } = useToast();
+  const { generate, isGenerating } = useAIGenerate();
+
+  const handleGenerate = () => {
+    const brand = form.getValues("brand");
+    generate(
+      {
+        section: "category",
+        context: { industry: brand.industry, business_model: brand.business_model },
+      },
+      {
+        onSuccess: (data) => {
+          const suggestions = data.suggestions as Record<string, unknown>;
+          if (suggestions.primary_category) form.setValue("category_definition.primary_category", suggestions.primary_category as string, { shouldDirty: true });
+          if (suggestions.included) form.setValue("category_definition.included", suggestions.included as string[], { shouldDirty: true });
+          if (suggestions.excluded) form.setValue("category_definition.excluded", suggestions.excluded as string[], { shouldDirty: true });
+          toast({
+            title: "AI suggestions applied",
+            description: "Review and adjust the generated categories as needed.",
+          });
+        },
+      }
+    );
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Layers className="h-6 w-6" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Layers className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Category Definition</h2>
+            <p className="text-muted-foreground">
+              Create a semantic fence to define what category you are operating in.
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Category Definition</h2>
-          <p className="text-muted-foreground">
-            Create a semantic fence to define what category you are operating in.
-          </p>
-        </div>
+        <AIGenerateButton
+          onClick={handleGenerate}
+          isGenerating={isGenerating}
+          disabled={!form.getValues("brand.industry")}
+        />
       </div>
 
       <Card>

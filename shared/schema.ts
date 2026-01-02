@@ -1,4 +1,27 @@
 import { z } from "zod";
+import { pgTable, serial, text, jsonb, timestamp, varchar } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+
+// Re-export auth and chat models
+export * from "./models/auth";
+export * from "./models/chat";
+
+// Configurations table for persistent storage
+export const configurations = pgTable("configurations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  brand: jsonb("brand").notNull(),
+  category_definition: jsonb("category_definition").notNull(),
+  competitors: jsonb("competitors").notNull(),
+  demand_definition: jsonb("demand_definition").notNull(),
+  strategic_intent: jsonb("strategic_intent").notNull(),
+  channel_context: jsonb("channel_context").notNull(),
+  negative_scope: jsonb("negative_scope").notNull(),
+  governance: jsonb("governance").notNull(),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
 
 // Brand Context Schema - validation is optional to allow partial saves
 export const brandSchema = z.object({
