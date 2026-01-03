@@ -189,7 +189,7 @@ export function GovernanceSection() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Model Configuration</CardTitle>
+          <CardTitle className="text-lg">AI Model Settings</CardTitle>
           <CardDescription>Control how model suggestions are handled</CardDescription>
         </CardHeader>
         <CardContent>

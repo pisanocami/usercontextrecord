@@ -41,7 +41,7 @@ export function LandingPage() {
 
         <section className="border-t bg-muted/50 py-16">
           <div className="container px-4">
-            <h2 className="mb-12 text-center text-2xl font-semibold">8 Configuration Sections</h2>
+            <h2 className="mb-12 text-center text-2xl font-semibold">8 Context Sections</h2>
             <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="pb-2">
@@ -124,11 +124,11 @@ export function LandingPage() {
               <Brain className="mx-auto mb-4 h-10 w-10 text-primary" />
               <h2 className="mb-4 text-2xl font-semibold">AI-Powered Suggestions</h2>
               <p className="mb-6 text-muted-foreground">
-                Get intelligent recommendations for each configuration section. 
+                Get intelligent recommendations for each context section. 
                 AI suggestions are clearly marked with full human control over acceptance.
               </p>
               <Button size="lg" asChild data-testid="button-start-configuring">
-                <a href="/api/login">Start Configuring</a>
+                <a href="/api/login">Get Started</a>
               </Button>
             </div>
           </div>
@@ -138,7 +138,7 @@ export function LandingPage() {
       <footer className="border-t py-6">
         <div className="container flex items-center justify-center px-4">
           <p className="text-sm text-muted-foreground">
-            Brand Intelligence Configuration Platform
+            Brand Intelligence Context Platform
           </p>
         </div>
       </footer>
