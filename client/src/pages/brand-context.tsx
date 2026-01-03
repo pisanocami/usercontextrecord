@@ -59,6 +59,14 @@ export function BrandContextPage() {
         domain: "Oofos.com",
         industry: "Recovery Footwear",
         business_model: "DTC",
+      },
+      strategic_intent: {
+        ...defaultConfiguration.strategic_intent,
+        primary_goal: "Ensure consistent usage of approved brand assets, reducing errors in marketing materials by 25%.",
+        secondary_goals: [
+          "Create a mandatory onboarding session for new employees focused on brand standards.",
+          "Conduct annual refresher courses for all staff to reinforce knowledge and cover updates to the brand."
+        ],
       }
     },
     mode: "onChange",
