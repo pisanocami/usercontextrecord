@@ -59,6 +59,8 @@ interface KeywordGapResult {
   configuration_name: string;
 }
 
+type ContextStatus = "DRAFT_AI" | "AI_READY" | "AI_ANALYSIS_RUN" | "HUMAN_CONFIRMED" | "LOCKED";
+
 interface Configuration {
   id: number;
   name: string;
@@ -77,6 +79,8 @@ interface Configuration {
     enforcement_rules?: {
       hard_exclusion: boolean;
     };
+    excluded_categories?: string[];
+    excluded_keywords?: string[];
   };
   governance?: {
     quality_score?: {
@@ -84,6 +88,10 @@ interface Configuration {
     };
     validation_status?: string;
     human_verified?: boolean;
+    context_status?: ContextStatus;
+    context_confidence?: {
+      level: "high" | "medium" | "low";
+    };
   };
 }
 
@@ -120,38 +128,111 @@ interface KeywordGapLiteResult {
   configurationName: string;
 }
 
-// READY_FOR_ANALYSIS validation logic
-function checkAnalysisReadiness(config: Configuration | undefined) {
+// Auto-checks for AI_READY transition (determines if context can run AI analysis)
+function runAutoChecks(config: Configuration | undefined) {
   if (!config) {
-    return { isReady: false, reasons: ["Context not loaded"] };
+    return { passed: false, checks: [{ name: "Context loaded", passed: false }] };
   }
   
-  const reasons: string[] = [];
+  const checks: { name: string; passed: boolean }[] = [];
   
-  // Check category fence (Included + Excluded not empty)
+  // Check 1: Category Included not empty
   const hasIncluded = (config.category_definition?.included?.length || 0) > 0;
-  const hasExcluded = (config.category_definition?.excluded?.length || 0) > 0;
-  if (!hasIncluded || !hasExcluded) {
-    reasons.push("Category fence incomplete");
-  }
+  checks.push({ name: "Category fence (included terms)", passed: hasIncluded });
   
-  // Check at least 2 direct competitors approved
+  // Check 2: Negative Scope not empty (has exclusions)
+  const hasNegativeScope = (
+    (config.negative_scope?.excluded_categories?.length || 0) > 0 ||
+    (config.negative_scope?.excluded_keywords?.length || 0) > 0
+  );
+  checks.push({ name: "Negative scope defined", passed: hasNegativeScope });
+  
+  // Check 3: At least 2 direct competitors with domain
   const approvedCompetitors = config.competitors?.competitors?.filter(c => c.status === "approved")?.length || 0;
   const directCompetitors = config.competitors?.direct?.length || 0;
-  if ((approvedCompetitors + directCompetitors) < 2) {
-    reasons.push("At least 2 competitors required");
-  }
+  const hasCompetitors = (approvedCompetitors + directCompetitors) >= 2;
+  checks.push({ name: "2+ competitors defined", passed: hasCompetitors });
   
-  // Check hard exclusion enabled
+  // Check 4: Hard exclusions active
   const hardExclusionEnabled = config.negative_scope?.enforcement_rules?.hard_exclusion !== false;
-  if (!hardExclusionEnabled) {
-    reasons.push("Hard exclusion not enabled");
+  checks.push({ name: "Hard exclusions enabled", passed: hardExclusionEnabled });
+  
+  // Check 5: Confidence not low
+  const confidenceNotLow = config.governance?.context_confidence?.level !== "low";
+  checks.push({ name: "Context confidence not low", passed: confidenceNotLow });
+  
+  const allPassed = checks.every(c => c.passed);
+  
+  return { passed: allPassed, checks };
+}
+
+// Determine effective context status based on auto-checks and stored status
+function getEffectiveContextStatus(config: Configuration | undefined): {
+  status: ContextStatus;
+  autoChecks: ReturnType<typeof runAutoChecks>;
+} {
+  const autoChecks = runAutoChecks(config);
+  const storedStatus = config?.governance?.context_status || "DRAFT_AI";
+  
+  // If stored status is DRAFT_AI but auto-checks pass, it's effectively AI_READY
+  if (storedStatus === "DRAFT_AI" && autoChecks.passed) {
+    return { status: "AI_READY", autoChecks };
   }
   
-  return {
-    isReady: reasons.length === 0,
-    reasons,
-  };
+  // If stored status is AI_READY but auto-checks fail, it's effectively DRAFT_AI
+  if (storedStatus === "AI_READY" && !autoChecks.passed) {
+    return { status: "DRAFT_AI", autoChecks };
+  }
+  
+  return { status: storedStatus, autoChecks };
+}
+
+// Helper for context status display
+function getContextStatusInfo(status: ContextStatus) {
+  switch (status) {
+    case "DRAFT_AI":
+      return { 
+        label: "Draft (AI)", 
+        color: "text-gray-600 dark:text-gray-400",
+        bgColor: "bg-gray-100 dark:bg-gray-800",
+        description: "Auto-checks not yet passed" 
+      };
+    case "AI_READY":
+      return { 
+        label: "AI Ready", 
+        color: "text-amber-600 dark:text-amber-400",
+        bgColor: "bg-amber-100 dark:bg-amber-900/30",
+        description: "Ready for AI-generated analysis" 
+      };
+    case "AI_ANALYSIS_RUN":
+      return { 
+        label: "AI Analysis Run", 
+        color: "text-blue-600 dark:text-blue-400",
+        bgColor: "bg-blue-100 dark:bg-blue-900/30",
+        description: "Results are provisional, pending validation" 
+      };
+    case "HUMAN_CONFIRMED":
+      return { 
+        label: "Human Confirmed", 
+        color: "text-green-600 dark:text-green-400",
+        bgColor: "bg-green-100 dark:bg-green-900/30",
+        description: "Analysis adopted and validated" 
+      };
+    case "LOCKED":
+      return { 
+        label: "Locked", 
+        color: "text-purple-600 dark:text-purple-400",
+        bgColor: "bg-purple-100 dark:bg-purple-900/30",
+        description: "Context is locked" 
+      };
+    default:
+      return { 
+        label: status, 
+        color: "text-gray-600",
+        bgColor: "bg-gray-100",
+        description: "" 
+      };
+  }
 }
 
 export default function KeywordGap() {
@@ -319,8 +400,14 @@ export default function KeywordGap() {
     ...(config.competitors?.indirect || []),
   ].slice(0, 10);
 
-  // Check analysis readiness (READY_FOR_ANALYSIS gate)
-  const analysisReadiness = checkAnalysisReadiness(config);
+  // Get effective context status (auto-checks determine if AI_READY)
+  const { status: contextStatus, autoChecks } = getEffectiveContextStatus(config);
+  const statusInfo = getContextStatusInfo(contextStatus);
+  
+  // Can run analysis if AI_READY or higher
+  const canRunAnalysis = ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED"].includes(contextStatus);
+  const isProvisional = contextStatus === "AI_READY" || contextStatus === "AI_ANALYSIS_RUN";
+  const isConfirmed = contextStatus === "HUMAN_CONFIRMED" || contextStatus === "LOCKED";
 
   const result = analyzeMutation.data;
 
@@ -403,54 +490,73 @@ export default function KeywordGap() {
                 Quick Analysis
               </CardTitle>
               <CardDescription>
-                {analysisReadiness.isReady ? (
-                  <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                    <ShieldCheck className="h-3 w-3" />
-                    Context ready for controlled analysis
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="h-3 w-3" />
-                    Complete context first
-                  </span>
-                )}
+                <Badge className={`${statusInfo.bgColor} ${statusInfo.color} border-0`}>
+                  {statusInfo.label}
+                </Badge>
+                <span className="ml-2 text-xs">{statusInfo.description}</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {analysisReadiness.isReady && (
-                <p className="text-xs text-muted-foreground border rounded-md p-2 bg-muted/50">
-                  This context has been reviewed at a high level. All outputs will strictly respect defined category fences and exclusions.
-                </p>
-              )}
-              {!analysisReadiness.isReady && analysisReadiness.reasons.length > 0 && (
-                <div className="text-xs text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 rounded-md p-2 bg-amber-50/50 dark:bg-amber-950/20">
-                  <ul className="list-disc list-inside space-y-1">
-                    {analysisReadiness.reasons.map((reason, i) => (
-                      <li key={i}>{reason}</li>
+              {/* Auto-checks status */}
+              {!autoChecks.passed && (
+                <div className="text-xs border rounded-md p-3 bg-muted/50">
+                  <p className="font-medium mb-2">Auto-Checks Required:</p>
+                  <ul className="space-y-1">
+                    {autoChecks.checks.map((check, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        {check.passed ? (
+                          <CheckCircle className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <XCircle className="h-3 w-3 text-red-500" />
+                        )}
+                        <span className={check.passed ? "text-muted-foreground" : ""}>{check.name}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
+              
+              {/* AI-Ready messaging */}
+              {canRunAnalysis && isProvisional && (
+                <div className="text-xs border border-amber-200 dark:border-amber-800 rounded-md p-3 bg-amber-50/50 dark:bg-amber-950/20">
+                  <p className="font-medium text-amber-700 dark:text-amber-300 mb-1">AI-Generated Mode</p>
+                  <p className="text-amber-600 dark:text-amber-400">
+                    Results will be generated automatically and must be reviewed before adoption.
+                  </p>
+                </div>
+              )}
+              
+              {/* Human Confirmed messaging */}
+              {isConfirmed && (
+                <div className="text-xs border border-green-200 dark:border-green-800 rounded-md p-3 bg-green-50/50 dark:bg-green-950/20">
+                  <p className="font-medium text-green-700 dark:text-green-300 mb-1">Human Confirmed</p>
+                  <p className="text-green-600 dark:text-green-400">
+                    This context has been validated and adopted. Analysis results are official.
+                  </p>
+                </div>
+              )}
+
               <Button
                 className="w-full"
                 onClick={() => liteMutation.mutate()}
-                disabled={liteMutation.isPending || !analysisReadiness.isReady}
+                disabled={liteMutation.isPending || !canRunAnalysis}
                 data-testid="button-gap-lite"
               >
                 {liteMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <>
-                    <ShieldCheck className="h-4 w-4 mr-2" />
-                  </>
+                  <Zap className="h-4 w-4 mr-2" />
                 )}
-                Run Keyword Gap Lite (Fence-Enforced)
+                {isProvisional ? "Run Keyword Gap (AI-Generated)" : "Run Keyword Gap Lite"}
               </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                {isProvisional && "Results are provisional until human validation"}
+              </p>
               <Button
                 className="w-full"
                 variant="secondary"
                 onClick={() => compareAllMutation.mutate()}
-                disabled={compareAllMutation.isPending || !analysisReadiness.isReady}
+                disabled={compareAllMutation.isPending || !canRunAnalysis}
                 data-testid="button-compare-all"
               >
                 {compareAllMutation.isPending ? (
@@ -478,6 +584,19 @@ export default function KeywordGap() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2 flex-wrap">
+                  {/* AI-Generated Badge - visible when provisional */}
+                  {isProvisional && (
+                    <Badge className="flex items-center gap-1 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 border-amber-300">
+                      <AlertTriangle className="h-3 w-3" />
+                      AI-Generated - Pending Validation
+                    </Badge>
+                  )}
+                  {isConfirmed && (
+                    <Badge className="flex items-center gap-1 text-xs bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200">
+                      <CheckCircle className="h-3 w-3" />
+                      Human Confirmed
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="flex items-center gap-1 text-xs">
                     <ShieldCheck className="h-3 w-3" />
                     v{liteMutation.data.contextVersion}
@@ -500,6 +619,14 @@ export default function KeywordGap() {
                   </Badge>
                 </div>
               </div>
+              {/* AI-Generated warning banner */}
+              {isProvisional && (
+                <div className="mt-4 text-sm p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
+                  <strong>This analysis was generated using an AI-proposed context.</strong>
+                  <br />
+                  Review context and exclusions before approving.
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <Accordion type="multiple" className="w-full">
@@ -595,6 +722,26 @@ export default function KeywordGap() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Approve Context & Adopt Analysis button - only shown when provisional */}
+              {isProvisional && liteMutation.data && (
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-sm text-muted-foreground">
+                      <p className="font-medium">Ready to adopt this analysis?</p>
+                      <p className="text-xs">This will mark the context as Human Confirmed and make results official.</p>
+                    </div>
+                    <Button 
+                      size="lg"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      data-testid="button-approve-adopt"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve Context & Adopt Analysis
+                    </Button>
                   </div>
                 </div>
               )}

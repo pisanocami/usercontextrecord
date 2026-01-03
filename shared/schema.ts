@@ -295,6 +295,17 @@ export const aiBehaviorContractSchema = z.object({
   violation_details: z.string().optional(),
 });
 
+// Context Status enum - workflow states for AI-First vs Human-Confirmed modes
+export const contextStatusEnum = z.enum([
+  "DRAFT_AI",           // Initial AI-generated draft, not ready for analysis
+  "AI_READY",           // Auto-checks passed, can run AI analysis
+  "AI_ANALYSIS_RUN",    // Keyword Gap has been run, results are provisional
+  "HUMAN_CONFIRMED",    // Human has validated and adopted the analysis
+  "LOCKED",             // Context is locked, no further changes allowed
+]);
+
+export type ContextStatus = z.infer<typeof contextStatusEnum>;
+
 // Governance Schema
 export const governanceSchema = z.object({
   model_suggested: z.boolean(),
@@ -318,6 +329,11 @@ export const governanceSchema = z.object({
   human_verified: z.boolean().default(false),
   human_verified_at: z.string().optional(), // ISO date when human verified
   blocked_reasons: z.array(z.string()).default([]), // Why validation is blocked
+  // Context Status - AI-First workflow states
+  context_status: contextStatusEnum.default("DRAFT_AI"),
+  context_status_updated_at: z.string().optional(), // ISO date when status changed
+  analysis_run_at: z.string().optional(), // ISO date when AI analysis was run
+  adopted_at: z.string().optional(), // ISO date when analysis was adopted
   // Phase 4: Quality Score & AI Behavior
   quality_score: contextQualityScoreSchema.default({
     completeness: 0,
@@ -523,6 +539,8 @@ export const defaultConfiguration: InsertConfiguration = {
     validation_status: "incomplete",
     human_verified: false,
     blocked_reasons: [],
+    context_status: "DRAFT_AI" as const,
+    context_status_updated_at: new Date().toISOString(),
     quality_score: {
       completeness: 0,
       competitor_confidence: 0,

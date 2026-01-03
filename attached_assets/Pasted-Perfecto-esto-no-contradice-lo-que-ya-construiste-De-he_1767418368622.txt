@@ -1,0 +1,178 @@
+Perfecto — esto no contradice lo que ya construiste. De hecho, lo que Susan quiere es exactamente un segundo modo, no otro producto.
+
+Te lo dejo claro, simple y demo-ready.
+
+Dos modos explícitos (y visibles)
+👉 IA-First y Human-Confirmed
+
+No es “o uno u otro”. Es secuencia controlada.
+
+🧠 MODO 1 — 100% AI (Auto-Run, luego validar)
+
+Este es el que Susan quiere también.
+
+Qué significa (importante)
+
+El sistema SÍ corre Keyword Gap sin intervención humana
+
+PERO:
+
+lo marca como AI-Generated
+
+lo encapsula como PROVISIONAL
+
+no se puede usar para decisiones finales hasta validar
+
+🧱 Estados correctos del contexto (MVP)
+
+Agregá estos estados exactos (no más):
+
+DRAFT_AI
+AI_READY
+AI_ANALYSIS_RUN
+HUMAN_CONFIRMED
+LOCKED
+
+Flujo real
+DRAFT_AI
+   ↓ (auto-checks pasan)
+AI_READY
+   ↓ (run keyword gap)
+AI_ANALYSIS_RUN
+   ↓ (human validates)
+HUMAN_CONFIRMED
+   ↓ (optional)
+LOCKED
+
+🔑 Regla CLAVE (esto alinea todo)
+
+Keyword Gap puede correr en AI_READY
+Pero solo se “adopta” en HUMAN_CONFIRMED
+
+Esto es exactamente lo que Susan quiere:
+
+velocidad primero
+
+control después
+
+Cómo se ve en UI (importantísimo)
+Botón principal (cuando AI_READY)
+
+🟡 Run Keyword Gap (AI-Generated)
+Subtitle:
+
+Results will be generated automatically and must be reviewed before adoption.
+
+Esto comunica:
+
+velocidad
+
+honestidad
+
+control posterior
+
+Badge en resultados (NO lo escondas)
+
+En la tabla de keywords:
+
+⚠️ AI-Generated · Pending Validation
+
+Y arriba del módulo:
+
+This analysis was generated using an AI-proposed context.
+Review context and exclusions before approving.
+
+Susan quiere ver esto, no lo contrario.
+
+Qué validaciones mínimas exige el modo 100% IA
+
+(para que no sea suicida)
+
+Antes de permitir AI_READY, el sistema corre checks automáticos:
+
+Auto-Checks (sin humanos)
+
+Category Included no vacío
+
+Negative Scope no vacío
+
+≥2 competidores directos con dominio
+
+Hard exclusions activas
+
+Confidence ≠ low
+
+Si pasan → AI_READY
+
+Si no → DRAFT_AI (bloqueado)
+
+Governance (cómo lo ajustás ahora)
+Para UPS (ejemplo real)
+Confidence Level: medium
+Validation Status: AI-generated
+Human Verified: No
+CMO Safe: No
+Context Status: AI_READY
+
+
+Después de correr Keyword Gap:
+
+Context Status: AI_ANALYSIS_RUN
+
+
+Después de que Susan valide:
+
+Human Verified: Yes
+Validation Status: Human Confirmed
+Context Status: HUMAN_CONFIRMED
+CMO Safe: Optional
+
+Keyword Gap: dos salidas claras
+1️⃣ AI Output (rápido)
+
+Gap keywords
+
+Badges ✅ / ⚠️ / ⛔
+
+“Seen on competitors”
+
+Sin promesas, sin roadmap
+
+2️⃣ Adoption step (post-validación)
+
+Botón:
+
+Approve Context & Adopt Keyword Gap
+
+Solo ahí:
+
+se guarda como “oficial”
+
+se habilitan otros módulos
+
+Qué le decís a Susan (script exacto, 30s)
+
+“El sistema puede correr 100% con IA.
+Pero todo queda claramente marcado como provisional.
+Vos ves el output primero — rápido —
+y después decidís si ese contexto merece ser adoptado.”
+
+Eso es exactamente enterprise-grade AI.
+
+En resumen (lo más importante)
+
+✔️ Sí hay modo 100% IA
+✔️ Corre Keyword Gap sin humanos
+✔️ Pero nunca se confunde con verdad final
+✔️ La validación es posterior, explícita y visible
+
+Eso no es debilidad.
+Eso es confianza real en producción.
+
+Si querés, el próximo paso natural es:
+
+definir qué cambia visualmente entre AI-Generated vs Human-Confirmed, o
+
+diseñar el “Approve Context & Adopt Analysis” flow en 1 pantalla.
+
+Decime cuál seguimos.
