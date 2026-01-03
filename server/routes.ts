@@ -1043,7 +1043,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     }
   });
 
-  app.post("/api/keyword-gap-lite/run", async (req, res) => {
+  app.post("/api/keyword-gap-lite/run", async (req: any, res) => {
     try {
       if (!checkCredentialsConfigured()) {
         return res.status(503).json({ 
@@ -1064,7 +1064,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
         return res.status(400).json({ error: "configurationId is required" });
       }
 
-      const userId = "anonymous-user";
+      const userId = (req.user as any)?.id || "anonymous-user";
       const config = await storage.getConfigurationById(configurationId, userId);
 
       if (!config) {

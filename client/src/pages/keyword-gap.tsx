@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -23,6 +24,10 @@ import {
   BarChart3,
   Users,
   Minus,
+  Zap,
+  CheckCircle,
+  XCircle,
+  HelpCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -59,6 +64,30 @@ interface Configuration {
   name: string;
   brand: { domain: string; name: string };
   competitors: { direct: string[]; indirect: string[] };
+}
+
+interface KeywordLiteResult {
+  keyword: string;
+  normalizedKeyword: string;
+  status: "pass" | "warn" | "block";
+  statusIcon: string;
+  reason: string;
+  competitorsSeen: string[];
+  searchVolume?: number;
+  theme: string;
+}
+
+interface KeywordGapLiteResult {
+  brandDomain: string;
+  competitors: string[];
+  totalGapKeywords: number;
+  results: KeywordLiteResult[];
+  grouped: Record<string, KeywordLiteResult[]>;
+  stats: {
+    passed: number;
+    warned: number;
+    blocked: number;
+  };
 }
 
 export default function KeywordGap() {
@@ -104,6 +133,24 @@ export default function KeywordGap() {
         limit: 50,
       });
       return response.json();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const liteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/keyword-gap-lite/run", {
+        configurationId: configId,
+        limitPerDomain: 200,
+        maxCompetitors: 5,
+      });
+      return response.json() as Promise<KeywordGapLiteResult>;
     },
     onError: (error: Error) => {
       toast({
@@ -284,9 +331,25 @@ export default function KeywordGap() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Comparar Todos</CardTitle>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                Análisis Rápido
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <Button
+                className="w-full"
+                onClick={() => liteMutation.mutate()}
+                disabled={liteMutation.isPending || allCompetitors.length === 0}
+                data-testid="button-gap-lite"
+              >
+                {liteMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                Keyword Gap Lite
+              </Button>
               <Button
                 className="w-full"
                 variant="secondary"
@@ -299,14 +362,107 @@ export default function KeywordGap() {
                 ) : (
                   <Users className="h-4 w-4 mr-2" />
                 )}
-                Analizar {allCompetitors.length} competidores
+                Comparar Todos
               </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                Compara tu dominio contra todos los competidores configurados.
+              <p className="text-xs text-muted-foreground">
+                Lite: Agrupación por tema con guardrails. Comparar: Análisis completo.
               </p>
             </CardContent>
           </Card>
         </div>
+
+        {liteMutation.data && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    Resultados Keyword Gap Lite
+                  </CardTitle>
+                  <CardDescription>
+                    {liteMutation.data.brandDomain} vs {liteMutation.data.competitors.length} competidores - {liteMutation.data.totalGapKeywords} keywords de brecha encontradas
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Badge variant="default" className="flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    Válidos: {liteMutation.data.stats.passed}
+                  </Badge>
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <HelpCircle className="h-3 w-3" />
+                    Revisar: {liteMutation.data.stats.warned}
+                  </Badge>
+                  <Badge variant="destructive" className="flex items-center gap-1">
+                    <XCircle className="h-3 w-3" />
+                    Bloqueados: {liteMutation.data.stats.blocked}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="multiple" className="w-full">
+                {Object.entries(liteMutation.data.grouped).map(([theme, keywords]) => (
+                  <AccordionItem key={theme} value={theme}>
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{theme}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {keywords.length} keywords
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="border rounded-md">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-8">Estado</TableHead>
+                              <TableHead>Keyword</TableHead>
+                              <TableHead>Competidores</TableHead>
+                              <TableHead className="text-right">Razón</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {keywords.map((kw, i) => (
+                              <TableRow key={i} data-testid={`row-lite-${theme}-${i}`}>
+                                <TableCell>
+                                  <span className="text-lg" title={kw.reason}>
+                                    {kw.status === "pass" && <CheckCircle className="h-4 w-4 text-green-600" />}
+                                    {kw.status === "warn" && <HelpCircle className="h-4 w-4 text-amber-500" />}
+                                    {kw.status === "block" && <XCircle className="h-4 w-4 text-red-500" />}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="font-medium">{kw.keyword}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {kw.competitorsSeen.map((c, j) => (
+                                      <Badge key={j} variant="outline" className="text-xs">
+                                        {c}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right text-xs text-muted-foreground max-w-[200px] truncate" title={kw.reason}>
+                                  {kw.reason}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+              {Object.keys(liteMutation.data.grouped).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No se encontraron keywords de brecha que pasen los guardrails
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {result && (
           <Card className="mb-6">
