@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
   TrendingUp,
@@ -28,6 +30,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Shield,
+  Loader2,
+  Play,
+  AlertCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -227,10 +232,36 @@ export default function KeywordGapReport() {
   const params = useParams<{ id: string }>();
   const configId = params.id ? parseInt(params.id) : null;
   const [activeTab, setActiveTab] = useState("visibility");
+  const [visibilityData, setVisibilityData] = useState<VisibilityData | null>(null);
+  const { toast } = useToast();
 
   const { data: config, isLoading } = useQuery<Configuration>({
     queryKey: ["/api/configurations", configId],
     enabled: !!configId,
+  });
+
+  const visibilityMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/visibility-report", {
+        configurationId: configId,
+        limitPerDomain: 100,
+      });
+      return response.json() as Promise<VisibilityData>;
+    },
+    onSuccess: (data) => {
+      setVisibilityData(data);
+      toast({
+        title: "Report Generated",
+        description: `Analyzed ${data.summary.totalKeywordsAnalyzed} keywords across ${data.competitors.length} competitors.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Analysis Failed",
+        description: error.message || "Failed to generate visibility report",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -268,7 +299,91 @@ export default function KeywordGapReport() {
     );
   }
 
-  const visibilityData = generateMockVisibilityData(config);
+  if (!visibilityData) {
+    return (
+      <ScrollArea className="h-full">
+        <div className="container max-w-4xl py-6 px-4">
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/">
+              <Button variant="ghost" size="sm" data-testid="button-back">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <BarChart3 className="h-6 w-6" />
+                Keyword Gap Visibility Report
+              </h1>
+              <p className="text-muted-foreground">
+                {config.name} - {config.brand.domain}
+              </p>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Generate Visibility Report
+              </CardTitle>
+              <CardDescription>
+                Analyze keyword visibility across your brand and approved competitors using DataForSEO data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-md space-y-2">
+                <p className="text-sm"><span className="font-medium">Brand Domain:</span> {config.brand.domain}</p>
+                <p className="text-sm">
+                  <span className="font-medium">Approved Competitors:</span>{" "}
+                  {config.competitors?.competitors?.filter(c => c.status === "approved").length || 0}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Context Status:</span>{" "}
+                  <Badge variant="outline" className="ml-1">
+                    {config.governance?.context_status || "DRAFT_AI"}
+                  </Badge>
+                </p>
+              </div>
+
+              {visibilityMutation.error && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+                  <p className="text-sm text-destructive">
+                    {(visibilityMutation.error as any)?.message || "Failed to generate report. Please check DataForSEO credentials."}
+                  </p>
+                </div>
+              )}
+
+              <Button
+                onClick={() => visibilityMutation.mutate()}
+                disabled={visibilityMutation.isPending}
+                className="w-full"
+                data-testid="button-run-analysis"
+              >
+                {visibilityMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Analyzing Keywords...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Run Visibility Analysis
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                This will fetch live ranking data from DataForSEO for your brand and up to 5 approved competitors.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </ScrollArea>
+    );
+  }
+
   const maxKeywords = Math.max(
     visibilityData.brand.totalKeywords,
     ...visibilityData.competitors.map(c => c.totalKeywords)

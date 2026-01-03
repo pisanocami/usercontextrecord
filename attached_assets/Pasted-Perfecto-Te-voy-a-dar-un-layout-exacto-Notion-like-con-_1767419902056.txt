@@ -1,0 +1,314 @@
+Perfecto. Te voy a dar un layout exacto, Notion-like, con wireframe + bloques, y además te explico por qué tu UI actual se siente “mal” (no porque esté mal técnicamente — sino porque no está optimizada para cómo el humano valida contexto).
+
+✅ Objetivo: que Susan (y cualquier operator) pueda ver el contexto en 20s, entenderlo en 60s, y validarlo en 2 min sin fatiga.
+
+✅ Por qué tu interfaz actual se siente mal (aunque esté completa)
+
+Tu pantalla actual:
+
+es muy “dashboard”
+
+tiene demasiados paneles iguales
+
+visualmente no prioriza lo importante
+
+no guía a un humano en qué revisar primero
+
+parece “configuración técnica”, no “brief ejecutivo”
+
+todo tiene el mismo peso visual
+
+👉 Resultado: genera fatiga, confusión y poca confianza.
+
+Notion funciona porque:
+
+jerarquiza
+
+simplifica
+
+agrupa
+
+no muestra todo “a la vez”
+
+muestra “qué está listo” vs “qué falta”
+
+te deja editar sin sentir que estás “configurando un sistema”
+
+✅ El layout exacto (Notion-like)
+PAGE STRUCTURE
+[Top Bar]
+Breadcrumbs / Brand switcher / Status badge / Actions
+
+[Header Block]
+Brand Name + Domain
+Category + Market
+Confidence + Last reviewed + Owner
+Primary CTA: "Review & Lock Context"
+
+[Main Body: 2-column Notion layout]
+
+LEFT (70%) — Context Blocks
+RIGHT (30%) — Governance + Validation + Quick Actions
+
+✅ WIREFRAME (layout exacto)
+1) TOP BAR (sticky)
+Force of Nature  /  Brand Configurations  /  Halo Collar
+
+[Needs Review]   [Share]  [Export JSON]  [Run Keyword Gap Lite]
+
+
+Status badge debe ser grande y visible
+
+“Run module” debe estar arriba (porque eso es lo que el user quiere)
+
+2) HEADER BLOCK (Notion-style)
+Halo Collar
+halocollar.com
+
+Recovery Pet Tech • DTC • US
+Revenue Band: $25M–$50M
+
+Confidence: 78% (Medium)
+Last Reviewed: Jan 3, 2026 • By: Camila
+Context Version: v4 • Hash: eyJh...
+
+[Review & Lock Context]   [Request Changes]   [Approve Sections]
+
+
+✅ Este header reemplaza 6 paneles.
+
+✅ MAIN BODY — TWO COLUMN
+✅ LEFT COLUMN (70%)
+✅ A) Brand Identity (collapse block)
+▾ Brand Identity
+-----------------------------------
+Business Model: DTC
+Markets: US, CA, AU
+Primary Audience: Premium pet owners
+Positioning notes: "Smart, premium, safety"
+
+
+✅ 1 bloque simple.
+
+✅ B) Category Definition (con chips)
+▾ Category Definition
+-----------------------------------
+Primary Category: Pet Accessories & Technology
+
+Included:
+[Smart Pet Collars] [GPS Pet Trackers] [Wireless Fences] [IoT for Pets]
+
+Excluded:
+[Traditional Pet Collars] [Pet Apparel] [Non-tech Pet Toys]
+
+
+✅ Las categorías deben ser chips, no listas.
+
+✅ C) Competitive Set (split: direct / indirect)
+▾ Competitive Set
+-----------------------------------
+Direct Competitors:
+[Fi] [Whistle] [SpotOn] [Tractive] [Link My Pet]
+
+Indirect Competitors:
+[PetSafe] [Garmin] [Dogtra] [FitBark]
+
+Marketplaces:
+[Amazon] [Chewy] [Petco]
+
+
+✅ Competidores como chips clickeables.
+
+✅ D) Demand Definition (la parte más importante)
+▾ Demand Definition
+-----------------------------------
+Brand Seeds (what people search)
+[Halo collar] [Halo dog fence] [Halo GPS collar]
+
+Category Terms (what market searches)
+[wireless dog fence] [smart dog collar] [gps pet tracker]
+
+Problem Terms (why people search)
+[dog keeps escaping] [track lost dog] [keep dog safe]
+
+Top N Brand: 20
+Top N Non-brand: 30
+
+
+✅ Esto es oro. Debe ser claro y humano.
+
+✅ E) Strategic Intent (muy simple)
+▾ Strategic Intent
+-----------------------------------
+Primary Goal: Drive DTC sales
+Secondary Goals:
+• Increase brand awareness
+• Expand international footprint
+• Build subscription loyalty
+
+Avoid:
+• Low-cost positioning
+• Marketplace dependency
+• High discounting
+
+
+✅ El usuario no quiere 10 dropdowns.
+
+✅ F) Negative Scope (highlighted + always visible)
+▾ Negative Scope  ⚠️ MOST IMPORTANT
+-----------------------------------
+Excluded Categories:
+[Pet treats] [Pet grooming] [Non-tech pet products]
+
+Excluded Keywords:
+[cheap collars] [manual training devices] [homemade dog fence]
+
+Excluded Use Cases:
+[low-cost accessories] [non-safety products]
+
+Excluded Competitors:
+[DIY providers] [traditional collar brands]
+
+
+✅ Este bloque debe estar siempre visible y resaltado.
+
+✅ RIGHT COLUMN (30%)
+✅ 1) Governance Card (sticky)
+Governance
+-----------------------------------
+Human Verified: ❌ No
+CMO Safe: ❌ No
+Validation Status: Needs Review
+Confidence Level: Medium
+
+[Mark as Reviewed]   [Lock Context]
+
+
+✅ Esto guía a Susan: “todavía no está aprobado”.
+
+✅ 2) Quality Gates (mini checklist)
+Quality Gates
+-----------------------------------
+✅ All sections populated
+✅ Negative scope exists
+⚠️ Competitors not validated
+⚠️ Category fence not verified
+
+Next recommended action:
+→ Validate competitor set
+
+✅ 3) Suggested Fixes (AI)
+AI Suggestions
+-----------------------------------
+• Add competitor size constraints
+• Confirm marketplace relevance
+• Validate exclusions vs category
+
+✅ BLOCK INTERACTIONS (Notion-like)
+
+Cada bloque tiene:
+
+✅ “Edit”
+
+✅ “Approve”
+
+✅ “Regenerate”
+
+✅ “Audit Log”
+
+✅ (optional) “Explain why”
+
+Ejemplo:
+
+▾ Competitive Set                      [Edit] [Approve] [Regenerate] [Audit]
+
+✅ The “Approval Flow” (esto es lo más importante)
+
+Susan tiene razón: competitor selection puede fallar, y si falla, todo se cae.
+
+Entonces el UX debe empujar a esto:
+
+✅ Approve por sección
+✅ Lock solo cuando:
+
+Competitors approved
+
+Negative scope confirmed
+
+Category fence confirmed
+
+✅ MINIMUM PERFECT VERSION (para demo)
+
+Para que Susan quede tranquila, tu demo debe mostrar:
+
+Context generado
+
+Competitors sugeridos
+
+Human checks “Approve”
+
+Context becomes “LOCKED”
+
+Now you can run Keyword Gap Lite
+
+✅ BLOQUES EXACTOS (para que lo copies)
+
+📌 Left column blocks:
+
+Brand Identity
+
+Category Definition
+
+Competitive Set
+
+Demand Definition
+
+Strategic Intent
+
+Negative Scope (highlight)
+
+📌 Right column blocks:
+
+Governance & Approval
+
+Quality Gates checklist
+
+AI Suggestions + Next actions
+
+✅ BONUS: Cómo hacerlo “Notion-like” de verdad
+
+✅ Use:
+
+White background + soft dividers
+
+Cards con border muy leve
+
+Chips para listas
+
+Collapse/expand sections
+
+Inline editing
+
+Sticky right panel
+
+Minimal icons
+
+🚫 Evitar:
+
+8 panels con mismo tamaño
+
+demasiada data visible
+
+“configuración estilo admin”
+
+✅ Si querés: te hago también el diseño en ASCII exacto + componentes React
+
+Puedo entregarte:
+
+✅ el mock final en texto
+✅ el layout en componentes (React + Tailwind)
+✅ y un set de “UI rules” para el diseñador
+
+Solo decime:
+
+¿querés que esto sea una sola página o tabs (Context / Governance / Audit / Modules)?
