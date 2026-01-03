@@ -5,6 +5,7 @@ import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, 
 import { fromZodError } from "zod-validation-error";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
@@ -13,6 +14,14 @@ import { validateContext, type ContextValidationResult } from "./context-validat
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
+
+const gemini = new GoogleGenAI({
+  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+  httpOptions: {
+    apiVersion: "",
+    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+  },
 });
 
 interface ValidationResult {
@@ -819,6 +828,76 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     } catch (error) {
       console.error("Error generating complete configuration:", error);
       res.status(500).json({ error: "Failed to generate configuration" });
+    }
+  });
+
+  // Generate random Fortune 500 brand data using Gemini
+  app.post("/api/ai/generate-fortune500", async (req: any, res: Response) => {
+    try {
+      const prompt = `You are a business intelligence expert. Generate data for ONE randomly selected Fortune 500 company.
+Pick a real company from the Fortune 500 list (like Apple, Microsoft, Amazon, Walmart, ExxonMobil, UnitedHealth, CVS Health, Berkshire Hathaway, Alphabet, McKesson, etc.).
+Make sure to pick a DIFFERENT company each time - be creative and pick from various industries.
+
+Return a JSON object with the following structure:
+{
+  "name": "Company Name",
+  "domain": "company.com",
+  "industry": "Industry category",
+  "business_model": "B2B" or "DTC" or "Marketplace" or "Hybrid",
+  "primary_geography": ["US", "EU", "APAC"],
+  "revenue_band": "$XXB - $XXXB",
+  "target_market": "Primary market description",
+  "competitors": {
+    "direct": ["Competitor 1", "Competitor 2", "Competitor 3"],
+    "indirect": ["Indirect 1", "Indirect 2"]
+  },
+  "demand_keywords": {
+    "seed_terms": ["brand term 1", "brand term 2", "brand term 3"],
+    "category_terms": ["category 1", "category 2"],
+    "problem_terms": ["problem 1", "problem 2"]
+  },
+  "strategic_context": {
+    "primary_goal": "Main business objective",
+    "growth_priority": "Key growth area",
+    "risk_tolerance": "low" or "medium" or "high"
+  },
+  "channel_context": {
+    "paid_media_active": true or false,
+    "seo_investment_level": "low" or "medium" or "high",
+    "marketplace_dependence": "low" or "medium" or "high"
+  }
+}
+
+IMPORTANT: Use REAL, accurate data for the company. The domain, industry, revenue, and competitors should be factual.
+Only return the JSON object, no additional text.`;
+
+      const response = await gemini.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+
+      const content = response.text;
+      if (!content) {
+        return res.status(500).json({ error: "No response from Gemini" });
+      }
+
+      // Parse JSON from response (handle markdown code blocks)
+      let jsonStr = content.trim();
+      if (jsonStr.startsWith("```json")) {
+        jsonStr = jsonStr.slice(7);
+      } else if (jsonStr.startsWith("```")) {
+        jsonStr = jsonStr.slice(3);
+      }
+      if (jsonStr.endsWith("```")) {
+        jsonStr = jsonStr.slice(0, -3);
+      }
+      jsonStr = jsonStr.trim();
+
+      const brandData = JSON.parse(jsonStr);
+      res.json({ brand: brandData, model_suggested: true, provider: "gemini" });
+    } catch (error) {
+      console.error("Error generating Fortune 500 brand:", error);
+      res.status(500).json({ error: "Failed to generate Fortune 500 brand data" });
     }
   });
 

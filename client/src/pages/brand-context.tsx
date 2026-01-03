@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Save, Clock, AlertCircle, ArrowLeft } from "lucide-react";
+import { Save, Clock, AlertCircle, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -51,28 +51,71 @@ export function BrandContextPage() {
 
   const form = useForm<InsertConfiguration>({
     resolver: zodResolver(insertConfigurationSchema),
-    defaultValues: {
-      ...defaultConfiguration,
-      brand: {
-        ...defaultConfiguration.brand,
-        name: "Oofos",
-        domain: "Oofos.com",
-        industry: "Recovery Footwear",
-        business_model: "DTC",
-      },
-      strategic_intent: {
-        ...defaultConfiguration.strategic_intent,
-        primary_goal: "Ensure consistent usage of approved brand assets, reducing errors in marketing materials by 25%.",
-        secondary_goals: [
-          "Create a mandatory onboarding session for new employees focused on brand standards.",
-          "Conduct annual refresher courses for all staff to reinforce knowledge and cover updates to the brand."
-        ],
-      }
-    },
+    defaultValues: defaultConfiguration,
     mode: "onChange",
   });
 
   const isDirty = form.formState.isDirty;
+
+  // Fortune 500 brand generation mutation
+  const fortune500Mutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/ai/generate-fortune500", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const brand = data.brand;
+      
+      // Update brand fields
+      form.setValue("brand.name", brand.name, { shouldDirty: true });
+      form.setValue("brand.domain", brand.domain, { shouldDirty: true });
+      form.setValue("brand.industry", brand.industry, { shouldDirty: true });
+      form.setValue("brand.business_model", brand.business_model as "B2B" | "DTC" | "Marketplace" | "Hybrid", { shouldDirty: true });
+      form.setValue("brand.primary_geography", brand.primary_geography || [], { shouldDirty: true });
+      form.setValue("brand.revenue_band", brand.revenue_band, { shouldDirty: true });
+      form.setValue("brand.target_market", brand.target_market, { shouldDirty: true });
+      form.setValue("name", brand.name, { shouldDirty: true });
+      
+      // Update competitors
+      if (brand.competitors) {
+        form.setValue("competitors.direct", brand.competitors.direct || [], { shouldDirty: true });
+        form.setValue("competitors.indirect", brand.competitors.indirect || [], { shouldDirty: true });
+      }
+      
+      // Update demand keywords
+      if (brand.demand_keywords) {
+        form.setValue("demand_definition.brand_keywords.seed_terms", brand.demand_keywords.seed_terms || [], { shouldDirty: true });
+        form.setValue("demand_definition.non_brand_keywords.category_terms", brand.demand_keywords.category_terms || [], { shouldDirty: true });
+        form.setValue("demand_definition.non_brand_keywords.problem_terms", brand.demand_keywords.problem_terms || [], { shouldDirty: true });
+      }
+      
+      // Update strategic context
+      if (brand.strategic_context) {
+        form.setValue("strategic_intent.primary_goal", brand.strategic_context.primary_goal || "", { shouldDirty: true });
+        form.setValue("strategic_intent.growth_priority", brand.strategic_context.growth_priority || "", { shouldDirty: true });
+        form.setValue("strategic_intent.risk_tolerance", brand.strategic_context.risk_tolerance || "medium", { shouldDirty: true });
+      }
+      
+      // Update channel context
+      if (brand.channel_context) {
+        form.setValue("channel_context.paid_media_active", brand.channel_context.paid_media_active ?? false, { shouldDirty: true });
+        form.setValue("channel_context.seo_investment_level", brand.channel_context.seo_investment_level || "medium", { shouldDirty: true });
+        form.setValue("channel_context.marketplace_dependence", brand.channel_context.marketplace_dependence || "low", { shouldDirty: true });
+      }
+      
+      toast({
+        title: "Fortune 500 brand generated",
+        description: `Loaded real data for ${brand.name}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error generating brand",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   useEffect(() => {
     const configToLoad = isEditMode ? existingConfig : configuration;
@@ -263,6 +306,33 @@ export function BrandContextPage() {
 
         <main className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="mx-auto max-w-4xl space-y-6">
+            <div className="flex items-center justify-between rounded-lg border bg-gradient-to-r from-primary/5 to-primary/10 p-4">
+              <div>
+                <h3 className="text-sm font-medium">Quick Start with AI</h3>
+                <p className="text-xs text-muted-foreground">
+                  Generate a random Fortune 500 brand with real company data
+                </p>
+              </div>
+              <Button
+                onClick={() => fortune500Mutation.mutate()}
+                disabled={fortune500Mutation.isPending}
+                variant="default"
+                data-testid="button-generate-fortune500"
+              >
+                {fortune500Mutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Fortune 500
+                  </>
+                )}
+              </Button>
+            </div>
+
             <ApprovalChecklist
               items={checklistItems}
               confidenceThreshold={80}
