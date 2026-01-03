@@ -1,0 +1,95 @@
+Perfecto — con ese UCR ya armado (Oofos), podés implementar Keyword Gap Lite con DataForSEO en Replit en modo “demo-ready” (sin volumen/KD, sin SERP scraping). Te dejo:
+
+Qué campos leer de TU UCR (mapeo exacto)
+
+Qué endpoints de DataForSEO usar (y requests listos)
+
+Lista de prompts para Replit (copy/paste en orden)
+
+Un detalle importante: tus fechas de Governance están raras (te lo marco para que no te explote en demo)
+
+1) Mapeo desde tu UCR (Oofos) → inputs del módulo
+
+De tu pantalla:
+
+Brand domain: oofos.com
+
+Competidores directos:
+HOKA Recovery Shoes, Skechers Arch Fit, Crocs, Vionic Shoes, Reef Sandals
+👉 Para DataForSEO necesitás dominios, no nombres. En el MVP, resolvés esto con una “Domain Resolver” mini (puede ser manual para demo).
+
+Fence (in-scope concepts):
+Included: Recovery Footwear, Athletic Footwear, Comfort Shoes, Orthopedic Shoes, Slide Sandals, Active Lifestyle Footwear
+
+Exclusiones (hard block):
+
+Excluded categories: Luxury Footwear, High-End Sneakers, Outdoor Hiking Boots
+
+Excluded keywords: cheap sandals, bargain footwear, luxury brands shoes
+
+Excluded competitors: Gucci, Jimmy Choo, Timberland
+
+Geo / language: Target market US (principal).
+Para DataForSEO Labs conviene fijar location_code + language_code (consistencia). Se obtienen con endpoint oficial. 
+DataForSEO Documentation
+
+2) DataForSEO: endpoints mínimos para “Keyword Gap Lite”
+A) (Recomendado) Ranked Keywords por dominio (para gap real)
+
+POST https://api.dataforseo.com/v3/dataforseo_labs/google/ranked_keywords/live 
+DataForSEO Documentation
+
+Esto te devuelve keywords por las que un dominio ya rankea (ideal para “competitors rank / we don’t”).
+
+B) Endpoint para conseguir location_code y language_code
+
+GET https://api.dataforseo.com/v3/dataforseo_labs/locations_and_languages 
+DataForSEO Documentation
+
+En MVP: hardcodeás US/EN una vez que lo resolvés, pero guardá el valor.
+
+Request body ejemplo (Ranked Keywords)
+
+(Esto es lo que vas a mandar por cada dominio: brand + cada competidor)
+
+[
+  {
+    "target": "oofos.com",
+    "location_code": 2840,
+    "language_code": "en",
+    "item_types": ["organic"],
+    "limit": 200
+  }
+]
+
+
+Ojo: 2840 es un ejemplo comúnmente usado para “United States” en varios endpoints de DataForSEO, pero para Labs lo correcto es confirmarlo con locations_and_languages (y listo). 
+DataForSEO Documentation
+
+3) Lista de prompts para Replit (copy/paste)
+Prompt 1 — FastAPI + env + health
+
+Create a Python FastAPI project. Add dependencies: fastapi, uvicorn[standard], httpx, pydantic, python-dotenv. Create /health. Read DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD from env. Use Basic Auth for DataForSEO requests.
+
+(DataForSEO v3 usa Basic Auth en sus ejemplos y tooling; implementalo en headers con httpx.) 
+DataForSEO Documentation
+
+Prompt 2 — Estructura
+
+Create files:
+app/main.py, app/services/dataforseo.py, app/services/keyword_gap.py, app/utils/ucr_loader.py, app/utils/guardrails.py, app/utils/domain_resolver.py, app/models.py.
+Add .env.example with DATAFORSEO_LOGIN/PASSWORD.
+
+Prompt 3 — Cliente DataForSEO (Ranked Keywords + Locations)
+
+Implement DataForSEOClient with httpx.AsyncClient.
+Methods:
+
+get_locations_and_languages() calling GET /v3/dataforseo_labs/locations_and_languages
+
+ranked_keywords(domain, location_code, language_code, limit=200) calling POST /v3/dataforseo_labs/google/ranked_keywords/live with body [{"target": domain, "location_code": ..., "language_code": ..., "item_types":["organic"], "limit": limit}].
+Validate response and return a list of keywords strings only.
+
+(Endpoints oficiales: locations/languages y ranked_keywords live.) 
+DataForSEO Documentation
++1
