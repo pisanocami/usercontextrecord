@@ -83,11 +83,20 @@ interface KeywordGapLiteResult {
   totalGapKeywords: number;
   results: KeywordLiteResult[];
   grouped: Record<string, KeywordLiteResult[]>;
+  borderline: KeywordLiteResult[];
   stats: {
     passed: number;
     warned: number;
     blocked: number;
   };
+  filtersApplied: {
+    excludedCategories: number;
+    excludedKeywords: number;
+    excludedUseCases: number;
+    totalFilters: number;
+  };
+  contextVersion: number;
+  configurationName: string;
 }
 
 export default function KeywordGap() {
@@ -381,21 +390,29 @@ export default function KeywordGap() {
                     Resultados Keyword Gap Lite
                   </CardTitle>
                   <CardDescription>
-                    {liteMutation.data.brandDomain} vs {liteMutation.data.competitors.length} competidores - {liteMutation.data.totalGapKeywords} keywords de brecha encontradas
+                    {liteMutation.data.brandDomain} vs {liteMutation.data.competitors.length} competidores - Top 30 de {liteMutation.data.totalGapKeywords} keywords
                   </CardDescription>
                 </div>
                 <div className="flex gap-2 flex-wrap">
+                  <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                    <ShieldCheck className="h-3 w-3" />
+                    v{liteMutation.data.contextVersion}
+                  </Badge>
+                  <Badge variant="outline" className="flex items-center gap-1 text-xs border-amber-500 text-amber-700">
+                    <Target className="h-3 w-3" />
+                    {liteMutation.data.filtersApplied.totalFilters} filtros
+                  </Badge>
                   <Badge variant="default" className="flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
-                    Válidos: {liteMutation.data.stats.passed}
+                    {liteMutation.data.stats.passed}
                   </Badge>
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <HelpCircle className="h-3 w-3" />
-                    Revisar: {liteMutation.data.stats.warned}
+                    {liteMutation.data.stats.warned}
                   </Badge>
                   <Badge variant="destructive" className="flex items-center gap-1">
                     <XCircle className="h-3 w-3" />
-                    Bloqueados: {liteMutation.data.stats.blocked}
+                    {liteMutation.data.stats.blocked}
                   </Badge>
                 </div>
               </div>
@@ -458,6 +475,43 @@ export default function KeywordGap() {
               {Object.keys(liteMutation.data.grouped).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No se encontraron keywords de brecha que pasen los guardrails
+                </div>
+              )}
+
+              {liteMutation.data.borderline && liteMutation.data.borderline.length > 0 && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <h4 className="font-medium text-sm">Borderline - Requieren Revisión Humana ({liteMutation.data.borderline.length})</h4>
+                  </div>
+                  <div className="border rounded-md border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-8">Estado</TableHead>
+                          <TableHead>Keyword</TableHead>
+                          <TableHead>Tema</TableHead>
+                          <TableHead className="text-right">Razón</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {liteMutation.data.borderline.map((kw, i) => (
+                          <TableRow key={i} data-testid={`row-borderline-${i}`}>
+                            <TableCell>
+                              <HelpCircle className="h-4 w-4 text-amber-500" />
+                            </TableCell>
+                            <TableCell className="font-medium">{kw.keyword}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">{kw.theme}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right text-xs text-muted-foreground max-w-[200px] truncate" title={kw.reason}>
+                              {kw.reason}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>

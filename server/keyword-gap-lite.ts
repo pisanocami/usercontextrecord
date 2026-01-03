@@ -20,11 +20,20 @@ export interface KeywordGapResult {
   totalGapKeywords: number;
   results: KeywordResult[];
   grouped: Record<string, KeywordResult[]>;
+  borderline: KeywordResult[];
   stats: {
     passed: number;
     warned: number;
     blocked: number;
   };
+  filtersApplied: {
+    excludedCategories: number;
+    excludedKeywords: number;
+    excludedUseCases: number;
+    totalFilters: number;
+  };
+  contextVersion: number;
+  configurationName: string;
 }
 
 interface CacheEntry {
@@ -318,7 +327,11 @@ export async function computeKeywordGap(
     return b.competitorsSeen.length - a.competitorsSeen.length;
   });
   
-  const top30 = results.slice(0, 30);
+  const passedResults = results.filter(r => r.status === "pass");
+  const warnResults = results.filter(r => r.status === "warn");
+  
+  const top30 = passedResults.slice(0, 30);
+  const borderline = warnResults.slice(0, 10);
   
   const grouped: Record<string, KeywordResult[]> = {};
   top30.forEach(result => {
@@ -328,13 +341,27 @@ export async function computeKeywordGap(
     grouped[result.theme].push(result);
   });
   
+  const negativeScope = config.negative_scope || {};
+  const excludedCategories = (negativeScope.excluded_categories as string[] || []).length;
+  const excludedKeywords = (negativeScope.excluded_keywords as string[] || []).length;
+  const excludedUseCases = (negativeScope.excluded_use_cases as string[] || []).length;
+  
   return {
     brandDomain,
     competitors: directCompetitors,
     totalGapKeywords: results.length,
     results: top30,
     grouped,
+    borderline,
     stats,
+    filtersApplied: {
+      excludedCategories,
+      excludedKeywords,
+      excludedUseCases,
+      totalFilters: excludedCategories + excludedKeywords + excludedUseCases,
+    },
+    contextVersion: 1,
+    configurationName: config.name || "Unknown",
   };
 }
 
