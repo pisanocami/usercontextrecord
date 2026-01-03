@@ -80,14 +80,21 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
     if (configToLoad) {
       form.reset({
         name: configToLoad.name,
-        brand: configToLoad.brand,
-        category_definition: configToLoad.category_definition,
-        competitors: configToLoad.competitors,
-        demand_definition: configToLoad.demand_definition,
-        strategic_intent: configToLoad.strategic_intent,
-        channel_context: configToLoad.channel_context,
-        negative_scope: configToLoad.negative_scope,
-        governance: configToLoad.governance,
+        brand: { ...defaultConfiguration.brand, ...configToLoad.brand },
+        category_definition: { ...defaultConfiguration.category_definition, ...configToLoad.category_definition },
+        competitors: { ...defaultConfiguration.competitors, ...configToLoad.competitors },
+        demand_definition: { ...defaultConfiguration.demand_definition, ...configToLoad.demand_definition },
+        strategic_intent: { 
+          ...defaultConfiguration.strategic_intent, 
+          ...configToLoad.strategic_intent,
+          constraint_flags: {
+            ...defaultConfiguration.strategic_intent.constraint_flags,
+            ...(configToLoad.strategic_intent?.constraint_flags || {}),
+          },
+        },
+        channel_context: { ...defaultConfiguration.channel_context, ...configToLoad.channel_context },
+        negative_scope: { ...defaultConfiguration.negative_scope, ...configToLoad.negative_scope },
+        governance: { ...defaultConfiguration.governance, ...configToLoad.governance },
       });
       setLastSaved(new Date(configToLoad.updated_at));
     }
@@ -120,14 +127,21 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
       setLastSaved(new Date());
       const resetData: InsertConfiguration = {
         name: savedConfig.name,
-        brand: savedConfig.brand,
-        category_definition: savedConfig.category_definition,
-        competitors: savedConfig.competitors,
-        demand_definition: savedConfig.demand_definition,
-        strategic_intent: savedConfig.strategic_intent,
-        channel_context: savedConfig.channel_context,
-        negative_scope: savedConfig.negative_scope,
-        governance: savedConfig.governance,
+        brand: { ...defaultConfiguration.brand, ...savedConfig.brand },
+        category_definition: { ...defaultConfiguration.category_definition, ...savedConfig.category_definition },
+        competitors: { ...defaultConfiguration.competitors, ...savedConfig.competitors },
+        demand_definition: { ...defaultConfiguration.demand_definition, ...savedConfig.demand_definition },
+        strategic_intent: { 
+          ...defaultConfiguration.strategic_intent, 
+          ...savedConfig.strategic_intent,
+          constraint_flags: {
+            ...defaultConfiguration.strategic_intent.constraint_flags,
+            ...(savedConfig.strategic_intent?.constraint_flags || {}),
+          },
+        },
+        channel_context: { ...defaultConfiguration.channel_context, ...savedConfig.channel_context },
+        negative_scope: { ...defaultConfiguration.negative_scope, ...savedConfig.negative_scope },
+        governance: { ...defaultConfiguration.governance, ...savedConfig.governance },
       };
       form.reset(resetData);
       toast({

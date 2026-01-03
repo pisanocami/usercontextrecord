@@ -1,0 +1,141 @@
+
+Brand Intelligence
+Configuration
+Navigation
+
+All Configurations
+
+New Configuration
+Tools
+
+Bulk Generation
+Configuration Sections
+
+Brand Context
+
+Category Definition
+
+Competitive Set
+
+Demand Definition
+
+Strategic Intent
+
+Channel Context
+
+Negative Scope
+
+Governance
+Not Validated
+Toggle Sidebar
+
+
+Brand Configurations
+View and manage all saved brand intelligence configurations
+
+New Configuration
+Search by name, domain, or industry...
+1 configuration
+
+New Configuration
+Oofos.com
+Footwear and Apparel
+Needs Review
+
+
+
+Brand Context
+Name:
+Oofos
+Domain:
+Oofos.com
+Industry:
+Footwear and Apparel
+Business Model:
+DTC
+Target Market:
+US
+Primary Geography:
+US, CA, AU, UK
+Revenue Band:
+$50M-$100M
+Category Definition
+Primary Category:
+Footwear and Apparel
+Approved Categories:
+Footwear and Apparel
+Included:
+Recovery Footwear, Athletic Footwear, Comfort Shoes, Orthopedic Shoes, Slide Sandals, Active Lifestyle Footwear
+Excluded:
+Luxury Footwear, High-Heels, Formal Shoes, Boots
+Competitive Set
+Direct Competitors:
+HOKA Recovery Shoes, Skechers Arch Fit, Crocs, Vionic Shoes, Reef Sandals
+Indirect Competitors:
+ASICS, New Balance, Birkenstock, Allbirds, Teva
+Marketplaces:
+Amazon, Zappos, REI, Dick's Sporting Goods
+Demand Definition
+Brand Seed Terms:
+Oofos recovery footwear, Oofos sandals, Oofos arch support, Best recovery shoes Oofos, Oofos orthopedic sandals
+Top N Brand:
+50
+Category Terms:
+recovery footwear, arch support footwear, orthopedic sandals, active lifestyle shoes, post-workout slippers
+Problem Terms:
+best shoes for plantar fasciitis, shoes for foot pain, comfortable sandals for walking, footwear for athletes, reduce foot fatigue shoes
+Top N Non-Brand:
+50
+Strategic Intent
+Growth Priority:
+Expand brand awareness in new geographies and strengthen DTC digital channels
+Risk Tolerance:
+medium
+Primary Goal:
+Increase market share in recovery footwear
+Secondary Goals:
+Enhance direct-to-consumer sales, Boost SEO traffic for category terms, Educate the market on unique benefits of foam recovery technology
+Avoid:
+Discount-heavy campaigns, Over-saturation on marketplaces, Creating luxury/performance-brand confusion
+Channel Context
+Paid Media Active:
+Yes
+SEO Investment Level:
+high
+Marketplace Dependence:
+low
+Negative Scope
+Excluded Categories:
+Luxury Footwear, High-End Sneakers, Outdoor Hiking Boots
+Excluded Keywords:
+cheap sandals, bargain footwear, luxury brands shoes
+Excluded Use Cases:
+Extreme sports footwear, Formal business footwear
+Excluded Competitors:
+Gucci, Jimmy Choo, Timberland
+Governance
+Model Suggested:
+Yes
+Last Reviewed:
+2026-01-03
+Reviewed By:
+AI Generator
+Valid Until:
+2026-04-03
+CMO Safe:
+No
+Confidence Level:
+medium
+Validation Status:
+needs_review
+Human Verified:
+No
+Context Version:
+1
+Context Hash:
+eyJhcHByb3ZlZF9jYXRlZ29yaWVzIjpb
+Notes:
+AI regeneration of all sections Auto-generated configuration - review recommended
+Created: 2/1/2026
+Updated: 2/1/2026
+Last Reviewed: 2026-01-03

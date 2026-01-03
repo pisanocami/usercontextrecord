@@ -97,11 +97,47 @@ export const categoryDefinitionSchema = z.object({
   alternative_categories: z.array(categoryAlternativeSchema).default([]), // AI-suggested with evidence
 });
 
-// Competitive Set Schema
+// Phase 2: Enhanced Competitor Schema with tiering, scoring, and evidence
+export const competitorEvidenceSchema = z.object({
+  why_selected: z.string().default(""), // Reasoning for inclusion
+  top_overlap_keywords: z.array(z.string()).default([]), // Shared SERP keywords
+  serp_examples: z.array(z.string()).default([]), // URL examples from SERP overlap
+});
+
+export const competitorEntrySchema = z.object({
+  name: z.string(),
+  domain: z.string().default(""),
+  tier: z.enum(["tier1", "tier2", "tier3"]).default("tier1"), // tier1=direct, tier2=adjacent, tier3=aspirational
+  status: z.enum(["approved", "rejected", "pending_review"]).default("pending_review"),
+  // Scoring metrics (0-100)
+  similarity_score: z.number().min(0).max(100).default(50),
+  serp_overlap: z.number().min(0).max(100).default(0), // % of shared keywords in SERPs
+  size_proximity: z.number().min(0).max(100).default(50), // How close in company size
+  // Company size guardrails
+  revenue_range: z.string().default(""), // e.g., "10M-50M"
+  employee_count: z.string().default(""), // e.g., "50-200"
+  funding_stage: z.enum(["bootstrap", "seed", "series_a", "series_b", "series_c_plus", "public", "unknown"]).default("unknown"),
+  geo_overlap: z.array(z.string()).default([]), // Markets where they compete
+  // Evidence pack
+  evidence: competitorEvidenceSchema.default({}),
+  // Metadata
+  added_by: z.enum(["ai", "human"]).default("ai"),
+  added_at: z.string().default(""),
+  rejected_reason: z.string().default(""), // If rejected, why
+});
+
+// Competitive Set Schema - Phase 2 enhanced
 export const competitorsSchema = z.object({
-  direct: z.array(z.string()),
-  indirect: z.array(z.string()),
-  marketplaces: z.array(z.string()),
+  // Legacy arrays for backward compatibility
+  direct: z.array(z.string()).default([]),
+  indirect: z.array(z.string()).default([]),
+  marketplaces: z.array(z.string()).default([]),
+  // Phase 2: Enhanced competitor entries with full metadata
+  competitors: z.array(competitorEntrySchema).default([]),
+  // Aggregate tracking
+  approved_count: z.number().default(0),
+  rejected_count: z.number().default(0),
+  pending_review_count: z.number().default(0),
 });
 
 // Demand Definition Schema
@@ -117,13 +153,27 @@ export const demandDefinitionSchema = z.object({
   }),
 });
 
-// Strategic Intent Schema - allows partial saves
+// Strategic Intent Schema - Phase 3 enhanced
 export const strategicIntentSchema = z.object({
   growth_priority: z.string().default(""),
   risk_tolerance: z.enum(["low", "medium", "high"]),
   primary_goal: z.string().default(""),
   secondary_goals: z.array(z.string()).default([]),
   avoid: z.array(z.string()).default([]),
+  // Phase 3: Enhanced strategic fields
+  goal_type: z.enum(["roi", "volume", "authority", "awareness", "retention"]).default("roi"),
+  time_horizon: z.enum(["short", "medium", "long"]).default("medium"), // short=0-3mo, medium=3-12mo, long=12mo+
+  constraint_flags: z.object({
+    budget_constrained: z.boolean().default(false),
+    resource_limited: z.boolean().default(false),
+    regulatory_sensitive: z.boolean().default(false),
+    brand_protection_priority: z.boolean().default(false),
+  }).default({
+    budget_constrained: false,
+    resource_limited: false,
+    regulatory_sensitive: false,
+    brand_protection_priority: false,
+  }),
 });
 
 // Channel Context Schema
@@ -133,17 +183,47 @@ export const channelContextSchema = z.object({
   marketplace_dependence: z.enum(["low", "medium", "high"]),
 });
 
-// Negative Scope Schema
+// Phase 3: Enhanced exclusion entry with match type and TTL
+export const exclusionEntrySchema = z.object({
+  value: z.string(),
+  match_type: z.enum(["exact", "semantic"]).default("exact"),
+  semantic_sensitivity: z.enum(["low", "medium", "high"]).default("medium"), // Only for semantic match
+  expires_at: z.string().optional(), // ISO date for TTL, undefined = permanent
+  added_by: z.enum(["ai", "human"]).default("human"),
+  added_at: z.string().default(""),
+  reason: z.string().default(""),
+});
+
+// Audit log entry for applied exclusions
+export const exclusionAuditEntrySchema = z.object({
+  timestamp: z.string(),
+  action: z.enum(["applied", "overridden", "expired", "removed"]),
+  exclusion_value: z.string(),
+  exclusion_type: z.enum(["category", "keyword", "use_case", "competitor"]),
+  context: z.string().default(""), // What triggered it
+  user_id: z.string().default(""),
+});
+
+// Negative Scope Schema - Phase 3 enhanced
 export const negativeScopeSchema = z.object({
-  excluded_categories: z.array(z.string()),
-  excluded_keywords: z.array(z.string()),
-  excluded_use_cases: z.array(z.string()),
-  excluded_competitors: z.array(z.string()),
+  // Legacy arrays for backward compatibility
+  excluded_categories: z.array(z.string()).default([]),
+  excluded_keywords: z.array(z.string()).default([]),
+  excluded_use_cases: z.array(z.string()).default([]),
+  excluded_competitors: z.array(z.string()).default([]),
+  // Phase 3: Enhanced exclusion entries with match type and TTL
+  category_exclusions: z.array(exclusionEntrySchema).default([]),
+  keyword_exclusions: z.array(exclusionEntrySchema).default([]),
+  use_case_exclusions: z.array(exclusionEntrySchema).default([]),
+  competitor_exclusions: z.array(exclusionEntrySchema).default([]),
+  // Enforcement rules
   enforcement_rules: z.object({
     hard_exclusion: z.boolean(),
     allow_model_suggestion: z.boolean(),
     require_human_override_for_expansion: z.boolean(),
   }),
+  // Audit log for applied exclusions
+  audit_log: z.array(exclusionAuditEntrySchema).default([]),
 });
 
 // Governance Schema
@@ -197,10 +277,14 @@ export const insertConfigurationSchema = configurationSchema.omit({
 // Types
 export type Brand = z.infer<typeof brandSchema>;
 export type CategoryDefinition = z.infer<typeof categoryDefinitionSchema>;
+export type CompetitorEvidence = z.infer<typeof competitorEvidenceSchema>;
+export type CompetitorEntry = z.infer<typeof competitorEntrySchema>;
 export type Competitors = z.infer<typeof competitorsSchema>;
 export type DemandDefinition = z.infer<typeof demandDefinitionSchema>;
 export type StrategicIntent = z.infer<typeof strategicIntentSchema>;
 export type ChannelContext = z.infer<typeof channelContextSchema>;
+export type ExclusionEntry = z.infer<typeof exclusionEntrySchema>;
+export type ExclusionAuditEntry = z.infer<typeof exclusionAuditEntrySchema>;
 export type NegativeScope = z.infer<typeof negativeScopeSchema>;
 export type Governance = z.infer<typeof governanceSchema>;
 export type Configuration = z.infer<typeof configurationSchema>;
@@ -232,6 +316,10 @@ export const defaultConfiguration: InsertConfiguration = {
     direct: [],
     indirect: [],
     marketplaces: [],
+    competitors: [],
+    approved_count: 0,
+    rejected_count: 0,
+    pending_review_count: 0,
   },
   demand_definition: {
     brand_keywords: {
@@ -250,6 +338,14 @@ export const defaultConfiguration: InsertConfiguration = {
     primary_goal: "",
     secondary_goals: [],
     avoid: [],
+    goal_type: "roi",
+    time_horizon: "medium",
+    constraint_flags: {
+      budget_constrained: false,
+      resource_limited: false,
+      regulatory_sensitive: false,
+      brand_protection_priority: false,
+    },
   },
   channel_context: {
     paid_media_active: false,
@@ -261,11 +357,16 @@ export const defaultConfiguration: InsertConfiguration = {
     excluded_keywords: [],
     excluded_use_cases: [],
     excluded_competitors: [],
+    category_exclusions: [],
+    keyword_exclusions: [],
+    use_case_exclusions: [],
+    competitor_exclusions: [],
     enforcement_rules: {
       hard_exclusion: true,
       allow_model_suggestion: false,
       require_human_override_for_expansion: true,
     },
+    audit_log: [],
   },
   governance: {
     model_suggested: true,
