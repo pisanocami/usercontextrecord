@@ -83,6 +83,9 @@ export function BrandContextPage() {
       form.setValue("brand.revenue_band", brand.revenue_band, { shouldDirty: true });
       form.setValue("brand.target_market", brand.target_market, { shouldDirty: true });
       form.setValue("name", brand.name, { shouldDirty: true });
+
+      // Update category definition - IMPORTANT for validation
+      form.setValue("category_definition.primary_category", brand.industry, { shouldDirty: true });
       
       // Update competitors - convert to CompetitorEntry format
       if (brand.competitors && Array.isArray(brand.competitors)) {
