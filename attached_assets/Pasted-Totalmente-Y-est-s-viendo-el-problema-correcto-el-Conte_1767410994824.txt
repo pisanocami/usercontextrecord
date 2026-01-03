@@ -1,0 +1,244 @@
+Totalmente. Y estás viendo el problema correcto: el Context Record no puede mostrarse como una “ficha administrativa” tipo CRM. Si lo vemos así, se vuelve:
+
+pesado
+
+ilegible
+
+imposible de validar rápido
+
+y cero “Notion-like” (que es lo que queremos: claro, editable, modular, humano)
+
+Voy a actuar como mentor y te digo 3 cosas:
+
+✅ Lo que tenés hoy NO está mal técnicamente
+❌ pero sí está mal como producto (para que un humano lo revise / apruebe)
+
+🎯 Diagnóstico (por qué se siente tan feo)
+
+Lo que se ve en tu UI actual:
+
+1) Parece un formulario
+
+Y el usuario siente: “esto es burocrático, tengo que completarlo”
+Cuando debería sentirse: “esto es un brief inteligente que me entiende”
+
+2) Todo tiene el mismo peso visual
+
+En un contexto hay cosas:
+
+críticas (negative scope, categoría)
+
+importantes (competidores directos)
+
+“nice to have” (market, geo, revenue band)
+pero en tu UI actual todo se ve igual. Eso mata claridad.
+
+3) No hay “workflow” ni “progression”
+
+Notion funciona porque:
+
+tiene estructura + jerarquía
+
+tiene estados
+
+tiene “lo que falta”
+Tu UI no tiene esa narrativa.
+
+4) No se siente como una herramienta de decisión
+
+Susan necesita que esto sea un “safety fence”.
+Hoy parece un “dashboard informativo”.
+
+✅ Qué debería ser (Notion-like)
+
+El Context Record debería sentirse como:
+
+📄 Una página viva por marca
+con bloques colapsables, edición inline, y un “approval flow”.
+
+🧱 Nuevo layout propuesto (Notion-like)
+✅ Vista: “Brand Context Page”
+Header fijo (siempre visible)
+
+Nombre + dominio
+
+Estado: Draft / Needs Review / Locked
+
+Confianza AI (con explicación)
+
+Botón: ✅ Approve Context
+
+Botón secundario: “Regenerate Section” (solo para cada bloque)
+
+Body (en bloques)
+🔥 Bloque 1 — “What We Are”
+
+(Brand Identity + Strategic Intent)
+Formato: texto claro, estilo brief.
+
+Ejemplo:
+
+Brand Identity
+Recovery footwear brand focused on active recovery + comfort.
+Primary buyer: runners, athletes, comfort seekers.
+
+✅ editable inline
+
+🔒 Bloque 2 — “Fence (Non-negotiables)”
+
+(Category + Negative Scope)
+Este bloque debe ser “peligroso” visualmente.
+
+In-scope concepts
+
+Out-of-scope concepts
+
+Excluded keywords
+
+Excluded competitors
+
+👉 y un “why” obligatorio para cada exclusion (auditability)
+
+Este bloque nunca debería estar colapsado por defecto.
+
+⚔️ Bloque 3 — “Competitor Set”
+
+Separación clara:
+
+✅ Direct competitors
+⚠️ Indirect / adjacency
+🛒 Marketplaces (si aplica)
+
+Y al lado:
+
+“confidence”
+
+“why included”
+
+botón “remove”
+
+botón “confirm”
+
+🔎 Bloque 4 — “Demand Definition”
+
+La forma actual es como “listas sueltas”.
+Esto debería ser:
+
+seed terms
+
+query themes
+
+customer language
+
+Y los temas deberían ser cliques para seleccionar.
+
+📊 Bloque 5 — “Channel Context”
+
+Esto debe ser muy corto:
+
+Paid active: yes/no
+
+SEO investment: low/med/high
+
+marketplaces: yes/no
+
+✅ Governance (sidebar o al final)
+
+reviewed by
+
+last updated
+
+context hash
+
+version
+
+valid until
+
+Esta parte no debe ocupar espacio al principio.
+
+🎛️ La clave: UI basada en workflow (como Notion)
+
+Notion-like significa:
+
+✅ editable inline
+✅ collapse/expand
+✅ bloques independientes
+✅ checklist de completitud
+✅ estado de aprobación
+✅ comentarios y highlight
+
+✅ “Checklist de aprobación” (lo que pediste antes)
+
+Este debería estar arriba (como un panel):
+
+✅ Ready to Lock Context
+
+ Category + In-scope concepts set
+
+ Negative scope filled (keywords, categories)
+
+ Competitors validated (direct set confirmed)
+
+ Demand themes present
+
+ Strategic intent confirmed
+
+ Confidence score ≥ threshold (ej 80)
+
+Si falta algo → el sistema no deja Lock.
+
+💡 Feature que te falta y es CRÍTICA para Susan
+“Competitor Sizing Check”
+
+Susan dijo algo clave: “no quiero que el AI elija los competidores equivocados”.
+
+Entonces, en Competitor Block agregá:
+
+Competitor metadata (auto)
+
+Estimated revenue band
+
+Employee count
+
+Region
+
+“Similarity score”
+
+Y si el competidor no encaja:
+⚠️ “Size mismatch — requires approval”
+
+Esto reduce el riesgo de que el AI elija competidores gigantes o irrelevantes.
+
+🚀 El cambio mínimo que mejora 80% (si no querés rehacer todo)
+
+Si tenés poco tiempo, hacé SOLO esto:
+
+✅ Convertí cada sección en un bloque colapsable
+✅ Negative Scope siempre visible
+✅ Agregá un panel arriba con checklist
+✅ Agregá “Approve / Lock Context” arriba a la derecha
+✅ Visual weight: negative scope = rojo / warning, category = verde
+
+Con eso ya se siente producto y no “panel administrativo”.
+
+⭐ Calificación de lo que tenés hoy
+
+Como mentor te doy nota honesta:
+
+Backend / arquitectura: 9/10
+
+muy sólido, bien pensado, contract + audit, etc.
+
+UI como producto: 3/10
+
+porque:
+
+no es usable para revisión humana
+
+no comunica jerarquía
+
+no está “designed for decision-making”
+
+no es Notion-like
+
+Pero esto es bueno: es un problema solucionable de UI/UX, no de core system.
