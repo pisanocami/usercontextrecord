@@ -609,7 +609,7 @@ export default function ConfigurationsList() {
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Configuration</AlertDialogTitle>
+              <AlertDialogTitle>Delete Context</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete "{selectedConfig?.name}"? This action cannot be undone.
               </AlertDialogDescription>

@@ -174,7 +174,7 @@ export default function KeywordGap() {
     if (!competitorDomain.trim()) {
       toast({
         title: "Error",
-        description: "Por favor ingresa un dominio del competidor",
+        description: "Please enter a competitor domain",
         variant: "destructive",
       });
       return;
@@ -203,7 +203,7 @@ export default function KeywordGap() {
           <Link href="/">
             <Button variant="ghost" size="sm" className="mb-4" data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a configuraciones
+              Back to Contexts
             </Button>
           </Link>
           
@@ -211,22 +211,22 @@ export default function KeywordGap() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
-                DataForSEO No Configurado
+                DataForSEO Not Configured
               </CardTitle>
               <CardDescription>
-                Para usar el análisis de Keyword Gap, necesitas configurar tus credenciales de DataForSEO.
+                To use Keyword Gap analysis, you need to configure your DataForSEO credentials.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
-                Configura las siguientes variables de entorno:
+                Configure the following environment variables:
               </p>
               <div className="bg-muted p-4 rounded-md font-mono text-sm">
-                <div>DATAFORSEO_LOGIN=tu_login</div>
-                <div>DATAFORSEO_PASSWORD=tu_password</div>
+                <div>DATAFORSEO_LOGIN=your_login</div>
+                <div>DATAFORSEO_PASSWORD=your_password</div>
               </div>
               <p className="text-sm text-muted-foreground mt-4">
-                Puedes obtener tus credenciales en{" "}
+                You can obtain your credentials at{" "}
                 <a href="https://app.dataforseo.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">
                   app.dataforseo.com
                 </a>
@@ -245,13 +245,13 @@ export default function KeywordGap() {
           <Link href="/">
             <Button variant="ghost" size="sm" className="mb-4" data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a configuraciones
+              Back to Contexts
             </Button>
           </Link>
           
           <Card>
             <CardHeader>
-              <CardTitle>Configuración no encontrada</CardTitle>
+              <CardTitle>Context not found</CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -292,12 +292,12 @@ export default function KeywordGap() {
         <div className="grid gap-6 md:grid-cols-3 mb-6">
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-lg">Analizar Competidor</CardTitle>
+              <CardTitle className="text-lg">Analyze Competitor</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
                 <Input
-                  placeholder="ejemplo: competitor.com"
+                  placeholder="e.g., competitor.com"
                   value={competitorDomain}
                   onChange={(e) => setCompetitorDomain(e.target.value)}
                   data-testid="input-competitor-domain"
@@ -312,13 +312,13 @@ export default function KeywordGap() {
                   ) : (
                     <Search className="h-4 w-4 mr-2" />
                   )}
-                  Analizar
+                  Analyze
                 </Button>
               </div>
 
               {allCompetitors.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-2">Competidores configurados:</p>
+                  <p className="text-sm text-muted-foreground mb-2">Configured competitors:</p>
                   <div className="flex flex-wrap gap-2">
                     {allCompetitors.map((comp) => (
                       <Button
@@ -342,7 +342,7 @@ export default function KeywordGap() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                Análisis Rápido
+                Quick Analysis
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -371,10 +371,10 @@ export default function KeywordGap() {
                 ) : (
                   <Users className="h-4 w-4 mr-2" />
                 )}
-                Comparar Todos
+                Compare All
               </Button>
               <p className="text-xs text-muted-foreground">
-                Lite: Agrupación por tema con guardrails. Comparar: Análisis completo.
+                Lite: Topic grouping with guardrails. Compare: Full analysis.
               </p>
             </CardContent>
           </Card>
@@ -387,10 +387,10 @@ export default function KeywordGap() {
                 <div>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Zap className="h-5 w-5" />
-                    Resultados Keyword Gap Lite
+                    Keyword Gap Lite Results
                   </CardTitle>
                   <CardDescription>
-                    {liteMutation.data.brandDomain} vs {liteMutation.data.competitors.length} competidores - Top 30 de {liteMutation.data.totalGapKeywords} keywords
+                    {liteMutation.data.brandDomain} vs {liteMutation.data.competitors.length} competitors - Top 30 of {liteMutation.data.totalGapKeywords} keywords
                   </CardDescription>
                 </div>
                 <div className="flex gap-2 flex-wrap">
@@ -400,7 +400,7 @@ export default function KeywordGap() {
                   </Badge>
                   <Badge variant="outline" className="flex items-center gap-1 text-xs border-amber-500 text-amber-700">
                     <Target className="h-3 w-3" />
-                    {liteMutation.data.filtersApplied.totalFilters} filtros
+                    {liteMutation.data.filtersApplied.totalFilters} filters
                   </Badge>
                   <Badge variant="default" className="flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
@@ -434,10 +434,10 @@ export default function KeywordGap() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-8">Estado</TableHead>
+                              <TableHead className="w-8">Status</TableHead>
                               <TableHead>Keyword</TableHead>
-                              <TableHead>Competidores</TableHead>
-                              <TableHead className="text-right">Razón</TableHead>
+                              <TableHead>Competitors</TableHead>
+                              <TableHead className="text-right">Reason</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -474,7 +474,7 @@ export default function KeywordGap() {
               </Accordion>
               {Object.keys(liteMutation.data.grouped).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  No se encontraron keywords de brecha que pasen los guardrails
+                  No gap keywords found that pass the guardrails
                 </div>
               )}
 
@@ -482,16 +482,16 @@ export default function KeywordGap() {
                 <div className="mt-6">
                   <div className="flex items-center gap-2 mb-3">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <h4 className="font-medium text-sm">Borderline - Requieren Revisión Humana ({liteMutation.data.borderline.length})</h4>
+                    <h4 className="font-medium text-sm">Borderline - Requires Human Review ({liteMutation.data.borderline.length})</h4>
                   </div>
                   <div className="border rounded-md border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-8">Estado</TableHead>
+                          <TableHead className="w-8">Status</TableHead>
                           <TableHead>Keyword</TableHead>
-                          <TableHead>Tema</TableHead>
-                          <TableHead className="text-right">Razón</TableHead>
+                          <TableHead>Theme</TableHead>
+                          <TableHead className="text-right">Reason</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -527,7 +527,7 @@ export default function KeywordGap() {
                     {result.brand_domain} vs {result.competitor_domain}
                   </CardTitle>
                   <CardDescription>
-                    {result.total_gap_keywords} keywords de brecha, {result.total_overlap_keywords} en común
+                    {result.total_gap_keywords} gap keywords, {result.total_overlap_keywords} in common
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -546,24 +546,24 @@ export default function KeywordGap() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="mb-4">
                   <TabsTrigger value="gap" data-testid="tab-gap">
-                    Keywords de Brecha ({result.gap_keywords.length})
+                    Gap Keywords ({result.gap_keywords.length})
                   </TabsTrigger>
                   <TabsTrigger value="overlap" data-testid="tab-overlap">
-                    Keywords en Común ({result.overlap_keywords.length})
+                    Common Keywords ({result.overlap_keywords.length})
                   </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="gap">
                   <p className="text-sm text-muted-foreground mb-4">
-                    Keywords donde el competidor rankea pero tu marca no. Oportunidades potenciales de contenido.
+                    Keywords where the competitor ranks but your brand does not. Potential content opportunities.
                   </p>
                   <div className="border rounded-md">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Keyword</TableHead>
-                          <TableHead className="text-right">Vol. Búsqueda</TableHead>
-                          <TableHead className="text-right">Posición Comp.</TableHead>
+                          <TableHead className="text-right">Search Volume</TableHead>
+                          <TableHead className="text-right">Competitor Pos.</TableHead>
                           <TableHead className="text-right">CPC</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -587,7 +587,7 @@ export default function KeywordGap() {
                         {result.gap_keywords.length === 0 && (
                           <TableRow>
                             <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                              No se encontraron keywords de brecha
+                              No gap keywords found
                             </TableCell>
                           </TableRow>
                         )}
@@ -596,24 +596,24 @@ export default function KeywordGap() {
                   </div>
                   {result.gap_keywords.length > 20 && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                      Mostrando 20 de {result.gap_keywords.length} keywords
+                      Showing 20 of {result.gap_keywords.length} keywords
                     </p>
                   )}
                 </TabsContent>
 
                 <TabsContent value="overlap">
                   <p className="text-sm text-muted-foreground mb-4">
-                    Keywords donde ambos dominios rankean. Gap positivo = tu marca rankea mejor.
+                    Keywords where both domains rank. Positive gap = your brand ranks higher.
                   </p>
                   <div className="border rounded-md">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Keyword</TableHead>
-                          <TableHead className="text-right">Tu Posición</TableHead>
-                          <TableHead className="text-right">Pos. Comp.</TableHead>
+                          <TableHead className="text-right">Your Position</TableHead>
+                          <TableHead className="text-right">Competitor Pos.</TableHead>
                           <TableHead className="text-right">Gap</TableHead>
-                          <TableHead className="text-right">Vol. Búsqueda</TableHead>
+                          <TableHead className="text-right">Search Volume</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -656,7 +656,7 @@ export default function KeywordGap() {
                         {result.overlap_keywords.length === 0 && (
                           <TableRow>
                             <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                              No se encontraron keywords en común
+                              No common keywords found
                             </TableCell>
                           </TableRow>
                         )}
@@ -665,7 +665,7 @@ export default function KeywordGap() {
                   </div>
                   {result.overlap_keywords.length > 20 && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                      Mostrando 20 de {result.overlap_keywords.length} keywords
+                      Showing 20 of {result.overlap_keywords.length} keywords
                     </p>
                   )}
                 </TabsContent>
@@ -677,9 +677,9 @@ export default function KeywordGap() {
         {compareAllMutation.data && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Resumen de Análisis Multi-Competidor</CardTitle>
+              <CardTitle className="text-lg">Multi-Competitor Analysis Summary</CardTitle>
               <CardDescription>
-                Keywords prioritizadas por frecuencia de aparición entre competidores
+                Keywords prioritized by frequency of appearance across competitors
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -688,8 +688,8 @@ export default function KeywordGap() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Keyword</TableHead>
-                      <TableHead className="text-right">Competidores</TableHead>
-                      <TableHead className="text-right">Vol. Total</TableHead>
+                      <TableHead className="text-right">Competitors</TableHead>
+                      <TableHead className="text-right">Total Volume</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
