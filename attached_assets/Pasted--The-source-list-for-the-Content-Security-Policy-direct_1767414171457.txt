@@ -1,0 +1,376 @@
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+(anonymous) @ content.js:83
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+(anonymous) @ content.js:83
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+(anonymous) @ content.js:83
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+e @ wall.1.0.3.js:1
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+e @ wall.1.0.3.js:1
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+e @ wall.1.0.3.js:1
+websdk.appsflyer.com/?st=pba&af_id=e5524ac6-7dd1-4b1a-b43f-fd2a323600b5:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+JSON-Brand-Industry:1 The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+JSON-Brand-Industry:1 The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+JSON-Brand-Industry:1 The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_monitoring/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/session_result/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413620972&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413620973&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=503&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413621607&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413621653&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=503&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+(anonymous) @ recaptcha__en.js:301
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+(anonymous) @ recaptcha__en.js:301
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+(anonymous) @ recaptcha__en.js:301
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+value @ stripe.js:1
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+value @ stripe.js:1
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+value @ stripe.js:1
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=cae0308d-9aa1-4b93-9cd8-7ae3c3a52e4d:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=32b32da0-a6df-4746-bb61-c0930bd985a2:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=9b396e13-3f24-462e-a80e-27254b64364e:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413622650&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413622652&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ccdca7b7-788f-4f4d-a491-6f43fe166685:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+(anonymous) @ recaptcha__en.js:500
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+(anonymous) @ recaptcha__en.js:500
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+(anonymous) @ recaptcha__en.js:500
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+(anonymous) @ recaptcha__en.js:500
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+(anonymous) @ recaptcha__en.js:500
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+(anonymous) @ recaptcha__en.js:500
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ffe5d66b-ceb2-41b7-bae9-762d274e08b0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=6b4ba8d9-65f9-4736-9c29-a046dd793fab:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413623749&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=503&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=9b36b417-19ee-45a0-a1bd-de8c0e1d0b13:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=f26adf0e-cda0-4b04-bc60-5a85fc5ad35f:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+value @ stripe.js:1
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+value @ stripe.js:1
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+value @ stripe.js:1
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+jP.oj @ recaptcha__en.js:1611
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+jP.oj @ recaptcha__en.js:1611
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+jP.oj @ recaptcha__en.js:1611
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+jP.oj @ recaptcha__en.js:1611
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+jP.oj @ recaptcha__en.js:1611
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+jP.oj @ recaptcha__en.js:1611
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413624952&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413624953&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=58e38a52-6d22-449e-93a6-2898e0569731:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+z @ ed1e693c96a75807.js:2
+ The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+e @ ed1e693c96a75807.js:2
+ The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+e @ ed1e693c96a75807.js:2
+ The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+e @ ed1e693c96a75807.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=2ff0066a-2f78-4b15-9559-52573cb2052d:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+web-client-content-script.js:2 Uncaught 
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413628290&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=503&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413628290&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=503&gz=1. TypeError: Failed to fetch 
+overrideMethod @ installHook.js:1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413629684&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413629684&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1. TypeError: Failed to fetch 
+overrideMethod @ installHook.js:1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413629685&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413629685&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1. TypeError: Failed to fetch 
+overrideMethod @ installHook.js:1
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=6996a6e0-78d7-45d5-b596-1af48b93ec60:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=a910d68b-3852-4325-a4ad-a630d4543148:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413630883&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413631397&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413633415&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413637926&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413637926&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1. TypeError: Failed to fetch 
+overrideMethod @ installHook.js:1
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Abeacon%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=542729d2-92b4-4d1b-89a4-8c9e24915bed:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_monitoring/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413656114&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=504&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+overlay.js:1 Uncaught 
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413656733&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=504&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413658738&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=504&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413659887&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413660391&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413662398&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413662869&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1004&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413663257&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=504&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413663257&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=504&gz=1. TypeError: Failed to fetch 
+overrideMethod @ installHook.js:1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413663378&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1004&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413665390&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1004&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413667169&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413667169&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413669895&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1004&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413669895&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1004&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413670877&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413671385&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413673391&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413677912&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413677912&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413680876&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413681392&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+JSON-Brand-Industry:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+JSON-Brand-Industry:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+JSON-Brand-Industry:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413683411&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=84abb5a5-edb1-4926-babd-bbbdaeb88f7b:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=fe66b76f-1943-444a-a449-99d72003078f:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413687925&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413687925&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+ed1e693c96a75807.js:2 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+z @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+e @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+e @ ed1e693c96a75807.js:2
+ed1e693c96a75807.js:2 The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+e @ ed1e693c96a75807.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413688694&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413689288&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413689655&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+workspace_iframe.html?initialPath=%2F&id=%3Arhu%3A:32 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413690171&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413691058&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413691311&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413691602&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413692189&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413693613&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413696016&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413696016&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413696703&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413696703&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2008&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413698129&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413698129&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+7af7703f-aa9e-4939-8f28-eaf4f0be8ef4-00-24i78ugrhe0rr.riker.replit.dev/api/auth/user:1  Failed to load resource: the server responded with a status of 401 (Unauthorized)
+/public/js/beacon.js:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413700908&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413701419&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413703439&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413707944&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413707944&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e6a255d1-528c-4588-a6a0-5aebca5232b5:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=92de9c3b-23c3-4cf5-bf5f-c080cd6f6312:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413718225&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2011&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413718760&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2011&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413720768&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2011&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413725285&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2011&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413725285&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=2011&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+ingest.app.coframe.com/ingest/v2/batched_events/68c9ad4d4cddb58cf3a1f93d/:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413726089&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413726609&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413728623&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+web-client-content-script.js:2 The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+(anonymous) @ web-client-content-script.js:2
+web-client-content-script.js:2 The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?
+(anonymous) @ web-client-content-script.js:2
+web-client-content-script.js:2 The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.
+(anonymous) @ web-client-content-script.js:2
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413733219&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+installHook.js:1  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1767413733219&sid=66ff1f00-0be4-4a0a-a1b6-0bd0f7777f0a&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at de3228f7185b1eef.js:2:106761
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:74360)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at c2520b3dd1fe6aff.js:2:71462
+    at new Promise (<anonymous>)
+    at u (c2520b3dd1fe6aff.js:2:71216)
+    at t.value (c2520b3dd1fe6aff.js:2:73450)
+    at c2520b3dd1fe6aff.js:2:60278
+    at e.value (c2520b3dd1fe6aff.js:2:60685)
+    at e.<computed> [as _sendRequest] (c2520b3dd1fe6aff.js:2:60218)
+    at t.<anonymous> (c2520b3dd1fe6aff.js:2:75836)
+    at Object.next (44ca0133b0532c51.js:2:7606)
+    at s (c2520b3dd1fe6aff.js:2:71272)
+overrideMethod @ installHook.js:1
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=980e6092-779a-4f5f-b35a-79ddbd974186:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3Aac57bc88&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=70c3ced6-89d9-4f82-bfe9-1c7af0a78510:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+de3228f7185b1eef.js:2  POST https://events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ de3228f7185b1eef.js:2
+(anonymous) @ de3228f7185b1eef.js:2
+promise @ 0e4ed8e3f1f43877.js:2
+(anonymous) @ 0e4ed8e3f1f43877.js:2
+t.httpRequest @ 0e4ed8e3f1f43877.js:2
+r @ 0e4ed8e3f1f43877.js:2
+i.sendChunk @ 0e4ed8e3f1f43877.js:2
+i.sendEvents @ 0e4ed8e3f1f43877.js:2
+m @ 0e4ed8e3f1f43877.js:2
+y @ 0e4ed8e3f1f43877.js:2
+a @ de3228f7185b1eef.js:2
+de3228f7185b1eef.js:2  POST https://events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820 net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ de3228f7185b1eef.js:2
+(anonymous) @ de3228f7185b1eef.js:2
+promise @ 0e4ed8e3f1f43877.js:2
+(anonymous) @ 0e4ed8e3f1f43877.js:2
+t.httpRequest @ 0e4ed8e3f1f43877.js:2
+r @ 0e4ed8e3f1f43877.js:2
+(anonymous) @ 0e4ed8e3f1f43877.js:2
+Promise.catch
+r @ 0e4ed8e3f1f43877.js:2
+i.sendChunk @ 0e4ed8e3f1f43877.js:2
+i.sendEvents @ 0e4ed8e3f1f43877.js:2
+m @ 0e4ed8e3f1f43877.js:2
+y @ 0e4ed8e3f1f43877.js:2
+a @ de3228f7185b1eef.js:2
