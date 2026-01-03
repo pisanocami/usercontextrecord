@@ -1,0 +1,241 @@
+
+Brand Intelligence
+Configuration
+Navigation
+
+All Configurations
+
+New Configuration
+Tools
+
+Bulk Generation
+Configuration Sections
+
+Brand Context
+
+Category Definition
+
+Competitive Set
+
+Demand Definition
+
+Strategic Intent
+
+Channel Context
+
+Negative Scope
+
+Governance
+Not Validated
+Toggle Sidebar
+
+
+Brand Configurations
+View and manage all saved brand intelligence configurations
+
+New Configuration
+Search by name, domain, or industry...
+2 configurations
+
+Halo Collar
+halocollar.com
+Pet Technology
+Needs Review
+
+
+
+
+
+
+Brand Context
+Name:
+Halo Collar
+Domain:
+halocollar.com
+Industry:
+Pet Technology
+Business Model:
+DTC
+Target Market:
+US
+Primary Geography:
+US
+•
+CA
+•
+AU
+•
+UK
+•
+Revenue Band:
+$10M-$50M
+Category Definition
+Primary Category:
+Footwear and Apparel
+Approved Categories:
+Footwear and Apparel
+•
+Included:
+Pet Accessories
+•
+GPS Pet Tracking
+•
+Dog Training Collars
+•
+Smart Pet Equipment
+•
+Excluded:
+Footwear
+•
+Human Apparel
+•
+Children’s Apparel
+•
+Competitive Set
+Direct Competitors:
+Fi Smart Collar
+•
+Whistle GPS Tracker
+•
+SportDOG Brand
+•
+Garmin Dog Devices
+•
+Indirect Competitors:
+Invisible Fence
+•
+PetSafe
+•
+Tractive GPS Tracker
+•
+Marketplaces:
+Amazon.com
+•
+Chewy.com
+•
+Petco.com
+•
+Demand Definition
+Brand Seed Terms:
+Halo Collar
+•
+Halo dog collar
+•
+Halo pet collar
+•
+Invisible fence collar
+•
+Halo smart collar
+•
+Top N Brand:
+10
+Category Terms:
+GPS dog collar
+•
+Smart dog collar
+•
+Dog training collar
+•
+Pet tracker collar
+•
+Wireless dog fence
+•
+Problem Terms:
+How to keep my dog safe
+•
+Dog training tools
+•
+Pet tracking device for dogs
+•
+Prevent dogs from running away
+•
+Top N Non-Brand:
+15
+Strategic Intent
+Growth Priority:
+Expand into additional pet markets and build brand awareness
+Risk Tolerance:
+medium
+Primary Goal:
+Increase direct sales on halocollar.com
+Secondary Goals:
+Enhance brand reputation in smart pet tech
+•
+Increase customer retention rates
+•
+Improve user education on product use
+•
+Avoid:
+Compromising product quality
+•
+Aggressive discounting affecting brand perception
+•
+Low-value partnerships
+•
+Channel Context
+Paid Media Active:
+Yes
+SEO Investment Level:
+medium
+Marketplace Dependence:
+medium
+Negative Scope
+Excluded Categories:
+Footwear
+•
+Human Apparel
+•
+Cat Products
+•
+Excluded Keywords:
+Dog sweaters
+•
+Pet shoes
+•
+Cat collars
+•
+Excluded Use Cases:
+Products for small animals (e.g., reptiles)
+•
+Excluded Competitors:
+Ruffwear (dog outdoor gear)
+•
+Orvis (general pet gear)
+•
+Governance
+Model Suggested:
+Yes
+Last Reviewed:
+2026-01-03
+Reviewed By:
+AI Generator
+Valid Until:
+2026-04-03
+CMO Safe:
+No
+Confidence Level:
+medium
+Validation Status:
+needs_review
+Human Verified:
+No
+Context Version:
+2
+Context Hash:
+eyJhcHByb3ZlZF9jYXRlZ29yaWVzIjpb
+Notes:
+AI regeneration of all sections Auto-generated configuration - review recommended
+Created: 2/1/2026
+Updated: 2/1/2026
+Last Reviewed: 2026-01-03
+New Configuration
+Oofos.com
+Footwear and Apparel
+Needs Review
+
+
+
+
+
+
+Made with Replit
