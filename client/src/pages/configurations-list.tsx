@@ -49,6 +49,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  FileText,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -262,6 +263,16 @@ function ConfigurationCard({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <Link href={`/one-pager/${config.id}`} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="View One Pager"
+                    data-testid={`button-onepager-${config.id}`}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   size="icon"

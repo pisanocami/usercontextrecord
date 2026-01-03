@@ -783,7 +783,7 @@ Generated: ${new Date().toISOString()}
         {/* Footer */}
         <div className="text-xs text-muted-foreground text-center py-4 border-t">
           Last updated: {config.updated_at ? new Date(config.updated_at).toLocaleString() : "Unknown"} 
-          {config.governance?.updated_by && ` by ${config.governance.updated_by}`}
+          {config.governance?.reviewed_by && ` by ${config.governance.reviewed_by}`}
         </div>
       </div>
     </ScrollArea>
