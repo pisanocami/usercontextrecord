@@ -52,6 +52,7 @@ import {
   FileText,
   BarChart3,
   History,
+  Eye,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -283,6 +284,16 @@ function ConfigurationCard({
                     data-testid={`button-keyword-gap-${config.id}`}
                   >
                     <BarChart3 className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href={`/keyword-gap-report/${config.id}`} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Keyword Gap Visibility Report"
+                    data-testid={`button-keyword-gap-report-${config.id}`}
+                  >
+                    <Eye className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Link href={`/versions/${config.id}`} onClick={(e) => e.stopPropagation()}>
