@@ -1,0 +1,484 @@
+import { useState } from "react";
+import { useFormContext } from "react-hook-form";
+import { Users, Check, X, ChevronDown, ChevronRight, AlertTriangle, Target, TrendingUp, Star, Building2, Globe, Plus } from "lucide-react";
+import { ContextBlock, BlockStatus } from "@/components/context-block";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AIGenerateButton } from "@/components/ai-generate-button";
+import { useAIGenerate } from "@/hooks/use-ai-generate";
+import { useToast } from "@/hooks/use-toast";
+import type { InsertConfiguration, CompetitorEntry } from "@shared/schema";
+
+const TIER_CONFIG = {
+  tier1: { 
+    label: "Direct", 
+    icon: Target,
+    color: "text-red-600 dark:text-red-400",
+    bgColor: "bg-red-100 dark:bg-red-900/30",
+    badgeColor: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  },
+  tier2: { 
+    label: "Adjacent", 
+    icon: TrendingUp,
+    color: "text-amber-600 dark:text-amber-400",
+    bgColor: "bg-amber-100 dark:bg-amber-900/30",
+    badgeColor: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  },
+  tier3: { 
+    label: "Aspirational", 
+    icon: Star,
+    color: "text-blue-600 dark:text-blue-400",
+    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    badgeColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  },
+};
+
+function ScoreBar({ score, label }: { score: number; label: string }) {
+  const color = score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground w-16">{label}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full ${color} transition-all`} style={{ width: `${score}%` }} />
+      </div>
+      <span className="text-xs font-medium w-8 text-right">{score}%</span>
+    </div>
+  );
+}
+
+function CompetitorRow({
+  competitor,
+  onApprove,
+  onReject,
+  isExpanded,
+  onToggle,
+}: {
+  competitor: CompetitorEntry;
+  onApprove: () => void;
+  onReject: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const tierConfig = TIER_CONFIG[competitor.tier];
+  const hasSizeMismatch = competitor.size_proximity < 40;
+
+  return (
+    <div 
+      className={`rounded-lg border p-3 transition-colors ${
+        competitor.status === "rejected" 
+          ? "opacity-50 bg-muted/30" 
+          : hasSizeMismatch && competitor.status !== "approved"
+          ? "border-amber-300 dark:border-amber-700"
+          : ""
+      }`}
+      data-testid={`competitor-row-${competitor.name}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button 
+            type="button"
+            onClick={onToggle}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          
+          <span className="font-medium truncate">{competitor.name}</span>
+          
+          <Badge className={`text-xs ${tierConfig.badgeColor}`}>
+            {tierConfig.label}
+          </Badge>
+          
+          {competitor.status === "approved" && (
+            <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+              <Check className="h-3 w-3 mr-0.5" /> Approved
+            </Badge>
+          )}
+          {competitor.status === "rejected" && (
+            <Badge variant="outline" className="text-xs text-red-600 border-red-300">
+              <X className="h-3 w-3 mr-0.5" /> Rejected
+            </Badge>
+          )}
+          {competitor.status === "pending_review" && (
+            <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+              Pending
+            </Badge>
+          )}
+          
+          {hasSizeMismatch && competitor.status !== "rejected" && (
+            <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 gap-1">
+              <AlertTriangle className="h-3 w-3" /> Size mismatch
+            </Badge>
+          )}
+          
+          {competitor.added_by === "ai" && (
+            <Badge variant="secondary" className="text-xs">AI</Badge>
+          )}
+        </div>
+
+        {competitor.status === "pending_review" && (
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onApprove}
+              className="h-7 w-7 text-green-600 dark:text-green-400"
+              data-testid={`btn-approve-${competitor.name}`}
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onReject}
+              className="h-7 w-7 text-red-600 dark:text-red-400"
+              data-testid={`btn-reject-${competitor.name}`}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {isExpanded && (
+        <div className="mt-3 pl-6 space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <ScoreBar score={competitor.similarity_score} label="Similarity" />
+            <ScoreBar score={competitor.serp_overlap} label="SERP" />
+            <ScoreBar score={competitor.size_proximity} label="Size" />
+          </div>
+          
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {competitor.domain && (
+              <span className="flex items-center gap-1">
+                <Globe className="h-3 w-3" /> {competitor.domain}
+              </span>
+            )}
+            {competitor.revenue_range && (
+              <span className="flex items-center gap-1">
+                <Building2 className="h-3 w-3" /> {competitor.revenue_range}
+              </span>
+            )}
+            {competitor.employee_count && (
+              <span className="flex items-center gap-1">
+                <Users className="h-3 w-3" /> {competitor.employee_count}
+              </span>
+            )}
+          </div>
+          
+          {competitor.evidence?.why_selected && (
+            <p className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+              {competitor.evidence.why_selected}
+            </p>
+          )}
+          
+          {competitor.evidence?.top_overlap_keywords?.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {competitor.evidence.top_overlap_keywords.map((kw, i) => (
+                <Badge key={i} variant="outline" className="text-xs">{kw}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TierGroup({
+  tier,
+  competitors,
+  expandedIds,
+  onToggle,
+  onApprove,
+  onReject,
+}: {
+  tier: "tier1" | "tier2" | "tier3";
+  competitors: CompetitorEntry[];
+  expandedIds: Set<string>;
+  onToggle: (name: string) => void;
+  onApprove: (name: string) => void;
+  onReject: (name: string) => void;
+}) {
+  const config = TIER_CONFIG[tier];
+  const Icon = config.icon;
+  
+  if (competitors.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <div className={`h-6 w-6 rounded flex items-center justify-center ${config.bgColor}`}>
+          <Icon className={`h-3.5 w-3.5 ${config.color}`} />
+        </div>
+        <span className="text-sm font-medium">{config.label} ({competitors.length})</span>
+      </div>
+      <div className="space-y-2 pl-8">
+        {competitors.map(c => (
+          <CompetitorRow
+            key={c.name}
+            competitor={c}
+            isExpanded={expandedIds.has(c.name)}
+            onToggle={() => onToggle(c.name)}
+            onApprove={() => onApprove(c.name)}
+            onReject={() => onReject(c.name)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function CompetitorSetBlock() {
+  const form = useFormContext<InsertConfiguration>();
+  const { toast } = useToast();
+  const { generate, isGenerating } = useAIGenerate();
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newCompetitor, setNewCompetitor] = useState({ name: "", tier: "tier1" as const });
+
+  const competitors = form.watch("competitors.competitors") || [];
+  
+  const tier1 = competitors.filter(c => c.tier === "tier1" && c.status !== "rejected");
+  const tier2 = competitors.filter(c => c.tier === "tier2" && c.status !== "rejected");
+  const tier3 = competitors.filter(c => c.tier === "tier3" && c.status !== "rejected");
+  const pendingCount = competitors.filter(c => c.status === "pending_review").length;
+  const approvedCount = competitors.filter(c => c.status === "approved").length;
+
+  const status: BlockStatus = pendingCount > 0 ? "warning" : approvedCount > 0 ? "complete" : "incomplete";
+
+  const toggleExpand = (name: string) => {
+    const newSet = new Set(expandedIds);
+    if (newSet.has(name)) {
+      newSet.delete(name);
+    } else {
+      newSet.add(name);
+    }
+    setExpandedIds(newSet);
+  };
+
+  const handleApprove = (name: string) => {
+    const updated = competitors.map(c => 
+      c.name === name ? { ...c, status: "approved" as const } : c
+    );
+    form.setValue("competitors.competitors", updated, { shouldDirty: true });
+    toast({ title: `${name} approved` });
+  };
+
+  const handleReject = (name: string) => {
+    const updated = competitors.map(c => 
+      c.name === name ? { ...c, status: "rejected" as const, rejected_reason: "Rejected by user" } : c
+    );
+    form.setValue("competitors.competitors", updated, { shouldDirty: true });
+    toast({ title: `${name} rejected` });
+  };
+
+  const handleAddCompetitor = () => {
+    if (!newCompetitor.name.trim()) return;
+    
+    const entry: CompetitorEntry = {
+      name: newCompetitor.name.trim(),
+      domain: "",
+      tier: newCompetitor.tier,
+      status: "approved",
+      similarity_score: 50,
+      serp_overlap: 0,
+      size_proximity: 50,
+      revenue_range: "",
+      employee_count: "",
+      funding_stage: "unknown",
+      geo_overlap: [],
+      evidence: { why_selected: "Manually added", top_overlap_keywords: [], serp_examples: [] },
+      added_by: "human",
+      added_at: new Date().toISOString(),
+      rejected_reason: "",
+    };
+    
+    form.setValue("competitors.competitors", [...competitors, entry], { shouldDirty: true });
+    setShowAddDialog(false);
+    setNewCompetitor({ name: "", tier: "tier1" });
+    toast({ title: "Competitor added" });
+  };
+
+  const handleRegenerate = () => {
+    const brand = form.getValues("brand");
+    generate(
+      { 
+        section: "competitors", 
+        context: { name: brand.name, industry: brand.industry, business_model: brand.business_model } 
+      },
+      {
+        onSuccess: (data) => {
+          const suggestions = data.suggestions as Record<string, unknown[]>;
+          const now = new Date().toISOString();
+          const newEntries: CompetitorEntry[] = [];
+          
+          (suggestions.direct || []).forEach((item: unknown) => {
+            const name = typeof item === "string" ? item : (item as any)?.name || "";
+            if (name && !competitors.some(c => c.name === name)) {
+              newEntries.push({
+                name,
+                domain: (item as any)?.domain || "",
+                tier: "tier1",
+                status: "pending_review",
+                similarity_score: 70,
+                serp_overlap: 0,
+                size_proximity: 50,
+                revenue_range: "",
+                employee_count: "",
+                funding_stage: "unknown",
+                geo_overlap: [],
+                evidence: { why_selected: (item as any)?.why || "AI-suggested", top_overlap_keywords: [], serp_examples: [] },
+                added_by: "ai",
+                added_at: now,
+                rejected_reason: "",
+              });
+            }
+          });
+          
+          (suggestions.indirect || []).forEach((item: unknown) => {
+            const name = typeof item === "string" ? item : (item as any)?.name || "";
+            if (name && !competitors.some(c => c.name === name) && !newEntries.some(e => e.name === name)) {
+              newEntries.push({
+                name,
+                domain: (item as any)?.domain || "",
+                tier: "tier2",
+                status: "pending_review",
+                similarity_score: 50,
+                serp_overlap: 0,
+                size_proximity: 50,
+                revenue_range: "",
+                employee_count: "",
+                funding_stage: "unknown",
+                geo_overlap: [],
+                evidence: { why_selected: (item as any)?.why || "AI-suggested", top_overlap_keywords: [], serp_examples: [] },
+                added_by: "ai",
+                added_at: now,
+                rejected_reason: "",
+              });
+            }
+          });
+          
+          if (newEntries.length > 0) {
+            form.setValue("competitors.competitors", [...competitors, ...newEntries], { shouldDirty: true });
+            toast({ title: "AI suggestions applied", description: `${newEntries.length} competitors added for review.` });
+          } else {
+            toast({ title: "No new competitors found", description: "AI didn't find any new competitors to suggest." });
+          }
+        },
+      }
+    );
+  };
+
+  return (
+    <>
+      <ContextBlock
+        id="competitor-set"
+        title="Competitor Set"
+        subtitle={`${approvedCount} approved, ${pendingCount} pending review`}
+        icon={<Users className="h-5 w-5" />}
+        status={status}
+        statusLabel={pendingCount > 0 ? `${pendingCount} pending` : `${approvedCount} approved`}
+        defaultExpanded={true}
+        onRegenerate={handleRegenerate}
+        isRegenerating={isGenerating}
+      >
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Tier and approve each competitor. Size mismatches are flagged for review.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddDialog(true)}
+              data-testid="btn-add-competitor"
+            >
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
+
+          <TierGroup 
+            tier="tier1" 
+            competitors={tier1}
+            expandedIds={expandedIds}
+            onToggle={toggleExpand}
+            onApprove={handleApprove}
+            onReject={handleReject}
+          />
+          <TierGroup 
+            tier="tier2" 
+            competitors={tier2}
+            expandedIds={expandedIds}
+            onToggle={toggleExpand}
+            onApprove={handleApprove}
+            onReject={handleReject}
+          />
+          <TierGroup 
+            tier="tier3" 
+            competitors={tier3}
+            expandedIds={expandedIds}
+            onToggle={toggleExpand}
+            onApprove={handleApprove}
+            onReject={handleReject}
+          />
+
+          {competitors.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No competitors added yet.</p>
+              <p className="text-xs">Click "Add" or use AI to suggest competitors.</p>
+            </div>
+          )}
+        </div>
+      </ContextBlock>
+
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Competitor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                value={newCompetitor.name}
+                onChange={(e) => setNewCompetitor(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Competitor name"
+                data-testid="input-add-competitor-name"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Tier</label>
+              <Select
+                value={newCompetitor.tier}
+                onValueChange={(v) => setNewCompetitor(prev => ({ ...prev, tier: v as any }))}
+              >
+                <SelectTrigger data-testid="select-add-competitor-tier">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tier1">Tier 1 - Direct</SelectItem>
+                  <SelectItem value="tier2">Tier 2 - Adjacent</SelectItem>
+                  <SelectItem value="tier3">Tier 3 - Aspirational</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            <Button onClick={handleAddCompetitor} disabled={!newCompetitor.name.trim()} data-testid="btn-confirm-add-competitor">
+              Add Competitor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
