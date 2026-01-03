@@ -229,7 +229,7 @@ export default function KeywordGapReport() {
   const [activeTab, setActiveTab] = useState("visibility");
 
   const { data: config, isLoading } = useQuery<Configuration>({
-    queryKey: ["/api/configuration", configId],
+    queryKey: ["/api/configurations", configId],
     enabled: !!configId,
   });
 
