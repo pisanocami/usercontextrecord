@@ -1,6 +1,10 @@
 import { chromium, Browser, Page } from "playwright";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
 const SCREENSHOTS_DIR = path.join(__dirname, "screenshots");
@@ -36,6 +40,8 @@ async function delay(ms: number): Promise<void> {
 
 async function captureScreenshots(): Promise<void> {
   console.log("🚀 Starting screenshot capture...\n");
+  console.log("⚠️  Note: This script captures public screens only.");
+  console.log("   For authenticated screens, use manual capture or provide session cookies.\n");
 
   if (!fs.existsSync(SCREENSHOTS_DIR)) {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
@@ -54,29 +60,17 @@ async function captureScreenshots(): Promise<void> {
 
   const page: Page = await context.newPage();
 
-  console.log(`📸 Capturing ${manifest.screens.length} screens...\n`);
+  const publicScreens = manifest.screens.filter((s) => !s.requiresAuth);
+  const authScreens = manifest.screens.filter((s) => s.requiresAuth);
 
-  for (const screen of manifest.screens) {
+  console.log(`📸 Capturing ${publicScreens.length} public screens...\n`);
+
+  for (const screen of publicScreens) {
     try {
-      let url = `${BASE_URL}${screen.route}`;
-
-      if (screen.route.includes(":id")) {
-        url = `${BASE_URL}${screen.route.replace(":id", "1")}`;
-      }
-
+      const url = `${BASE_URL}${screen.route}`;
       console.log(`  → ${screen.name} (${url})`);
 
       await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
-
-      if (screen.section) {
-        await delay(500);
-        const sectionButton = page.locator(`[data-testid="nav-${screen.section}"]`);
-        if (await sectionButton.isVisible()) {
-          await sectionButton.click();
-          await delay(300);
-        }
-      }
-
       await delay(1000);
 
       const screenshotPath = path.join(SCREENSHOTS_DIR, screen.screenshotFile);
@@ -96,8 +90,20 @@ async function captureScreenshots(): Promise<void> {
   manifest.metadata.generated = new Date().toISOString();
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
 
-  console.log("\n✨ Screenshot capture complete!");
+  console.log("\n✨ Public screenshot capture complete!");
   console.log(`   Screenshots saved to: ${SCREENSHOTS_DIR}`);
+
+  if (authScreens.length > 0) {
+    console.log(`\n📋 Manual capture required for ${authScreens.length} authenticated screens:`);
+    for (const screen of authScreens) {
+      console.log(`   - ${screen.screenshotFile}: ${screen.name}`);
+    }
+    console.log("\n   To capture these screens:");
+    console.log("   1. Log in to the application in your browser");
+    console.log("   2. Navigate to each screen");
+    console.log("   3. Take screenshots (1440x900 viewport recommended)");
+    console.log(`   4. Save to: ${SCREENSHOTS_DIR}/`);
+  }
 }
 
 captureScreenshots().catch(console.error);
