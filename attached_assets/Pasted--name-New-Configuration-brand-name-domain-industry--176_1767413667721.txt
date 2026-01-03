@@ -1,0 +1,121 @@
+{
+  "name": "New Configuration",
+  "brand": {
+    "name": "",
+    "domain": "",
+    "industry": "",
+    "business_model": "B2B",
+    "primary_geography": [],
+    "revenue_band": "",
+    "target_market": ""
+  },
+  "category_definition": {
+    "primary_category": "",
+    "included": [],
+    "excluded": [],
+    "approved_categories": [],
+    "alternative_categories": []
+  },
+  "competitors": {
+    "direct": [],
+    "indirect": [],
+    "marketplaces": [],
+    "competitors": [],
+    "approved_count": 0,
+    "rejected_count": 0,
+    "pending_review_count": 0
+  },
+  "demand_definition": {
+    "brand_keywords": {
+      "top_n": 20,
+      "seed_terms": []
+    },
+    "non_brand_keywords": {
+      "top_n": 50,
+      "problem_terms": [],
+      "category_terms": []
+    }
+  },
+  "strategic_intent": {
+    "growth_priority": "",
+    "risk_tolerance": "medium",
+    "primary_goal": "",
+    "secondary_goals": [],
+    "avoid": [],
+    "goal_type": "roi",
+    "time_horizon": "medium",
+    "constraint_flags": {
+      "budget_constrained": false,
+      "resource_limited": false,
+      "regulatory_sensitive": false,
+      "brand_protection_priority": false
+    }
+  },
+  "channel_context": {
+    "paid_media_active": false,
+    "seo_investment_level": "medium",
+    "marketplace_dependence": "low"
+  },
+  "negative_scope": {
+    "excluded_categories": [],
+    "excluded_keywords": [],
+    "excluded_use_cases": [],
+    "excluded_competitors": [],
+    "category_exclusions": [],
+    "keyword_exclusions": [],
+    "use_case_exclusions": [],
+    "competitor_exclusions": [],
+    "enforcement_rules": {
+      "hard_exclusion": true,
+      "allow_model_suggestion": false,
+      "require_human_override_for_expansion": true
+    },
+    "audit_log": []
+  },
+  "governance": {
+    "model_suggested": true,
+    "human_overrides": {
+      "keywords": [],
+      "categories": [],
+      "competitors": []
+    },
+    "context_confidence": {
+      "level": "medium",
+      "notes": ""
+    },
+    "last_reviewed": "2026-01-03",
+    "reviewed_by": "",
+    "context_valid_until": "2026-04-03",
+    "cmo_safe": false,
+    "context_hash": "",
+    "context_version": 1,
+    "validation_status": "incomplete",
+    "human_verified": false,
+    "blocked_reasons": [],
+    "quality_score": {
+      "completeness": 0,
+      "competitor_confidence": 0,
+      "negative_strength": 0,
+      "evidence_coverage": 0,
+      "overall": 0,
+      "grade": "low",
+      "breakdown": {
+        "evidence_details": "",
+        "negative_details": "",
+        "competitor_details": "",
+        "completeness_details": ""
+      },
+      "calculated_at": ""
+    },
+    "ai_behavior": {
+      "regeneration_count": 0,
+      "max_regenerations": 1,
+      "redacted_fields": [],
+      "auto_approve_threshold": 80,
+      "require_human_below": 50,
+      "requires_human_review": false,
+      "auto_approved": false,
+      "violation_detected": false
+    }
+  }
+}
