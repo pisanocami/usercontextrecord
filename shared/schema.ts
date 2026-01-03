@@ -306,6 +306,40 @@ export const contextStatusEnum = z.enum([
 
 export type ContextStatus = z.infer<typeof contextStatusEnum>;
 
+// Section Approval Status enum
+export const sectionApprovalStatusEnum = z.enum([
+  "pending",    // Not yet reviewed
+  "approved",   // Human approved
+  "rejected",   // Human rejected, needs changes
+  "ai_generated", // AI generated, awaiting review
+]);
+
+export type SectionApprovalStatus = z.infer<typeof sectionApprovalStatusEnum>;
+
+// Individual section approval tracking
+export const sectionApprovalSchema = z.object({
+  status: sectionApprovalStatusEnum.default("pending"),
+  approved_at: z.string().optional(),
+  approved_by: z.string().optional(),
+  rejected_reason: z.string().optional(),
+  last_edited_at: z.string().optional(),
+  last_edited_by: z.string().optional(),
+});
+
+// Section Approvals - tracks approval status for each section
+export const sectionApprovalsSchema = z.object({
+  brand_identity: sectionApprovalSchema.default({ status: "pending" }),
+  category_definition: sectionApprovalSchema.default({ status: "pending" }),
+  competitive_set: sectionApprovalSchema.default({ status: "pending" }),
+  demand_definition: sectionApprovalSchema.default({ status: "pending" }),
+  strategic_intent: sectionApprovalSchema.default({ status: "pending" }),
+  channel_context: sectionApprovalSchema.default({ status: "pending" }),
+  negative_scope: sectionApprovalSchema.default({ status: "pending" }),
+});
+
+export type SectionApproval = z.infer<typeof sectionApprovalSchema>;
+export type SectionApprovals = z.infer<typeof sectionApprovalsSchema>;
+
 // Governance Schema
 export const governanceSchema = z.object({
   model_suggested: z.boolean(),
@@ -359,6 +393,16 @@ export const governanceSchema = z.object({
     requires_human_review: false,
     auto_approved: false,
     violation_detected: false,
+  }),
+  // Section-level approvals for Notion-like workflow
+  section_approvals: sectionApprovalsSchema.default({
+    brand_identity: { status: "pending" },
+    category_definition: { status: "pending" },
+    competitive_set: { status: "pending" },
+    demand_definition: { status: "pending" },
+    strategic_intent: { status: "pending" },
+    channel_context: { status: "pending" },
+    negative_scope: { status: "pending" },
   }),
 });
 
@@ -565,6 +609,15 @@ export const defaultConfiguration: InsertConfiguration = {
       requires_human_review: false,
       auto_approved: false,
       violation_detected: false,
+    },
+    section_approvals: {
+      brand_identity: { status: "pending" as const },
+      category_definition: { status: "pending" as const },
+      competitive_set: { status: "pending" as const },
+      demand_definition: { status: "pending" as const },
+      strategic_intent: { status: "pending" as const },
+      channel_context: { status: "pending" as const },
+      negative_scope: { status: "pending" as const },
     },
   },
 };
