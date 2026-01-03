@@ -63,7 +63,28 @@ interface Configuration {
   id: number;
   name: string;
   brand: { domain: string; name: string };
-  competitors: { direct: string[]; indirect: string[] };
+  competitors: { 
+    direct: string[]; 
+    indirect: string[];
+    competitors?: { status: string; name: string }[];
+  };
+  category_definition?: {
+    primary_category: string;
+    included: string[];
+    excluded: string[];
+  };
+  negative_scope?: {
+    enforcement_rules?: {
+      hard_exclusion: boolean;
+    };
+  };
+  governance?: {
+    quality_score?: {
+      overall: number;
+    };
+    validation_status?: string;
+    human_verified?: boolean;
+  };
 }
 
 interface KeywordLiteResult {
@@ -97,6 +118,40 @@ interface KeywordGapLiteResult {
   };
   contextVersion: number;
   configurationName: string;
+}
+
+// READY_FOR_ANALYSIS validation logic
+function checkAnalysisReadiness(config: Configuration | undefined) {
+  if (!config) {
+    return { isReady: false, reasons: ["Context not loaded"] };
+  }
+  
+  const reasons: string[] = [];
+  
+  // Check category fence (Included + Excluded not empty)
+  const hasIncluded = (config.category_definition?.included?.length || 0) > 0;
+  const hasExcluded = (config.category_definition?.excluded?.length || 0) > 0;
+  if (!hasIncluded || !hasExcluded) {
+    reasons.push("Category fence incomplete");
+  }
+  
+  // Check at least 2 direct competitors approved
+  const approvedCompetitors = config.competitors?.competitors?.filter(c => c.status === "approved")?.length || 0;
+  const directCompetitors = config.competitors?.direct?.length || 0;
+  if ((approvedCompetitors + directCompetitors) < 2) {
+    reasons.push("At least 2 competitors required");
+  }
+  
+  // Check hard exclusion enabled
+  const hardExclusionEnabled = config.negative_scope?.enforcement_rules?.hard_exclusion !== false;
+  if (!hardExclusionEnabled) {
+    reasons.push("Hard exclusion not enabled");
+  }
+  
+  return {
+    isReady: reasons.length === 0,
+    reasons,
+  };
 }
 
 export default function KeywordGap() {
@@ -264,6 +319,9 @@ export default function KeywordGap() {
     ...(config.competitors?.indirect || []),
   ].slice(0, 10);
 
+  // Check analysis readiness (READY_FOR_ANALYSIS gate)
+  const analysisReadiness = checkAnalysisReadiness(config);
+
   const result = analyzeMutation.data;
 
   return (
@@ -272,7 +330,7 @@ export default function KeywordGap() {
         <Link href="/">
           <Button variant="ghost" size="sm" className="mb-4" data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver a configuraciones
+            Back to Contexts
           </Button>
         </Link>
 
@@ -344,26 +402,55 @@ export default function KeywordGap() {
                 <Zap className="h-4 w-4" />
                 Quick Analysis
               </CardTitle>
+              <CardDescription>
+                {analysisReadiness.isReady ? (
+                  <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <ShieldCheck className="h-3 w-3" />
+                    Context ready for controlled analysis
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    Complete context first
+                  </span>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              {analysisReadiness.isReady && (
+                <p className="text-xs text-muted-foreground border rounded-md p-2 bg-muted/50">
+                  This context has been reviewed at a high level. All outputs will strictly respect defined category fences and exclusions.
+                </p>
+              )}
+              {!analysisReadiness.isReady && analysisReadiness.reasons.length > 0 && (
+                <div className="text-xs text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 rounded-md p-2 bg-amber-50/50 dark:bg-amber-950/20">
+                  <ul className="list-disc list-inside space-y-1">
+                    {analysisReadiness.reasons.map((reason, i) => (
+                      <li key={i}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <Button
                 className="w-full"
                 onClick={() => liteMutation.mutate()}
-                disabled={liteMutation.isPending || allCompetitors.length === 0}
+                disabled={liteMutation.isPending || !analysisReadiness.isReady}
                 data-testid="button-gap-lite"
               >
                 {liteMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <Zap className="h-4 w-4 mr-2" />
+                  <>
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                  </>
                 )}
-                Keyword Gap Lite
+                Run Keyword Gap Lite (Fence-Enforced)
               </Button>
               <Button
                 className="w-full"
                 variant="secondary"
                 onClick={() => compareAllMutation.mutate()}
-                disabled={compareAllMutation.isPending || allCompetitors.length === 0}
+                disabled={compareAllMutation.isPending || !analysisReadiness.isReady}
                 data-testid="button-compare-all"
               >
                 {compareAllMutation.isPending ? (
@@ -371,11 +458,8 @@ export default function KeywordGap() {
                 ) : (
                   <Users className="h-4 w-4 mr-2" />
                 )}
-                Compare All
+                Compare All Competitors
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Lite: Topic grouping with guardrails. Compare: Full analysis.
-              </p>
             </CardContent>
           </Card>
         </div>

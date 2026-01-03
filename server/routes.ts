@@ -150,12 +150,25 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
     { name: "growth_priority", value: config.strategic_intent?.growth_priority },
   ];
   
+  // Category fence is critical for analysis readiness
+  const categoryIncluded = config.category_definition?.included?.length || 0;
+  const categoryExcluded = config.category_definition?.excluded?.length || 0;
+  const hasCategoryFence = categoryIncluded > 0 && categoryExcluded > 0;
+  
   const filledRequired = requiredFields.filter(f => f.value && String(f.value).trim().length > 0);
   const missingFields = requiredFields.filter(f => !f.value || String(f.value).trim().length === 0).map(f => f.name);
-  const completeness = Math.round((filledRequired.length / requiredFields.length) * 100);
+  
+  // Base completeness from required fields
+  let completeness = Math.round((filledRequired.length / requiredFields.length) * 100);
+  
+  // Category fence bonus (critical for Keyword Gap)
+  if (hasCategoryFence) {
+    completeness = Math.min(100, completeness + 15);
+  }
+  
   breakdown.completeness_details = missingFields.length > 0 
-    ? `Missing: ${missingFields.join(", ")}` 
-    : "All required fields complete";
+    ? `Missing: ${missingFields.join(", ")}${!hasCategoryFence ? "; Category fence incomplete" : ""}` 
+    : hasCategoryFence ? "All required fields complete, category fence defined" : "All required fields complete, category fence incomplete";
 
   // 2. Competitor Confidence Score (0-100)
   // Based on number of competitors and evidence
