@@ -1,0 +1,196 @@
+{
+  "metadata": {
+    "title": "Brand Intelligence Configuration Platform",
+    "version": "1.0.0",
+    "generated": "auto",
+    "description": "Sistema de documentación automatizado del sistema"
+  },
+  "screens": [
+    {
+      "id": "landing",
+      "name": "Landing Page",
+      "route": "/",
+      "requiresAuth": false,
+      "description": "Página de inicio para usuarios no autenticados. Muestra el valor del producto y opciones de acceso.",
+      "technicalNotes": "Renderizada por LandingPage.tsx cuando el usuario no está autenticado. Usa useAuth() hook para detectar estado de sesión.",
+      "flow": "entry",
+      "screenshotFile": "01-landing.png"
+    },
+    {
+      "id": "configurations-list",
+      "name": "Lista de Configuraciones",
+      "route": "/",
+      "requiresAuth": true,
+      "description": "Dashboard principal que muestra todas las configuraciones del usuario. Permite crear nuevas, editar existentes, ver One Pager, acceder a Keyword Gap y gestionar versiones.",
+      "technicalNotes": "Componente ConfigurationsList.tsx. Usa TanStack Query para fetch de /api/configurations. Soporta modo anónimo y autenticado.",
+      "flow": "main",
+      "screenshotFile": "02-configurations-list.png"
+    },
+    {
+      "id": "config-brand",
+      "name": "Configuración - Brand Context",
+      "route": "/configuration/:id",
+      "section": "brand",
+      "requiresAuth": true,
+      "description": "Sección A del wizard. Define identidad de marca: nombre, dominio, industria, misión, propuestas de valor únicas y personalidad.",
+      "technicalNotes": "Sección del wizard en Configuration.tsx. Datos validados con Zod schema. Soporta generación AI via POST /api/ai/generate.",
+      "flow": "wizard",
+      "screenshotFile": "03-config-brand.png"
+    },
+    {
+      "id": "config-category",
+      "name": "Configuración - Category Definition",
+      "route": "/configuration/:id",
+      "section": "category",
+      "requiresAuth": true,
+      "description": "Sección B. Define la categoría de mercado: categoría primaria, tamaño de mercado, madurez y tendencias.",
+      "technicalNotes": "Validación de campos requeridos. Campo primary_category utilizado para AI auto-detection basado en el dominio.",
+      "flow": "wizard",
+      "screenshotFile": "04-config-category.png"
+    },
+    {
+      "id": "config-competitors",
+      "name": "Configuración - Competitive Set",
+      "route": "/configuration/:id",
+      "section": "competitors",
+      "requiresAuth": true,
+      "description": "Sección C. Define competidores directos e indirectos con dominios, descripciones y fortalezas/debilidades.",
+      "technicalNotes": "Datos usados por Keyword Gap Analysis. Validación de dominios. Máximo recomendado: 5 competidores directos + 5 indirectos.",
+      "flow": "wizard",
+      "screenshotFile": "05-config-competitors.png"
+    },
+    {
+      "id": "config-demand",
+      "name": "Configuración - Demand Definition",
+      "route": "/configuration/:id",
+      "section": "demand",
+      "requiresAuth": true,
+      "description": "Sección D. Define audiencias objetivo, journey stages, pain points, intención de búsqueda y temas de demanda.",
+      "technicalNotes": "Campo 'themes' usado por Keyword Gap Lite para fence_check() y asignación de temas a keywords.",
+      "flow": "wizard",
+      "screenshotFile": "06-config-demand.png"
+    },
+    {
+      "id": "config-intent",
+      "name": "Configuración - Strategic Intent",
+      "route": "/configuration/:id",
+      "section": "intent",
+      "requiresAuth": true,
+      "description": "Sección E. Define objetivos estratégicos, KPIs, mensajes clave, tono de comunicación y diferenciadores.",
+      "technicalNotes": "Campos in_scope_concepts usados para validación de guardrails en análisis de keywords.",
+      "flow": "wizard",
+      "screenshotFile": "07-config-intent.png"
+    },
+    {
+      "id": "config-channels",
+      "name": "Configuración - Channel Context",
+      "route": "/configuration/:id",
+      "section": "channels",
+      "requiresAuth": true,
+      "description": "Sección F. Define canales primarios, secundarios, requisitos por canal y estrategia de distribución.",
+      "technicalNotes": "Usado para contextualizar recomendaciones de contenido y priorización de keywords por canal.",
+      "flow": "wizard",
+      "screenshotFile": "08-config-channels.png"
+    },
+    {
+      "id": "config-negative",
+      "name": "Configuración - Negative Scope",
+      "route": "/configuration/:id",
+      "section": "negative_scope",
+      "requiresAuth": true,
+      "description": "Sección G. Define exclusiones: categorías prohibidas, keywords bloqueados, casos de uso excluidos, tonos inapropiados.",
+      "technicalNotes": "Campos críticos para guardrails UCR. apply_exclusions() usa estos valores para filtrar keywords en análisis.",
+      "flow": "wizard",
+      "screenshotFile": "09-config-negative.png"
+    },
+    {
+      "id": "config-governance",
+      "name": "Configuración - Governance",
+      "route": "/configuration/:id",
+      "section": "governance",
+      "requiresAuth": true,
+      "description": "Sección H. Define reglas de gobernanza, flujos de aprobación, políticas de compliance y tracking de override.",
+      "technicalNotes": "Soporte para audit trail de modificaciones manuales vs. generadas por AI. CMO-safe por diseño.",
+      "flow": "wizard",
+      "screenshotFile": "10-config-governance.png"
+    },
+    {
+      "id": "one-pager",
+      "name": "One Pager - Vista Ejecutiva",
+      "route": "/one-pager/:id",
+      "requiresAuth": true,
+      "description": "Resumen ejecutivo de la configuración UCR. Muestra secciones A-H en formato compacto para presentación a stakeholders.",
+      "technicalNotes": "Componente OnePager.tsx. Renderiza datos de configuración en Cards con iconos de sección. Imprimible.",
+      "flow": "visualization",
+      "screenshotFile": "11-one-pager.png"
+    },
+    {
+      "id": "keyword-gap",
+      "name": "Keyword Gap Analysis",
+      "route": "/keyword-gap/:id",
+      "requiresAuth": true,
+      "description": "Análisis de brecha de keywords vs competidores. Incluye análisis individual, Compare All, y Keyword Gap Lite con agrupación temática.",
+      "technicalNotes": "Integración DataForSEO. Endpoints: /api/keyword-gap/analyze, /api/keyword-gap/compare-all, /api/keyword-gap-lite/run. Cache 24h.",
+      "flow": "analysis",
+      "screenshotFile": "12-keyword-gap.png"
+    },
+    {
+      "id": "version-history",
+      "name": "Historial de Versiones",
+      "route": "/version-history/:id",
+      "requiresAuth": true,
+      "description": "Historial completo de versiones de la configuración con capacidad de rollback a versiones anteriores.",
+      "technicalNotes": "Tabla configuration_versions en PostgreSQL. Endpoints: GET /api/configurations/:id/versions, POST rollback.",
+      "flow": "management",
+      "screenshotFile": "13-version-history.png"
+    }
+  ],
+  "flows": {
+    "entry": {
+      "name": "Flujo de Entrada",
+      "description": "Usuario llega a la aplicación, ve landing page, se autentica."
+    },
+    "main": {
+      "name": "Flujo Principal",
+      "description": "Usuario autenticado gestiona sus configuraciones desde el dashboard."
+    },
+    "wizard": {
+      "name": "Flujo de Configuración",
+      "description": "Usuario crea/edita configuración navegando por las 8 secciones del wizard."
+    },
+    "visualization": {
+      "name": "Flujo de Visualización",
+      "description": "Usuario visualiza resumen ejecutivo de la configuración."
+    },
+    "analysis": {
+      "name": "Flujo de Análisis",
+      "description": "Usuario ejecuta análisis de keyword gap contra competidores."
+    },
+    "management": {
+      "name": "Flujo de Gestión",
+      "description": "Usuario gestiona versiones y realiza rollback si es necesario."
+    }
+  },
+  "technicalArchitecture": {
+    "frontend": {
+      "framework": "React 18 + TypeScript",
+      "routing": "Wouter",
+      "state": "TanStack React Query v5",
+      "forms": "React Hook Form + Zod",
+      "ui": "shadcn/ui + Radix UI + Tailwind CSS",
+      "icons": "Lucide React"
+    },
+    "backend": {
+      "framework": "Express.js + TypeScript",
+      "database": "PostgreSQL via Drizzle ORM",
+      "auth": "Replit Auth (OIDC) + Passport",
+      "sessions": "express-session + connect-pg-simple",
+      "ai": "OpenAI gpt-4o via Replit AI Integrations"
+    },
+    "integrations": {
+      "dataforseo": "Keyword Gap API",
+      "openai": "Content generation",
+      "replitAuth": "Authentication"
+    }
+  }
+}

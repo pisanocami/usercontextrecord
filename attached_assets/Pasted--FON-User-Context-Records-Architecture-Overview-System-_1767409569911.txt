@@ -1,0 +1,545 @@
+# FON User Context Records - Architecture Overview
+
+## 🏗️ System Architecture
+
+### High-Level Design
+
+El sistema de User Context Records implementa una **arquitectura de validación de contexto en capas** que asegura que todos los análisis de marketing respeten las reglas específicas de la marca.
+
+    graph TB
+        subgraph "Frontend Layer"
+            UI[React UI]
+            ContextUI[Context Management UI]
+            ValidationUI[Validation Components]
+        end
+    
+        subgraph "API Gateway"
+            Gateway[Nginx Gateway]
+        end
+    
+        subgraph "Backend Services"
+            Backend[Django Backend API]
+            Council[Council Service FastAPI]
+        end
+    
+        subgraph "Data Layer"
+            PostgreSQL[(PostgreSQL)]
+            Redis[(Redis Cache)]
+        end
+    
+        subgraph "External Services"
+            Monitoring[Monitoring Stack]
+            Alerts[Alerting System]
+        end
+    
+        UI --> Gateway
+        ContextUI --> Gateway
+        ValidationUI --> Gateway
+    
+        Gateway --> Backend
+        Gateway --> Council
+    
+        Backend --> PostgreSQL
+        Backend --> Redis
+        Council --> Backend
+    
+        Backend --> Monitoring
+        Council --> Monitoring
+        Monitoring --> Alerts
+
+### Core Components
+
+#### 1. **Context Validation Engine**
+
+El corazón del sistema que valida y filtra todos los análisis basados en el contexto de marca.
+
+**Responsabilidades:**
+
+* Validación de keywords, categorías y competidores
+* Aplicación de reglas de exclusión
+* Verificación de CMO safety
+* Auditoría de decisiones
+
+#### 2. **User Context Record**
+
+El objeto central que contiene toda la información de contexto de una marca.
+
+**Componentes:**
+
+* Brand Identity
+* Negative Scope (exclusions)
+* Governance Rules
+* Audit Trail
+
+#### 3. **Council Service Integration**
+
+El servicio de análisis que incorpora validación de contexto en tiempo real.
+
+**Características:**
+
+* Context-aware analysis
+* Real-time filtering
+* CMO safety enforcement
+* Performance optimization
+
+* * *
+
+## 🔄 Data Flow Architecture
+
+### Request Flow
+
+    sequenceDiagram
+        participant User as User
+        participant UI as Frontend
+        participant API as Backend API
+        participant Council as Council Service
+        participant DB as Database
+    
+        User->>UI: 1. Select Context
+        UI->>API: 2. Get Context Details
+        API->>DB: 3. Fetch Context
+        DB-->>API: 4. Context Data
+        API-->>UI: 5. Context Summary
+    
+        User->>UI: 6. Configure Analysis
+        UI->>API: 7. Validate Data Against Context
+        API->>API: 8. Apply Exclusion Rules
+        API-->>UI: 9. Validation Results
+    
+        User->>UI: 10. Run Analysis
+        UI->>Council: 11. Analysis Request + Context
+        Council->>API: 12. Validate Context
+        API-->>Council: 13. Context Validated
+        Council->>Council: 14. Run Analysis with Filtering
+        Council-->>UI: 15. Filtered Results
+        UI-->>User: 16. CMO Safe Results
+
+### Context Validation Flow
+
+    flowchart TD
+        Start[Analysis Request] --> GetContext[Get User Context]
+        GetContext --> ValidateContext{Context Valid?}
+    
+        ValidateContext -->|No| Error[Return Error]
+        ValidateContext -->|Yes| CheckCMOSafe{CMO Safe?}
+    
+        CheckCMOSafe -->|No| Warning[Show Warning]
+        CheckCMOSafe -->|Yes| ValidateData[Validate Input Data]
+    
+        ValidateData --> ApplyExclusions[Apply Exclusion Rules]
+        ApplyExclusions --> FilterResults[Filter Analysis Results]
+        FilterResults --> AuditLog[Log to Audit Trail]
+        AuditLog --> ReturnResults[Return Safe Results]
+    
+        Warning --> UserConfirm{User Confirms?}
+        UserConfirm -->|Yes| ValidateData
+        UserConfirm -->|No| Cancel[Cancel Analysis]
+
+* * *
+
+## 🏛️ Service Architecture
+
+### Microservices Design
+
+    graph LR
+        subgraph "Frontend Services"
+            ReactApp[React Application]
+            ContextManager[Context Manager UI]
+            ValidationUI[Validation Widget]
+        end
+    
+        subgraph "Backend Services"
+            DjangoAPI[Django REST API]
+            ContextEngine[Context Validation Engine]
+            DecisionEngine[Decision Engine]
+        end
+    
+        subgraph "Analysis Services"
+            CouncilService[Council Service]
+            MarketDemand[Market Demand Analysis]
+            KeywordGap[Keyword Gap Analysis]
+        end
+    
+        subgraph "Infrastructure"
+            Postgres[(PostgreSQL)]
+            Redis[(Redis)]
+            Monitoring[Monitoring Stack]
+        end
+    
+        ReactApp --> DjangoAPI
+        ContextManager --> DjangoAPI
+        ValidationUI --> DjangoAPI
+    
+        DjangoAPI --> ContextEngine
+        DjangoAPI --> DecisionEngine
+        DjangoAPI --> Postgres
+        DjangoAPI --> Redis
+    
+        CouncilService --> DjangoAPI
+        MarketDemand --> CouncilService
+        KeywordGap --> CouncilService
+    
+        DjangoAPI --> Monitoring
+        CouncilService --> Monitoring
+
+### Service Responsibilities
+
+| Service | Primary Responsibility | Key Features |
+| --- | --- | --- |
+| **Django Backend** | Context Management & Validation | CRUD operations, validation engine, audit trail |
+| **Council Service** | Context-Aware Analysis | Real-time filtering, CMO safety, performance |
+| **React Frontend** | User Interface | Context management, validation UI, dashboards |
+| **PostgreSQL** | Data Persistence | Context records, audit logs, analytics |
+| **Redis** | Caching & Sessions | Context caching, session management |
+
+* * *
+
+## 🔒 Security Architecture
+
+### Security Layers
+
+    graph TB
+        subgraph "Network Security"
+            Firewall[Firewall Rules]
+            SSL[TLS/SSL Encryption]
+            DDOS[DDoS Protection]
+        end
+    
+        subgraph "Application Security"
+            Auth[Authentication]
+            Authz[Authorization]
+            Input[Input Validation]
+            Rate[Rate Limiting]
+        end
+    
+        subgraph "Data Security"
+            Encrypt[Data Encryption]
+            Audit[Audit Logging]
+            Backup[Secure Backups]
+        end
+    
+        subgraph "Business Security"
+            CMO[CMO Safety Rules]
+            Context[Context Validation]
+            Exclusion[Exclusion Enforcement]
+        end
+    
+        Firewall --> Auth
+        SSL --> Authz
+        DDOS --> Input
+    
+        Auth --> Encrypt
+        Authz --> Audit
+        Input --> Backup
+    
+        Encrypt --> CMO
+        Audit --> Context
+        Backup --> Exclusion
+
+### Security Controls
+
+#### **Authentication & Authorization**
+
+* JWT-based authentication
+* Role-based access control (RBAC)
+* Multi-factor authentication for admin operations
+* Session management with Redis
+
+#### **Data Protection**
+
+* Encryption at rest (AES-256)
+* Encryption in transit (TLS 1.3)
+* PII data masking
+* GDPR compliance
+
+#### **Business Logic Security**
+
+* Mandatory CMO safety validation
+* Hard exclusion enforcement
+* Context approval workflows
+* Audit trail for all changes
+
+* * *
+
+## 📊 Performance Architecture
+
+### Scalability Design
+
+    graph TB
+        subgraph "Load Balancing"
+            LB[Load Balancer]
+            CDN[CDN]
+        end
+    
+        subgraph "Application Scaling"
+            App1[Backend Instance 1]
+            App2[Backend Instance 2]
+            App3[Backend Instance N]
+        end
+    
+        subgraph "Database Scaling"
+            Master[(Master DB)]
+            Replica1[(Read Replica 1)]
+            Replica2[(Read Replica 2)]
+        end
+    
+        subgraph "Caching Layer"
+            RedisCluster[Redis Cluster]
+            ContextCache[Context Cache]
+            SessionCache[Session Cache]
+        end
+    
+        LB --> App1
+        LB --> App2
+        LB --> App3
+    
+        App1 --> Master
+        App2 --> Replica1
+        App3 --> Replica2
+    
+        App1 --> RedisCluster
+        App2 --> RedisCluster
+        App3 --> RedisCluster
+
+### Performance Optimizations
+
+#### **Database Optimization**
+
+* Indexed queries for context lookups
+* Read replicas for analytics queries
+* Connection pooling
+* Query optimization
+
+#### **Caching Strategy**
+
+* Context records cached in Redis
+* Validation results cached
+* Session data cached
+* CDN for static assets
+
+#### **Application Performance**
+
+* Async processing for bulk operations
+* Connection pooling for external services
+* Optimized serialization
+* Lazy loading for large datasets
+
+* * *
+
+## 🔧 Technology Stack
+
+### Backend Technologies
+
+* **Django 5.0**: Web framework and API
+* **FastAPI**: Council Service with async support
+* **PostgreSQL 15**: Primary database
+* **Redis 7**: Caching and sessions
+* **Celery**: Background task processing
+
+### Frontend Technologies
+
+* **React 18**: UI framework
+* **TypeScript**: Type safety
+* **Tailwind CSS**: Styling
+* **React Query**: Data fetching
+* **React Router**: Navigation
+
+### Infrastructure Technologies
+
+* **Docker**: Containerization
+* **Kubernetes**: Orchestration
+* **Nginx**: Reverse proxy and load balancing
+* **Prometheus**: Monitoring
+* **Grafana**: Visualization
+
+* * *
+
+## 📈 Monitoring & Observability
+
+### Monitoring Stack
+
+    graph TB
+        subgraph "Application Monitoring"
+            APM[Application Performance Monitoring]
+            Logs[Centralized Logging]
+            Metrics[Business Metrics]
+        end
+    
+        subgraph "Infrastructure Monitoring"
+            Health[Health Checks]
+            Resources[Resource Usage]
+            Network[Network Monitoring]
+        end
+    
+        subgraph "Business Monitoring"
+            Usage[Usage Analytics]
+            Performance[Performance KPIs]
+            Safety[CMO Safety Metrics]
+        end
+    
+        subgraph "Alerting"
+            Alerts[Alert Manager]
+            Notifications[Notification System]
+            Escalation[Escalation Rules]
+        end
+    
+        APM --> Alerts
+        Logs --> Alerts
+        Metrics --> Alerts
+    
+        Health --> Notifications
+        Resources --> Notifications
+        Network --> Notifications
+    
+        Usage --> Escalation
+        Performance --> Escalation
+        Safety --> Escalation
+
+### Key Metrics Monitored
+
+#### **System Metrics**
+
+* Response time (p95 < 2s)
+* Error rate (< 1%)
+* Throughput (requests/second)
+* Resource utilization
+
+#### **Business Metrics**
+
+* Context validation success rate
+* CMO safety compliance rate
+* Analysis completion rate
+* User adoption metrics
+
+#### **Security Metrics**
+
+* Authentication failures
+* Authorization violations
+* Data access patterns
+* Security incident count
+
+* * *
+
+## 🚀 Deployment Architecture
+
+### Production Environment
+
+    graph TB
+        subgraph "Production Environment"
+            subgraph "Web Tier"
+                Nginx[Nginx Load Balancer]
+                SSL[SSL Termination]
+            end
+    
+            subgraph "Application Tier"
+                Backend1[Backend Pod 1]
+                Backend2[Backend Pod 2]
+                Council1[Council Service 1]
+                Council2[Council Service 2]
+            end
+    
+            subgraph "Data Tier"
+                MasterDB[(Master PostgreSQL)]
+                ReplicaDB[(Replica PostgreSQL)]
+                RedisCluster[Redis Cluster]
+            end
+    
+            subgraph "Monitoring"
+                Prometheus[Prometheus]
+                Grafana[Grafana]
+                AlertManager[Alert Manager]
+            end
+        end
+    
+        Nginx --> Backend1
+        Nginx --> Backend2
+        Nginx --> Council1
+        Nginx --> Council2
+    
+        Backend1 --> MasterDB
+        Backend2 --> ReplicaDB
+        Council1 --> MasterDB
+        Council2 --> MasterDB
+    
+        Backend1 --> RedisCluster
+        Backend2 --> RedisCluster
+        Council1 --> RedisCluster
+        Council2 --> RedisCluster
+
+### Deployment Strategy
+
+#### **Blue-Green Deployment**
+
+* Zero-downtime deployments
+* Automatic rollback on failure
+* Health checks before traffic switch
+* Gradual traffic shifting
+
+#### **Database Migrations**
+
+* Zero-downtime migrations
+* Backward compatibility
+* Rollback procedures
+* Data validation
+
+* * *
+
+## 🎯 Key Architectural Decisions
+
+### 1. **Context-First Architecture**
+
+**Decision**: All analysis must validate against context first**Rationale**: Prevents embarrassing outputs at source**Impact**: 100% CMO safety compliance
+
+### 2. **Microservices Design**
+
+**Decision**: Separate Council Service for analysis**Rationale**: Independent scaling and specialized processing**Impact**: Better performance and maintainability
+
+### 3. **Hard Exclusion Enforcement**
+
+**Decision**: Exclusions cannot be bypassed**Rationale**: Brand protection is non-negotiable**Impact**: Zero tolerance for inappropriate content
+
+### 4. **Comprehensive Audit Trail**
+
+**Decision**: Log all context changes and decisions**Rationale**: Compliance and accountability**Impact**: Full transparency and debugging capability
+
+### 5. **Real-Time Validation**
+
+**Decision**: Validate data before analysis runs**Rationale**: Prevent wasted processing on invalid data**Impact**: Better performance and user experience
+
+* * *
+
+## 📋 Architecture Principles
+
+### **Security First**
+
+* All decisions prioritize CMO safety
+* Zero-trust security model
+* Defense in depth approach
+
+### **Performance Optimized**
+
+* Sub-2-second response times
+* Horizontal scaling capability
+* Efficient resource utilization
+
+### **Maintainable Design**
+
+* Clear separation of concerns
+* Comprehensive documentation
+* Automated testing coverage
+
+### **User-Centric**
+
+* Intuitive user interface
+* Clear error messages
+* Comprehensive training materials
+
+### **Business Aligned**
+
+* Direct impact on business metrics
+* Measurable ROI
+* Executive visibility
+
+* * *
+
+*This architecture ensures 100% CMO safety while maintaining high performance and user experience.*
