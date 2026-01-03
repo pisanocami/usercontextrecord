@@ -6,7 +6,8 @@ import { fromZodError } from "zod-validation-error";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import OpenAI from "openai";
 import pLimit from "p-limit";
-import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, type KeywordGapResult } from "./dataforseo";
+import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
+import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -1040,6 +1041,86 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
       console.error("Error comparing all competitors:", error);
       res.status(500).json({ error: error.message || "Failed to compare competitors" });
     }
+  });
+
+  app.post("/api/keyword-gap-lite/run", async (req, res) => {
+    try {
+      if (!checkCredentialsConfigured()) {
+        return res.status(503).json({ 
+          error: "DataForSEO credentials not configured.",
+          configured: false,
+        });
+      }
+
+      const { 
+        configurationId, 
+        limitPerDomain = 200, 
+        locationCode = 2840, 
+        languageCode = "en",
+        maxCompetitors = 5,
+      } = req.body;
+
+      if (!configurationId) {
+        return res.status(400).json({ error: "configurationId is required" });
+      }
+
+      const userId = "anonymous-user";
+      const config = await storage.getConfigurationById(configurationId, userId);
+
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const brandDomain = config.brand?.domain;
+      if (!brandDomain) {
+        return res.status(400).json({ error: "Configuration has no brand domain defined" });
+      }
+
+      const competitors = config.competitors?.direct || [];
+      if (competitors.length === 0) {
+        return res.status(400).json({ error: "No direct competitors defined in configuration" });
+      }
+
+      const dataforseoClient = {
+        getRankedKeywords: async (domain: string, locCode?: number, langCode?: string, limit?: number) => {
+          const result = await getRankedKeywords(
+            domain,
+            locCode || locationCode,
+            langCode === "en" ? "English" : langCode || "English",
+            limit || limitPerDomain
+          );
+          return result.items.map(item => ({
+            keyword: item.keyword,
+            position: item.position || 0,
+            searchVolume: item.search_volume || 0,
+            url: "",
+            trafficShare: 0,
+          }));
+        },
+      };
+
+      const result = await computeKeywordGap(config, dataforseoClient, {
+        limitPerDomain,
+        locationCode,
+        languageCode,
+        maxCompetitors,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error running keyword gap lite:", error);
+      res.status(500).json({ error: error.message || "Failed to run keyword gap analysis" });
+    }
+  });
+
+  app.get("/api/keyword-gap-lite/cache", async (req, res) => {
+    const stats = getCacheStats();
+    res.json(stats);
+  });
+
+  app.delete("/api/keyword-gap-lite/cache", async (req, res) => {
+    clearCache();
+    res.json({ message: "Cache cleared" });
   });
 
   return httpServer;
