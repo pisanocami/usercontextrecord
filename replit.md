@@ -10,6 +10,8 @@ Key features:
 - **Persistent Storage**: PostgreSQL database for secure data persistence
 - **8 Configuration Sections**: Brand Context, Category Definition, Competitive Set, Demand Definition, Strategic Intent, Channel Context, Negative Scope, and Governance
 - **Full Auditability**: CMO-safe governance with human override tracking
+- **One Pager Visualization**: Executive summary view of User Context Records (UCR) with sections A-H
+- **DataForSEO Keyword Gap Analysis**: Competitor keyword gap analysis with UCR-based guardrails filtering
 
 ## User Preferences
 
@@ -52,6 +54,9 @@ The frontend features:
 - `POST /api/ai/generate` - AI-powered section suggestions
 - `GET /api/auth/user` - Current authenticated user
 - `/api/login`, `/api/logout`, `/api/callback` - Auth flow
+- `GET /api/keyword-gap/status` - Check DataForSEO configuration status
+- `POST /api/keyword-gap/analyze` - Analyze keyword gap vs single competitor
+- `POST /api/keyword-gap/compare-all` - Multi-competitor keyword gap analysis
 
 ### Security Features
 - All configuration routes protected with `isAuthenticated` middleware
@@ -90,6 +95,12 @@ The frontend features:
 - **IBM Plex Sans**: Primary UI font (Carbon Design System)
 - **IBM Plex Mono**: Monospace font for code/JSON display
 
+### DataForSEO Integration
+- **server/dataforseo.ts**: Client with Basic Auth authentication
+- **Keyword Gap Analysis**: Compare brand keywords vs competitors
+- **UCR Guardrails**: Filter results based on excluded_categories, excluded_keywords, excluded_use_cases
+- **Environment Variables**: DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD (optional)
+
 ## Recent Changes
 
 - Added PostgreSQL database for persistent storage
@@ -97,3 +108,7 @@ The frontend features:
 - Added AI-powered "Generate with AI" buttons on configuration sections
 - Created landing page for unauthenticated users
 - User-scoped configurations (each user has their own data)
+- Implemented 4-phase enhancement plan: validation framework, competitive intelligence, negative scope, context quality scoring
+- Added One Pager visualization with A-H canonical schema sections
+- Integrated DataForSEO Keyword Gap analysis with UCR-based guardrail filtering
+- Added navigation icons (FileText, BarChart3) in configurations list for One Pager and Keyword Gap
