@@ -84,10 +84,40 @@ export function BrandContextPage() {
       form.setValue("brand.target_market", brand.target_market, { shouldDirty: true });
       form.setValue("name", brand.name, { shouldDirty: true });
       
-      // Update competitors
-      if (brand.competitors) {
-        form.setValue("competitors.direct", brand.competitors.direct || [], { shouldDirty: true });
-        form.setValue("competitors.indirect", brand.competitors.indirect || [], { shouldDirty: true });
+      // Update competitors - convert to CompetitorEntry format
+      if (brand.competitors && Array.isArray(brand.competitors)) {
+        const competitorEntries = brand.competitors.map((c: { name: string; domain?: string; tier?: string; revenue_range?: string; why?: string }) => ({
+          name: c.name,
+          domain: c.domain || "",
+          tier: (c.tier as "tier1" | "tier2" | "tier3") || "tier1",
+          status: "approved" as const,
+          similarity_score: 70,
+          serp_overlap: 50,
+          size_proximity: 60,
+          revenue_range: c.revenue_range || "",
+          employee_count: "",
+          funding_stage: "public" as const,
+          geo_overlap: [],
+          evidence: {
+            summary: c.why || "",
+            sources: [],
+            confidence: 70,
+            last_verified: new Date().toISOString().split("T")[0],
+          },
+          added_by: "ai" as const,
+          added_at: new Date().toISOString(),
+          rejected_reason: "",
+        }));
+        
+        form.setValue("competitors.competitors", competitorEntries, { shouldDirty: true });
+        form.setValue("competitors.approved_count", competitorEntries.length, { shouldDirty: true });
+        form.setValue("competitors.pending_review_count", 0, { shouldDirty: true });
+        
+        // Also set legacy arrays for backward compatibility
+        const directCompetitors = competitorEntries.filter((c: { tier: string }) => c.tier === "tier1").map((c: { name: string }) => c.name);
+        const indirectCompetitors = competitorEntries.filter((c: { tier: string }) => c.tier !== "tier1").map((c: { name: string }) => c.name);
+        form.setValue("competitors.direct", directCompetitors, { shouldDirty: true });
+        form.setValue("competitors.indirect", indirectCompetitors, { shouldDirty: true });
       }
       
       // Update demand keywords
@@ -109,6 +139,13 @@ export function BrandContextPage() {
         form.setValue("channel_context.paid_media_active", brand.channel_context.paid_media_active ?? false, { shouldDirty: true });
         form.setValue("channel_context.seo_investment_level", brand.channel_context.seo_investment_level || "medium", { shouldDirty: true });
         form.setValue("channel_context.marketplace_dependence", brand.channel_context.marketplace_dependence || "low", { shouldDirty: true });
+      }
+      
+      // Update exclusions (negative scope)
+      if (brand.exclusions) {
+        form.setValue("negative_scope.excluded_categories", brand.exclusions.excluded_categories || [], { shouldDirty: true });
+        form.setValue("negative_scope.excluded_keywords", brand.exclusions.excluded_keywords || [], { shouldDirty: true });
+        form.setValue("negative_scope.excluded_use_cases", brand.exclusions.excluded_use_cases || [], { shouldDirty: true });
       }
       
       toast({

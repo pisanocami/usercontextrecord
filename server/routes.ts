@@ -847,10 +847,15 @@ Return a JSON object with the following structure:
   "primary_geography": ["US", "EU", "APAC"],
   "revenue_band": "$XXB - $XXXB",
   "target_market": "Primary market description",
-  "competitors": {
-    "direct": ["Competitor 1", "Competitor 2", "Competitor 3"],
-    "indirect": ["Indirect 1", "Indirect 2"]
-  },
+  "competitors": [
+    {
+      "name": "Competitor Name",
+      "domain": "competitor.com",
+      "tier": "tier1",
+      "revenue_range": "$XXB - $XXXB",
+      "why": "Brief reason why this is a competitor"
+    }
+  ],
   "demand_keywords": {
     "seed_terms": ["brand term 1", "brand term 2", "brand term 3"],
     "category_terms": ["category 1", "category 2"],
@@ -865,11 +870,20 @@ Return a JSON object with the following structure:
     "paid_media_active": true or false,
     "seo_investment_level": "low" or "medium" or "high",
     "marketplace_dependence": "low" or "medium" or "high"
+  },
+  "exclusions": {
+    "excluded_categories": ["category to exclude 1"],
+    "excluded_keywords": ["keyword to exclude 1"],
+    "excluded_use_cases": ["use case to exclude"]
   }
 }
 
-IMPORTANT: Use REAL, accurate data for the company. The domain, industry, revenue, and competitors should be factual.
-Only return the JSON object, no additional text.`;
+IMPORTANT: 
+- Use REAL, accurate data for the company. The domain, industry, revenue, and competitors should be factual.
+- Generate 4-6 real competitors with tier1 being direct competitors, tier2 being adjacent, tier3 being aspirational.
+- Include the "why" field explaining why each company is a competitor.
+- Generate 2-3 exclusions for categories/keywords/use cases the company would NOT want to be associated with.
+- Only return the JSON object, no additional text.`;
 
       const response = await gemini.models.generateContent({
         model: "gemini-2.5-flash",
