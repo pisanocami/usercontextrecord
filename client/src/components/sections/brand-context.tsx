@@ -22,6 +22,18 @@ const REVENUE_BANDS = [
   "$500M+",
 ];
 
+const TARGET_MARKETS = [
+  "US",
+  "UK",
+  "EU",
+  "APAC",
+  "LATAM",
+  "Global",
+  "North America",
+  "EMEA",
+  "ANZ",
+];
+
 const INDUSTRIES = [
   "Technology",
   "Healthcare",
@@ -265,30 +277,60 @@ export function BrandContextSection() {
             />
           </div>
 
-          <FormField
-            control={form.control}
-            name="brand.revenue_band"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Revenue Band *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-revenue-band">
-                      <SelectValue placeholder="Select revenue range" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {REVENUE_BANDS.map((band) => (
-                      <SelectItem key={band} value={band}>
-                        {band}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid gap-6 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="brand.revenue_band"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Revenue Band *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-revenue-band">
+                        <SelectValue placeholder="Select revenue range" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {REVENUE_BANDS.map((band) => (
+                        <SelectItem key={band} value={band}>
+                          {band}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="brand.target_market"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Target Market</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-target-market">
+                        <SelectValue placeholder="Select target market" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {TARGET_MARKETS.map((market) => (
+                        <SelectItem key={market} value={market}>
+                          {market}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Primary geographic market for fail-closed validation
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}

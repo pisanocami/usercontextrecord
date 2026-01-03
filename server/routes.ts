@@ -12,6 +12,111 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+interface ValidationResult {
+  status: "complete" | "needs_review" | "blocked" | "incomplete";
+  blockedReasons: string[];
+  isValid: boolean;
+}
+
+function generateContextHash(config: InsertConfiguration): string {
+  const safetyFields = {
+    name: config.name,
+    brand_name: config.brand?.name,
+    brand_domain: config.brand?.domain,
+    target_market: config.brand?.target_market,
+    primary_category: config.category_definition?.primary_category,
+    approved_categories: config.category_definition?.approved_categories || [],
+    excluded_categories: config.negative_scope?.excluded_categories || [],
+    excluded_keywords: config.negative_scope?.excluded_keywords || [],
+    excluded_use_cases: config.negative_scope?.excluded_use_cases || [],
+    excluded_competitors: config.negative_scope?.excluded_competitors || [],
+    direct_competitors: config.competitors?.direct || [],
+    enforcement_rules: config.negative_scope?.enforcement_rules,
+    hard_exclusion: config.negative_scope?.enforcement_rules?.hard_exclusion,
+    context_valid_until: config.governance?.context_valid_until,
+  };
+  const canonicalJson = JSON.stringify(safetyFields, Object.keys(safetyFields).sort());
+  return Buffer.from(canonicalJson).toString('base64').slice(0, 32);
+}
+
+function validateConfiguration(config: InsertConfiguration): ValidationResult {
+  const blockedReasons: string[] = [];
+  const warnings: string[] = [];
+
+  if (!config.name || config.name.trim().length === 0) {
+    blockedReasons.push("Configuration name is required");
+  }
+
+  if (!config.brand?.name || config.brand.name.trim().length === 0) {
+    blockedReasons.push("Brand name is required");
+  }
+
+  if (!config.category_definition?.primary_category || config.category_definition.primary_category.trim().length === 0) {
+    blockedReasons.push("Primary category is required for fail-closed validation");
+  }
+
+  const negativeScope = config.negative_scope;
+  const hasNegativeScope = negativeScope && (
+    (negativeScope.excluded_categories && negativeScope.excluded_categories.length > 0) ||
+    (negativeScope.excluded_keywords && negativeScope.excluded_keywords.length > 0) ||
+    (negativeScope.excluded_use_cases && negativeScope.excluded_use_cases.length > 0)
+  );
+
+  if (!hasNegativeScope) {
+    blockedReasons.push("Negative scope must have at least one exclusion rule for fail-closed validation");
+  }
+
+  if (!negativeScope?.enforcement_rules?.hard_exclusion) {
+    blockedReasons.push("Enforcement rules must have hard_exclusion enabled");
+  }
+
+  if (!config.governance?.context_valid_until) {
+    warnings.push("Missing context expiration date");
+  }
+
+  if (blockedReasons.length > 0) {
+    return {
+      status: "blocked",
+      blockedReasons,
+      isValid: false,
+    };
+  }
+
+  if (!config.competitors?.direct || config.competitors.direct.length === 0) {
+    warnings.push("No direct competitors defined");
+  }
+
+  if (!config.brand?.target_market) {
+    warnings.push("Target market not specified");
+  }
+
+  if (!config.strategic_intent?.primary_goal) {
+    warnings.push("Primary strategic goal not defined");
+  }
+
+  if (warnings.length > 0) {
+    return {
+      status: "incomplete",
+      blockedReasons: warnings,
+      isValid: true,
+    };
+  }
+
+  if (!config.governance?.human_verified) {
+    return {
+      status: "needs_review",
+      blockedReasons: [],
+      isValid: true,
+    };
+  }
+
+  return {
+    status: "complete",
+    blockedReasons: [],
+    isValid: true,
+  };
+}
+
 async function generateCompleteConfiguration(
   domain: string,
   brandName: string | undefined,
@@ -245,7 +350,30 @@ export async function registerRoutes(
         return res.status(400).json({ error: validationError.message });
       }
       
-      const config = await storage.createConfiguration(userId, result.data);
+      const validation = validateConfiguration(result.data);
+      
+      if (!validation.isValid) {
+        return res.status(422).json({ 
+          error: "Fail-closed validation failed", 
+          blockedReasons: validation.blockedReasons,
+          status: validation.status 
+        });
+      }
+      
+      const contextHash = generateContextHash(result.data);
+      
+      const configWithValidation = {
+        ...result.data,
+        governance: {
+          ...result.data.governance,
+          validation_status: validation.status,
+          blocked_reasons: validation.blockedReasons,
+          context_hash: contextHash,
+          context_version: 1,
+        },
+      };
+      
+      const config = await storage.createConfiguration(userId, configWithValidation);
       res.json(config);
     } catch (error) {
       console.error("Error creating configuration:", error);
@@ -275,7 +403,32 @@ export async function registerRoutes(
         return res.status(400).json({ error: validationError.message });
       }
       
-      const config = await storage.updateConfiguration(id, userId, result.data, editReason.trim());
+      const validation = validateConfiguration(result.data);
+      
+      if (!validation.isValid) {
+        return res.status(422).json({ 
+          error: "Fail-closed validation failed", 
+          blockedReasons: validation.blockedReasons,
+          status: validation.status 
+        });
+      }
+      
+      const existingConfig = await storage.getConfigurationById(id, userId);
+      const currentVersion = existingConfig?.governance?.context_version || 0;
+      const contextHash = generateContextHash(result.data);
+      
+      const configWithValidation = {
+        ...result.data,
+        governance: {
+          ...result.data.governance,
+          validation_status: validation.status,
+          blocked_reasons: validation.blockedReasons,
+          context_hash: contextHash,
+          context_version: currentVersion + 1,
+        },
+      };
+      
+      const config = await storage.updateConfiguration(id, userId, configWithValidation, editReason.trim());
       res.json(config);
     } catch (error) {
       console.error("Error updating configuration:", error);
