@@ -739,11 +739,11 @@ Suggest category definitions including:
 Return JSON with keys: primary_category, included, excluded`,
         
         competitors: `For a brand named "${context?.name || 'unknown'}" in the "${context?.industry || 'unknown'}" industry:
-Identify potential competitors in three tiers:
-- Direct competitors (array of company names)
-- Indirect competitors (array of company names)
-- Marketplace competitors (array of platform names)
-Return JSON with keys: direct, indirect, marketplaces`,
+Identify potential competitors in three tiers with reasons:
+- Direct competitors (array of objects with "name", "domain", and "why" - explain why they are a competitor)
+- Indirect competitors (array of objects with "name", "domain", and "why")
+- Marketplace competitors (array of objects with "name", "domain", and "why")
+Return JSON with keys: direct, indirect, marketplaces. Each entry must have "name", "domain" (e.g. "competitor.com"), and "why" (brief explanation of competitive relationship).`,
         
         demand: `For a "${context?.business_model || 'B2B'}" brand in "${context?.industry || 'unknown'}":
 Suggest keyword strategies:

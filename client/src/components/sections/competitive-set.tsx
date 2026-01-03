@@ -218,18 +218,38 @@ export function CompetitiveSetSection() {
       {
         onSuccess: (data) => {
           const suggestions = data.suggestions as Record<string, unknown>;
-          if (suggestions.direct) form.setValue("competitors.direct", suggestions.direct as string[], { shouldDirty: true });
-          if (suggestions.indirect) form.setValue("competitors.indirect", suggestions.indirect as string[], { shouldDirty: true });
-          if (suggestions.marketplaces) form.setValue("competitors.marketplaces", suggestions.marketplaces as string[], { shouldDirty: true });
+          
+          const parseCompetitorItem = (item: unknown): { name: string; domain: string; why: string } | null => {
+            if (typeof item === "string") {
+              return { name: item, domain: "", why: "" };
+            }
+            if (typeof item === "object" && item !== null) {
+              const obj = item as Record<string, unknown>;
+              return {
+                name: (obj.name as string) || "",
+                domain: (obj.domain as string) || "",
+                why: (obj.why as string) || "",
+              };
+            }
+            return null;
+          };
+          
+          const directItems = (suggestions.direct as unknown[] || []).map(parseCompetitorItem).filter(Boolean) as { name: string; domain: string; why: string }[];
+          const indirectItems = (suggestions.indirect as unknown[] || []).map(parseCompetitorItem).filter(Boolean) as { name: string; domain: string; why: string }[];
+          const marketplaceItems = (suggestions.marketplaces as unknown[] || []).map(parseCompetitorItem).filter(Boolean) as { name: string; domain: string; why: string }[];
+          
+          form.setValue("competitors.direct", directItems.map(c => c.name), { shouldDirty: true });
+          form.setValue("competitors.indirect", indirectItems.map(c => c.name), { shouldDirty: true });
+          form.setValue("competitors.marketplaces", marketplaceItems.map(c => c.name), { shouldDirty: true });
           
           const newEntries: CompetitorEntry[] = [];
           const now = new Date().toISOString();
           
-          (suggestions.direct as string[] || []).forEach((name: string) => {
-            if (!competitors.some(c => c.name === name)) {
+          directItems.forEach((item) => {
+            if (!competitors.some(c => c.name === item.name)) {
               newEntries.push({
-                name,
-                domain: "",
+                name: item.name,
+                domain: item.domain,
                 tier: "tier1",
                 status: "pending_review",
                 similarity_score: 70,
@@ -239,7 +259,11 @@ export function CompetitiveSetSection() {
                 employee_count: "",
                 funding_stage: "unknown",
                 geo_overlap: [],
-                evidence: { why_selected: "AI-suggested direct competitor", top_overlap_keywords: [], serp_examples: [] },
+                evidence: { 
+                  why_selected: item.why || "AI-suggested direct competitor", 
+                  top_overlap_keywords: [], 
+                  serp_examples: [] 
+                },
                 added_by: "ai",
                 added_at: now,
                 rejected_reason: "",
@@ -247,11 +271,11 @@ export function CompetitiveSetSection() {
             }
           });
           
-          (suggestions.indirect as string[] || []).forEach((name: string) => {
-            if (!competitors.some(c => c.name === name) && !newEntries.some(e => e.name === name)) {
+          indirectItems.forEach((item) => {
+            if (!competitors.some(c => c.name === item.name) && !newEntries.some(e => e.name === item.name)) {
               newEntries.push({
-                name,
-                domain: "",
+                name: item.name,
+                domain: item.domain,
                 tier: "tier2",
                 status: "pending_review",
                 similarity_score: 50,
@@ -261,7 +285,11 @@ export function CompetitiveSetSection() {
                 employee_count: "",
                 funding_stage: "unknown",
                 geo_overlap: [],
-                evidence: { why_selected: "AI-suggested indirect competitor", top_overlap_keywords: [], serp_examples: [] },
+                evidence: { 
+                  why_selected: item.why || "AI-suggested indirect competitor", 
+                  top_overlap_keywords: [], 
+                  serp_examples: [] 
+                },
                 added_by: "ai",
                 added_at: now,
                 rejected_reason: "",
