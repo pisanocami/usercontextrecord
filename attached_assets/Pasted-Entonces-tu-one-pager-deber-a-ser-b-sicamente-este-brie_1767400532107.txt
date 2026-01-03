@@ -1,0 +1,60 @@
+Entonces tu one pager debería ser básicamente “este brief hecho UI”, pegado 1:1 al esquema del User Context Record, sin storytelling extra.
+
+## Bloques del one pager
+
+- **Header compacto** arriba con: nombre del brand, dominio, industria, modelo de negocio, geografía y revenue band; dos líneas de “What this is” y “What this is not”.[1]
+- **Cuerpo** dividido en secciones verticales, cada una mapeando una parte del schema, con títulos idénticos a la spec (A–H + Enforcement).[1]
+
+## 1) Executive + Principles (top 20% página)
+
+- Card “User Context Record” con 3–4 bullets: qué es, para qué sirve, qué módulos lo heredan.[1]
+- Card “Product Principles” con bullets: no analysis without context, no hidden assumptions, no silent scope expansion, human override, embarrassment-safe.[1]
+
+## 2) Canonical Schema (bloque central grande)
+
+Cada sección como sub-bloque claro, siempre con estructura JSON → Why it matters/Rules:
+
+- A. **Brand Identity & Scope**  
+  - Columna izquierda: small form/JSON pretty view con los campos.[1]
+  - Columna derecha: 3 bullets “Why this matters” (confianza, estacionalidad, no one-size-fits-all).[1]
+
+- B. **Category Definition (Semantic Fence)**  
+  - Caja con primary_category, included, excluded en bullets, no comas.[1]
+  - Debajo, una frase: “This is a semantic fence, not a keyword list”.[1]
+
+- C. **Competitive Set**  
+  - Tres columnas: direct, indirect, marketplaces; cada una como lista bullet.[1]
+  - Debajo, “Rules” como mini-lista (model may suggest, humans must approve).[1]
+
+- D. **Demand Definition**  
+  - Dos subcards: Brand keywords / Non-brand keywords, con seed_terms, category_terms, problem_terms y top_n.[1]
+  - Nota corta: “Anchors brand vs non-brand logic; governs SEO/demand/cannibalization modules”.[1]
+
+- E. **Strategic Intent & Guardrails**  
+  - Campos del JSON a la izquierda, a la derecha bullets “Operator intent, not data” + ejemplos de avoid.[1]
+
+- F. **Channel Context**  
+  - Tres toggles o pills: paid_media_active, seo_investment_level, marketplace_dependence.[1]
+  - Nota fija: “Qualitative only — never quantitative.”[1]
+
+- G. **Negative Scope & Exclusions**  
+  - Subdividido en 5 listas: excluded_categories, keywords, use_cases, competitors, enforcement_rules.[1]
+  - Frase en rojo: “If excluded here, it must never appear downstream.”[1]
+
+- H. **Governance, Confidence & Overrides**  
+  - Lado izquierdo: JSON pretty con model_suggested, human_overrides, context_confidence, fechas, cmo_safe.[1]
+  - Lado derecho: bullets “The model may suggest. Humans decide. The system remembers.”[1]
+
+## 3) Enforcement & Flow (bloque final)
+
+- Sección “Enforcement Rules (System-wide)” con 4 subcards numeradas (Hard Pre-Filter, Module Inheritance, Council Enforcement, Human Override) en bullets, no párrafos largos.[1]
+- Debajo, línea temporal mini (4 pasos horizontales): Model suggests → Human reviews → Modules inherit → Councils reason.[1]
+
+## 4) Controles para dev
+
+- Toggle “View JSON / View One Pager” en la esquina superior derecha; JSON = canonical schema, One Pager = esta vista estructurada.[1]
+- Botones: “Copy schema”, “Copy sample record”, “Export as contract (MD)”, pensados para uso directo en código, no para decks.[1]
+
+Si quieres, en el próximo mensaje pega un ejemplo concreto de User Context Record (JSON) y te devuelvo la versión “one pager” ya estructurada en secciones y bullets, lista para que la montes en tu layout.
+
+[1](https://replit.com/t/force-of-nature-pv1rcf/repls/JSON-Brand-Industry)
