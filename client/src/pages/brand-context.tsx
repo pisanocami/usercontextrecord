@@ -51,7 +51,16 @@ export function BrandContextPage() {
 
   const form = useForm<InsertConfiguration>({
     resolver: zodResolver(insertConfigurationSchema),
-    defaultValues: defaultConfiguration,
+    defaultValues: {
+      ...defaultConfiguration,
+      brand: {
+        ...defaultConfiguration.brand,
+        name: "Oofos",
+        domain: "Oofos.com",
+        industry: "Recovery Footwear",
+        business_model: "DTC",
+      }
+    },
     mode: "onChange",
   });
 
