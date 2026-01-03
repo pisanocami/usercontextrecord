@@ -68,18 +68,19 @@ export function TopBar({
 
   return (
     <div
-      className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-6 py-3"
+      className="sticky top-0 z-30 flex items-center justify-between gap-2 sm:gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-3 sm:px-6 py-2.5 sm:py-3"
       data-testid="notion-top-bar"
     >
-      <div className="flex items-center gap-4 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
         {onBack && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onBack}
+            className="h-9 w-9 touch-target"
             data-testid="button-back"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5 sm:h-4 sm:w-4" />
           </Button>
         )}
 
@@ -92,7 +93,7 @@ export function TopBar({
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage className="truncate max-w-[200px]">
+              <BreadcrumbPage className="truncate max-w-[120px] sm:max-w-[200px] text-sm sm:text-base">
                 {brandName || "Untitled Context"}
               </BreadcrumbPage>
             </BreadcrumbItem>

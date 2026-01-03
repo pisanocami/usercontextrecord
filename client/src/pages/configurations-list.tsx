@@ -58,6 +58,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Brand, CategoryDefinition, Competitors, DemandDefinition, StrategicIntent, ChannelContext, NegativeScope, Governance } from "@shared/schema";
 import { Link } from "wouter";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ConfigCardList } from "@/components/mobile/config-card";
 
 interface Configuration {
   id: number;
@@ -406,6 +408,7 @@ export default function ConfigurationsList() {
   const [editReason, setEditReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
+  const isMobile = useIsMobile();
 
   const { data: configurations, isLoading } = useQuery<Configuration[]>({
     queryKey: ["/api/configurations"],
@@ -575,16 +578,24 @@ export default function ConfigurationsList() {
             <p className="text-sm text-muted-foreground mb-4">
               {filteredConfigurations?.length} context{filteredConfigurations?.length !== 1 ? "s" : ""}
             </p>
-            {filteredConfigurations?.map((config) => (
-              <ConfigurationCard
-                key={config.id}
-                config={config}
-                onEdit={() => handleEdit(config)}
-                onDelete={() => handleDelete(config)}
-                onRegenerate={() => handleRegenerate(config)}
-                isRegenerating={regeneratingId === config.id}
+            {isMobile ? (
+              <ConfigCardList
+                configs={filteredConfigurations as any}
+                onEdit={(id) => handleEdit(filteredConfigurations!.find((c) => c.id === id)!)}
+                onDelete={(id) => handleDelete(filteredConfigurations!.find((c) => c.id === id)!)}
               />
-            ))}
+            ) : (
+              filteredConfigurations?.map((config) => (
+                <ConfigurationCard
+                  key={config.id}
+                  config={config}
+                  onEdit={() => handleEdit(config)}
+                  onDelete={() => handleDelete(config)}
+                  onRegenerate={() => handleRegenerate(config)}
+                  isRegenerating={regeneratingId === config.id}
+                />
+              ))
+            )}
           </div>
         )}
 

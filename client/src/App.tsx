@@ -28,6 +28,7 @@ import {
 import { LogOut, User, List } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { Link } from "wouter";
+import { MobileNav } from "@/components/mobile-nav";
 
 function ConfigurationLayout() {
   const [activeSection, setActiveSection] = useState("brand");
@@ -466,7 +467,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <div className="pb-[72px] sm:pb-0">
+          <Router />
+        </div>
+        <MobileNav />
       </TooltipProvider>
     </QueryClientProvider>
   );

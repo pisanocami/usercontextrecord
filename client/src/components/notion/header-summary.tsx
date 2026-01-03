@@ -63,21 +63,21 @@ export function HeaderSummary({
   const contextStatus = governance.context_status;
 
   return (
-    <div className="px-6 py-4 border-b bg-card/30" data-testid="header-summary">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Building2 className="h-6 w-6" />
+    <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-card/30" data-testid="header-summary">
+      <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Building2 className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <div>
-              <h1 className="text-xl font-semibold" data-testid="text-brand-name">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-semibold truncate" data-testid="text-brand-name">
                 {brand.name || "Untitled Brand"}
               </h1>
-              <div className="flex items-center gap-3 mt-1 flex-wrap">
+              <div className="flex items-center gap-2 sm:gap-3 mt-0.5 sm:mt-1 flex-wrap text-xs sm:text-sm">
                 <MetadataChip icon={Globe} label="Domain" value={brand.domain} />
                 <MetadataChip icon={Target} label="Industry" value={brand.industry} />
-                <MetadataChip icon={Users} label="Market" value={brand.target_market} />
+                <div className="hidden sm:block"><MetadataChip icon={Users} label="Market" value={brand.target_market} /></div>
               </div>
             </div>
           </div>

@@ -35,6 +35,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface VisibilityData {
   brand: {
@@ -682,11 +683,67 @@ interface KeywordTableProps {
   brandDomain: string;
 }
 
+function KeywordCard({ kw, brandDomain }: { kw: VisibilityData["keywordAnalysis"][0]; brandDomain: string }) {
+  const bestComp = kw.competitorPositions
+    .filter((p) => p.position !== null)
+    .sort((a, b) => (a.position || 999) - (b.position || 999))[0];
+
+  return (
+    <Card className="p-4" data-testid={`keyword-card-mobile-${kw.keyword.replace(/\s+/g, "-")}`}>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">{kw.keyword}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-muted-foreground">Vol: {kw.searchVolume.toLocaleString()}</span>
+            {getOpportunityBadge(kw.opportunity)}
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="flex items-center justify-between bg-blue-50/50 dark:bg-blue-950/20 rounded p-2">
+          <span className="text-muted-foreground">You ({brandDomain.slice(0, 10)}):</span>
+          {getPositionBadge(kw.brandPosition)}
+        </div>
+        {bestComp && (
+          <div className="flex items-center justify-between bg-muted/30 rounded p-2">
+            <span className="text-muted-foreground truncate max-w-[60px]">{bestComp.domain.replace(/^www\./, "").slice(0, 10)}:</span>
+            {getPositionBadge(bestComp.position)}
+          </div>
+        )}
+      </div>
+      
+      {kw.opportunityReason && (
+        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+          {kw.opportunityReason}
+        </p>
+      )}
+    </Card>
+  );
+}
+
 function KeywordTable({ keywords, brandDomain }: KeywordTableProps) {
+  const isMobile = useIsMobile();
+  
   if (keywords.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         No keywords in this category
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="space-y-2 mobile-card-list" data-testid="keyword-cards-mobile">
+        {keywords.slice(0, 20).map((kw) => (
+          <KeywordCard key={kw.keyword} kw={kw} brandDomain={brandDomain} />
+        ))}
+        {keywords.length > 20 && (
+          <p className="text-center text-sm text-muted-foreground py-2">
+            Showing 20 of {keywords.length} keywords
+          </p>
+        )}
       </div>
     );
   }

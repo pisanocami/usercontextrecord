@@ -69,19 +69,19 @@ export function ContextBlock({
       className="border-b last:border-b-0"
       data-testid={testId || `block-${sectionKey}`}
     >
-      <div className="flex items-center justify-between gap-4 px-6 py-4 hover-elevate">
+      <div className="flex items-center justify-between gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover-elevate">
         <CollapsibleTrigger asChild>
           <button
-            className="flex items-center gap-3 flex-1 min-w-0 text-left"
+            className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 text-left touch-target"
             data-testid={`trigger-${sectionKey}`}
           >
             <span className="text-muted-foreground">
-              {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {isOpen ? <ChevronDown className="h-5 w-5 sm:h-4 sm:w-4" /> : <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />}
             </span>
-            <h3 className="font-medium text-base">{title}</h3>
+            <h3 className="font-medium text-sm sm:text-base">{title}</h3>
             <Badge
               variant="secondary"
-              className={cn("text-xs shrink-0", statusInfo.className)}
+              className={cn("text-[10px] sm:text-xs shrink-0", statusInfo.className)}
               data-testid={`badge-status-${sectionKey}`}
             >
               {statusInfo.label}
@@ -89,9 +89,9 @@ export function ContextBlock({
           </button>
         </CollapsibleTrigger>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {chips.length > 0 && !isOpen && (
-            <div className="hidden md:flex items-center gap-1.5 max-w-[200px] overflow-hidden">
+            <div className="hidden lg:flex items-center gap-1.5 max-w-[200px] overflow-hidden">
               {chips.slice(0, 3).map((chip, idx) => (
                 <Badge key={idx} variant="outline" className="text-xs truncate max-w-[80px]">
                   {chip}
@@ -103,17 +103,17 @@ export function ContextBlock({
             </div>
           )}
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
             {status !== "approved" && onApprove && (
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={onApprove}
                 disabled={isApproving}
-                className="h-8 w-8"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 data-testid={`button-approve-${sectionKey}`}
               >
-                {isApproving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-600" />}
+                {isApproving ? <Loader2 className="h-5 w-5 sm:h-4 sm:w-4 animate-spin" /> : <Check className="h-5 w-5 sm:h-4 sm:w-4 text-green-600" />}
               </Button>
             )}
             {status !== "approved" && onReject && (
@@ -121,10 +121,10 @@ export function ContextBlock({
                 size="icon"
                 variant="ghost"
                 onClick={onReject}
-                className="h-8 w-8"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 data-testid={`button-reject-${sectionKey}`}
               >
-                <X className="h-4 w-4 text-red-600" />
+                <X className="h-5 w-5 sm:h-4 sm:w-4 text-red-600" />
               </Button>
             )}
 
@@ -173,11 +173,11 @@ export function ContextBlock({
       </div>
 
       <CollapsibleContent>
-        <div className="px-6 pb-6 pt-2">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-2">
           {chips.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
               {chips.map((chip, idx) => (
-                <Badge key={idx} variant="outline" className="text-xs">
+                <Badge key={idx} variant="outline" className="text-[10px] sm:text-xs">
                   {chip}
                 </Badge>
               ))}
