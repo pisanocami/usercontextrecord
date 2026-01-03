@@ -6,6 +6,7 @@ import { fromZodError } from "zod-validation-error";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import OpenAI from "openai";
 import pLimit from "p-limit";
+import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, type KeywordGapResult } from "./dataforseo";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -780,6 +781,173 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     } catch (error) {
       console.error("Error fetching bulk job:", error);
       res.status(500).json({ error: "Failed to fetch bulk job" });
+    }
+  });
+
+  app.get("/api/keyword-gap/status", async (req, res) => {
+    try {
+      const configured = checkCredentialsConfigured();
+      res.json({ configured });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check DataForSEO status" });
+    }
+  });
+
+  app.post("/api/keyword-gap/analyze", isAuthenticated, async (req, res) => {
+    try {
+      if (!checkCredentialsConfigured()) {
+        return res.status(503).json({ 
+          error: "DataForSEO credentials not configured. Please set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD." 
+        });
+      }
+
+      const { configurationId, competitorDomain, locationCode = 2840, languageName = "English", limit = 100 } = req.body;
+
+      if (!configurationId || !competitorDomain) {
+        return res.status(400).json({ error: "configurationId and competitorDomain are required" });
+      }
+
+      const userId = (req.user as any)?.id || null;
+      const config = await storage.getConfigurationById(configurationId, userId);
+
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const brandDomain = config.brand?.domain;
+      if (!brandDomain) {
+        return res.status(400).json({ error: "Configuration has no brand domain defined" });
+      }
+
+      let result: KeywordGapResult = await getKeywordGap(
+        brandDomain,
+        competitorDomain,
+        locationCode,
+        languageName,
+        limit
+      );
+
+      if (config.negative_scope) {
+        result = applyUCRGuardrails(
+          result,
+          {
+            excluded_topics: config.negative_scope?.excluded_use_cases,
+            excluded_keywords: config.negative_scope?.excluded_keywords,
+            excluded_categories: config.negative_scope?.excluded_categories,
+          }
+        );
+      }
+
+      res.json({
+        ...result,
+        ucr_guardrails_applied: true,
+        configuration_name: config.name,
+      });
+    } catch (error: any) {
+      console.error("Error analyzing keyword gap:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze keyword gap" });
+    }
+  });
+
+  app.post("/api/keyword-gap/compare-all", isAuthenticated, async (req, res) => {
+    try {
+      if (!checkCredentialsConfigured()) {
+        return res.status(503).json({ 
+          error: "DataForSEO credentials not configured." 
+        });
+      }
+
+      const { configurationId, locationCode = 2840, languageName = "English", limit = 50 } = req.body;
+
+      if (!configurationId) {
+        return res.status(400).json({ error: "configurationId is required" });
+      }
+
+      const userId = (req.user as any)?.id || null;
+      const config = await storage.getConfigurationById(configurationId, userId);
+
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const brandDomain = config.brand?.domain;
+      if (!brandDomain) {
+        return res.status(400).json({ error: "Configuration has no brand domain defined" });
+      }
+
+      const competitors = [
+        ...(config.competitors?.direct || []),
+        ...(config.competitors?.indirect || []),
+      ].slice(0, 5);
+
+      if (competitors.length === 0) {
+        return res.status(400).json({ error: "No competitors defined in configuration" });
+      }
+
+      const results = await Promise.all(
+        competitors.map(async (competitor) => {
+          try {
+            let result = await getKeywordGap(
+              brandDomain,
+              competitor,
+              locationCode,
+              languageName,
+              Math.min(limit, 50)
+            );
+
+            if (config.negative_scope) {
+              result = applyUCRGuardrails(
+                result,
+                {
+                  excluded_topics: config.negative_scope?.excluded_use_cases,
+                  excluded_keywords: config.negative_scope?.excluded_keywords,
+                  excluded_categories: config.negative_scope?.excluded_categories,
+                }
+              );
+            }
+
+            return { competitor, success: true, result };
+          } catch (error: any) {
+            return { competitor, success: false, error: error.message };
+          }
+        })
+      );
+
+      const aggregatedGapKeywords = new Map<string, { keyword: string; count: number; totalVolume: number }>();
+      
+      results.forEach((r) => {
+        if (r.success && r.result) {
+          r.result.gap_keywords.forEach((kw) => {
+            const existing = aggregatedGapKeywords.get(kw.keyword.toLowerCase());
+            if (existing) {
+              existing.count++;
+              existing.totalVolume += kw.search_volume || 0;
+            } else {
+              aggregatedGapKeywords.set(kw.keyword.toLowerCase(), {
+                keyword: kw.keyword,
+                count: 1,
+                totalVolume: kw.search_volume || 0,
+              });
+            }
+          });
+        }
+      });
+
+      const prioritizedGaps = Array.from(aggregatedGapKeywords.values())
+        .sort((a, b) => b.count - a.count || b.totalVolume - a.totalVolume)
+        .slice(0, 50);
+
+      res.json({
+        configuration_name: config.name,
+        brand_domain: brandDomain,
+        competitors_analyzed: results.length,
+        individual_results: results,
+        prioritized_gap_keywords: prioritizedGaps,
+        ucr_guardrails_applied: true,
+      });
+    } catch (error: any) {
+      console.error("Error comparing all competitors:", error);
+      res.status(500).json({ error: error.message || "Failed to compare competitors" });
     }
   });
 

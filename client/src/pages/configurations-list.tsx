@@ -50,6 +50,7 @@ import {
   Clock,
   XCircle,
   FileText,
+  BarChart3,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -271,6 +272,16 @@ function ConfigurationCard({
                     data-testid={`button-onepager-${config.id}`}
                   >
                     <FileText className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href={`/keyword-gap/${config.id}`} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Keyword Gap Analysis"
+                    data-testid={`button-keyword-gap-${config.id}`}
+                  >
+                    <BarChart3 className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Button
