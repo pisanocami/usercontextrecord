@@ -8,6 +8,7 @@ import OpenAI from "openai";
 import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
+import { validateContext, type ContextValidationResult } from "./context-validator";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -873,6 +874,81 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     } catch (error) {
       console.error("Error fetching bulk job:", error);
       res.status(500).json({ error: "Failed to fetch bulk job" });
+    }
+  });
+
+  // Context Validation Council endpoint
+  app.post("/api/context/validate", async (req: any, res) => {
+    try {
+      const { configurationId } = req.body;
+
+      if (!configurationId) {
+        return res.status(400).json({ error: "configurationId is required" });
+      }
+
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const config = await storage.getConfigurationById(configurationId, userId);
+
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const versions = await storage.getConfigurationVersions(configurationId, userId);
+      const contextVersion = versions?.length || 1;
+
+      const validationResult = validateContext(config, contextVersion);
+
+      res.json(validationResult);
+    } catch (error: any) {
+      console.error("Error validating context:", error);
+      res.status(500).json({ error: error.message || "Failed to validate context" });
+    }
+  });
+
+  // Approve context (mark as human-approved)
+  app.post("/api/context/approve", async (req: any, res) => {
+    try {
+      const { configurationId } = req.body;
+
+      if (!configurationId) {
+        return res.status(400).json({ error: "configurationId is required" });
+      }
+
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const config = await storage.getConfigurationById(configurationId, userId);
+
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      // Update governance with approval timestamp
+      const updatedGovernance = {
+        ...config.governance,
+        context_approved_at: new Date().toISOString(),
+        context_approved_by: userId,
+        context_approval_status: "approved" as const,
+      };
+
+      await storage.updateConfiguration(configurationId, userId, {
+        governance: updatedGovernance,
+      });
+
+      // Create a version snapshot for audit trail
+      await storage.createConfigurationVersion(
+        configurationId,
+        userId,
+        { ...config, governance: updatedGovernance },
+        "Context approved by user"
+      );
+
+      res.json({ 
+        success: true, 
+        approved_at: updatedGovernance.context_approved_at,
+        message: "Context approved successfully"
+      });
+    } catch (error: any) {
+      console.error("Error approving context:", error);
+      res.status(500).json({ error: error.message || "Failed to approve context" });
     }
   });
 
