@@ -406,7 +406,7 @@ export default function ConfigurationsList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/configurations"] });
-      toast({ title: "Configuration deleted", description: "The configuration has been removed." });
+      toast({ title: "Context deleted", description: "The context has been removed." });
       setDeleteDialogOpen(false);
       setSelectedConfig(null);
     },
@@ -434,7 +434,7 @@ export default function ConfigurationsList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/configurations"] });
       toast({ 
-        title: "Configuration regenerated", 
+        title: "Context regenerated", 
         description: "All sections have been regenerated with AI." 
       });
       setRegeneratingId(null);
@@ -490,15 +490,15 @@ export default function ConfigurationsList() {
       <div className="container max-w-5xl py-6 px-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Brand Configurations</h1>
+            <h1 className="text-2xl font-bold tracking-tight">User Record Contexts</h1>
             <p className="text-muted-foreground">
-              View and manage all saved brand intelligence configurations
+              View and manage all saved brand intelligence contexts
             </p>
           </div>
           <Link href="/new">
             <Button data-testid="button-new-config">
               <Plus className="h-4 w-4 mr-2" />
-              New Configuration
+              New Context
             </Button>
           </Link>
         </div>
@@ -534,18 +534,18 @@ export default function ConfigurationsList() {
                 <Building2 className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
-                <h3 className="font-semibold">No configurations found</h3>
+                <h3 className="font-semibold">No contexts found</h3>
                 <p className="text-sm text-muted-foreground">
                   {searchQuery
                     ? "Try a different search term"
-                    : "Create your first brand configuration to get started"}
+                    : "Create your first user record context to get started"}
                 </p>
               </div>
               {!searchQuery && (
                 <Link href="/">
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Configuration
+                    Create Context
                   </Button>
                 </Link>
               )}
@@ -554,7 +554,7 @@ export default function ConfigurationsList() {
         ) : (
           <div>
             <p className="text-sm text-muted-foreground mb-4">
-              {filteredConfigurations?.length} configuration{filteredConfigurations?.length !== 1 ? "s" : ""}
+              {filteredConfigurations?.length} context{filteredConfigurations?.length !== 1 ? "s" : ""}
             </p>
             {filteredConfigurations?.map((config) => (
               <ConfigurationCard
@@ -572,7 +572,7 @@ export default function ConfigurationsList() {
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Configuration</DialogTitle>
+              <DialogTitle>Edit Context</DialogTitle>
               <DialogDescription>
                 Please provide a reason for editing "{selectedConfig?.name}". This is required for audit purposes.
               </DialogDescription>
@@ -582,7 +582,7 @@ export default function ConfigurationsList() {
                 <Label htmlFor="editReason">Reason for edit *</Label>
                 <Textarea
                   id="editReason"
-                  placeholder="Describe why you're making changes to this configuration..."
+                  placeholder="Describe why you're making changes to this context..."
                   value={editReason}
                   onChange={(e) => setEditReason(e.target.value)}
                   className="min-h-24"

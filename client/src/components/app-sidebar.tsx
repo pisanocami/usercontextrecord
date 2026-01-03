@@ -102,7 +102,7 @@ export function AppSidebar({
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">Brand Intelligence</span>
-            <span className="text-xs text-muted-foreground">Configuration</span>
+            <span className="text-xs text-muted-foreground">User Record Context</span>
           </div>
         </div>
       </SidebarHeader>
@@ -127,7 +127,7 @@ export function AppSidebar({
                   >
                     <List className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">All Configurations</span>
+                      <span className="text-sm font-medium">All Contexts</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
@@ -145,7 +145,7 @@ export function AppSidebar({
                   >
                     <Plus className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">New Configuration</span>
+                      <span className="text-sm font-medium">New Context</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
@@ -202,7 +202,7 @@ export function AppSidebar({
 
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Configuration Sections
+            Context Sections
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
