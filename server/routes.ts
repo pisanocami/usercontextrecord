@@ -327,10 +327,10 @@ Return a complete JSON object with ALL sections filled.`;
       target_market: generated.brand?.target_market || "US",
     },
     category_definition: {
-      primary_category: primaryCategory,
+      primary_category: generated.category_definition?.primary_category || generated.brand?.industry || primaryCategory,
       included: generated.category_definition?.included || [],
       excluded: generated.category_definition?.excluded || [],
-      approved_categories: [primaryCategory],
+      approved_categories: [generated.category_definition?.primary_category || generated.brand?.industry || primaryCategory],
       alternative_categories: generated.category_definition?.alternative_categories || [],
     },
     competitors: {
