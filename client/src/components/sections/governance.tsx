@@ -41,7 +41,7 @@ function QualityScoreCard({ qualityScore }: { qualityScore: ContextQualityScore 
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-lg">Context Quality Score</CardTitle>
           </div>
-          <CardDescription>Save the configuration to calculate quality score</CardDescription>
+          <CardDescription>Save the context to calculate quality score</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8 text-muted-foreground">
@@ -95,7 +95,7 @@ function QualityScoreCard({ qualityScore }: { qualityScore: ContextQualityScore 
           </div>
           <Badge variant={gradeBadge.variant}>{gradeBadge.label}</Badge>
         </div>
-        <CardDescription>Composite score based on configuration completeness and quality</CardDescription>
+        <CardDescription>Composite score based on context completeness and quality</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center gap-4">
@@ -156,7 +156,7 @@ function QualityScoreCard({ qualityScore }: { qualityScore: ContextQualityScore 
             <div className="text-sm text-green-800 dark:text-green-200">
               <p className="font-medium">Auto-approved</p>
               <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
-                High quality configuration, ready for production use
+                High quality context, ready for production use
               </p>
             </div>
           </div>
@@ -201,7 +201,7 @@ export function GovernanceSection() {
                 <div className="space-y-0.5">
                   <FormLabel className="text-base">Model Suggestions Enabled</FormLabel>
                   <FormDescription>
-                    Allow the model to provide suggestions for this configuration
+                    Allow the model to provide suggestions for this context
                   </FormDescription>
                 </div>
                 <FormControl>
@@ -294,7 +294,7 @@ export function GovernanceSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Context Confidence</CardTitle>
-          <CardDescription>How confident are you in this configuration?</CardDescription>
+          <CardDescription>How confident are you in this context?</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <FormField
@@ -357,7 +357,7 @@ export function GovernanceSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Review Information</CardTitle>
-          <CardDescription>Track when and by whom this configuration was reviewed</CardDescription>
+          <CardDescription>Track when and by whom this context was reviewed</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
@@ -424,7 +424,7 @@ export function GovernanceSection() {
                   </div>
                 </FormControl>
                 <FormDescription>
-                  When this configuration should be reviewed again
+                  When this context should be reviewed again
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -447,7 +447,7 @@ export function GovernanceSection() {
                     )}
                   </div>
                   <FormDescription>
-                    Mark this configuration as approved and safe for executive reporting
+                    Mark this context as approved and safe for executive reporting
                   </FormDescription>
                 </div>
                 <FormControl>

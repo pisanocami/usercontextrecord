@@ -70,7 +70,7 @@ export function BrandContextSection() {
 
     toast({
       title: "Generating full profile",
-      description: "AI is crafting all configuration sections. This will take a moment...",
+      description: "AI is crafting all context sections. This will take a moment...",
     });
 
     for (const section of sections) {

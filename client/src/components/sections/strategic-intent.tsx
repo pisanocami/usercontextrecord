@@ -185,7 +185,7 @@ export function StrategicIntentSection() {
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  How far ahead are you planning for this configuration?
+                  How far ahead are you planning for this context?
                 </FormDescription>
                 <FormMessage />
               </FormItem>

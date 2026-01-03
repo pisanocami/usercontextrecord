@@ -411,7 +411,7 @@ export type CategoryAlternative = z.infer<typeof categoryAlternativeSchema>;
 
 // Default configuration for new configurations
 export const defaultConfiguration: InsertConfiguration = {
-  name: "New Configuration",
+  name: "New Context",
   brand: {
     name: "",
     domain: "",
