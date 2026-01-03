@@ -57,6 +57,9 @@ The frontend features:
 - `GET /api/keyword-gap/status` - Check DataForSEO configuration status
 - `POST /api/keyword-gap/analyze` - Analyze keyword gap vs single competitor
 - `POST /api/keyword-gap/compare-all` - Multi-competitor keyword gap analysis
+- `POST /api/keyword-gap-lite/run` - Fast keyword gap with UCR guardrails and theme grouping
+- `GET /api/keyword-gap-lite/cache` - View cache statistics
+- `DELETE /api/keyword-gap-lite/cache` - Clear keyword cache
 
 ### Security Features
 - All configuration routes protected with `isAuthenticated` middleware
@@ -101,6 +104,14 @@ The frontend features:
 - **UCR Guardrails**: Filter results based on excluded_categories, excluded_keywords, excluded_use_cases
 - **Environment Variables**: DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD (optional)
 
+### Keyword Gap Lite Module
+- **server/keyword-gap-lite.ts**: Fast analysis with theme-based grouping
+- **Normalization**: Domains (strip http/www/slash, lowercase) and keywords (lowercase, trim, collapse spaces)
+- **24h TTL Cache**: In-memory cache keyed by (domain, location, language, limit)
+- **Guardrails**: apply_exclusions() blocks on substring match, fence_check() evaluates against demand themes
+- **Theme Groups**: Brand, Category, Problem/Solution, Product, Other
+- **Status Badges**: Pass (valid), Warn (needs review), Block (excluded by guardrails)
+
 ## Recent Changes
 
 - Added PostgreSQL database for persistent storage
@@ -112,3 +123,5 @@ The frontend features:
 - Added One Pager visualization with A-H canonical schema sections
 - Integrated DataForSEO Keyword Gap analysis with UCR-based guardrail filtering
 - Added navigation icons (FileText, BarChart3) in configurations list for One Pager and Keyword Gap
+- Added Version History with rollback capability for configuration versions
+- Implemented Keyword Gap Lite module with theme-based grouping and UCR guardrails filtering
