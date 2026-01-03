@@ -23,6 +23,25 @@ export const configurations = pgTable("configurations", {
   updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Configuration versions table for version history
+export const configurationVersions = pgTable("configuration_versions", {
+  id: serial("id").primaryKey(),
+  configurationId: integer("configuration_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  versionNumber: integer("version_number").notNull(),
+  name: text("name").notNull(),
+  brand: jsonb("brand").notNull(),
+  category_definition: jsonb("category_definition").notNull(),
+  competitors: jsonb("competitors").notNull(),
+  demand_definition: jsonb("demand_definition").notNull(),
+  strategic_intent: jsonb("strategic_intent").notNull(),
+  channel_context: jsonb("channel_context").notNull(),
+  negative_scope: jsonb("negative_scope").notNull(),
+  governance: jsonb("governance").notNull(),
+  change_summary: text("change_summary").default(""),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 // Bulk generation jobs table
 export const bulkJobs = pgTable("bulk_jobs", {
   id: serial("id").primaryKey(),
@@ -367,6 +386,25 @@ export type AIBehaviorContract = z.infer<typeof aiBehaviorContractSchema>;
 export type Governance = z.infer<typeof governanceSchema>;
 export type Configuration = z.infer<typeof configurationSchema>;
 export type InsertConfiguration = z.infer<typeof insertConfigurationSchema>;
+
+// Configuration version type
+export interface ConfigurationVersion {
+  id: number;
+  configurationId: number;
+  userId: string;
+  versionNumber: number;
+  name: string;
+  brand: Brand;
+  category_definition: CategoryDefinition;
+  competitors: Competitors;
+  demand_definition: DemandDefinition;
+  strategic_intent: StrategicIntent;
+  channel_context: ChannelContext;
+  negative_scope: NegativeScope;
+  governance: Governance;
+  change_summary: string;
+  created_at: Date;
+}
 
 // Category Alternative type export
 export type CategoryAlternative = z.infer<typeof categoryAlternativeSchema>;
