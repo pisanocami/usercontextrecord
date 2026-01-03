@@ -174,10 +174,22 @@ function getNestedValue(obj: any, path: string): any {
   return path.split(".").reduce((acc, part) => acc?.[part], obj);
 }
 
-function renderValue(value: any, isArray?: boolean): string {
+function renderValue(value: any, isArray?: boolean): React.ReactNode {
   if (value === undefined || value === null) return "-";
   if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (isArray && Array.isArray(value)) return value.length > 0 ? value.join(", ") : "-";
+  if (isArray && Array.isArray(value)) {
+    if (value.length === 0) return "-";
+    return (
+      <ul className="text-right space-y-1.5" data-testid="list-value">
+        {value.map((item, i) => (
+          <li key={i} className="flex items-start justify-end gap-2 text-sm" title={String(item)}>
+            <span className="font-medium text-right break-words max-w-[200px] leading-relaxed">{String(item)}</span>
+            <span className="text-primary font-bold mt-1 shrink-0 text-[10px]">•</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
@@ -317,11 +329,11 @@ function ConfigurationCard({
                           ? getNestedValue(sectionData, field.key)
                           : sectionData?.[field.key];
                         return (
-                          <div key={field.key} className="flex justify-between gap-2 text-sm">
-                            <span className="text-muted-foreground shrink-0">{field.label}:</span>
-                            <span className="text-right truncate font-medium">
+                          <div key={field.key} className="flex justify-between items-start gap-4 text-sm py-1.5 border-b border-border/20 last:border-0">
+                            <span className="text-muted-foreground shrink-0 font-medium pt-0.5">{field.label}:</span>
+                            <div className="min-w-0 flex-1 flex justify-end overflow-hidden">
                               {renderValue(value, field.isArray)}
-                            </span>
+                            </div>
                           </div>
                         );
                       })}
