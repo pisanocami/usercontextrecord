@@ -1,0 +1,54 @@
+Prompt 4 — Normalización (crítico para que el gap no sea basura)
+
+“Implement domain normalization: strip https://, http://, www. and trailing slashes; lowercase. Implement keyword normalization: lowercase, trim spaces, collapse multiple spaces. Add unit-like tests in a simple __main__ section or basic pytest if you want.”
+
+Prompt 5 — Cargar UCR y validar mínimos
+
+“Assume I already have a ucr.json. Create a function load_ucr(path) and validate that it contains: brand.url or brand.domain, competitors.direct list, category fields (primary/definition), exclusions.global. If missing, raise a clear error.”
+
+Prompt 6 — Guardrails: exclusiones HARD + fence check simple
+
+“Implement apply_exclusions(keywords, exclusions) where exclusions are strings; block if exclusion substring appears in keyword. Implement a ‘fence check’ heuristic using category.in_scope_concepts and demand.themes: mark ✅ if keyword contains any in-scope concept, ⚠️ if none match but not excluded, ⛔ if excluded. Return (status, reason).”
+
+(Esto es “lo mínimo” para demo. Después lo mejorás con clasificador/LLM.)
+
+Prompt 7 — Lógica Keyword Gap Lite
+
+“Implement compute_keyword_gap(ucr, limit_per_domain=200):
+
+Fetch ranked keywords for brand domain
+
+Fetch ranked keywords for each competitor direct (3–5 max) concurrently (max 5 workers)
+
+Build sets: brand_keywords_set, competitor_keywords_set
+
+gap = competitor - brand
+
+For each keyword in gap: attach competitors_seen_on, apply exclusions + fence status
+
+Group results by demand.themes (simple mapping: first theme whose tokens appear in keyword; else ‘Other’)
+Return top 30.”
+
+(DataForSEO permite limit y te devuelve keywords por las que rankea el dominio. 
+docs.dataforseo.com
+)
+
+Prompt 8 — Endpoint de API para correr el módulo
+
+“Create POST /modules/keyword-gap-lite/run that takes { ucr_path: string, limit_per_domain?: int } and returns JSON:
+{ brand_domain, competitors, results: [ { keyword, status, reason, competitors_seen_on } ], grouped: { theme: [...] } }.”
+
+Prompt 9 — Mini UI (opcional, pero ayuda a Susan)
+
+“Create a super simple HTML page served at / (or FastAPI template) with:
+
+textarea/file picker for UCR JSON
+
+button ‘Run Keyword Gap Lite’
+
+render top 30 results grouped by theme with badges ✅/⚠️/⛔
+Keep it minimal, no frameworks.”
+
+Prompt 10 — Cache barato para demo (evita gastar créditos)
+
+“Add an in-memory cache keyed by (domain, location_code, language_code, limit). Cache TTL 24h. If cached, don’t call DataForSEO.”
