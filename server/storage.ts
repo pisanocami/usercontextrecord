@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { configurations, bulkJobs } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { configurations, bulkJobs, configurationVersions } from "@shared/schema";
+import { eq, and, desc, max } from "drizzle-orm";
 import type {
   Brand,
   CategoryDefinition,
@@ -13,6 +13,7 @@ import type {
   InsertConfiguration,
   BulkJob,
   BulkBrandInput,
+  ConfigurationVersion,
 } from "@shared/schema";
 
 // Database configuration type (includes userId for security)
@@ -44,6 +45,10 @@ export interface IStorage {
   getBulkJob(id: number): Promise<BulkJob | undefined>;
   getBulkJobs(userId: string): Promise<BulkJob[]>;
   updateBulkJob(id: number, updates: Partial<BulkJob>): Promise<BulkJob>;
+  createConfigurationVersion(configId: number, userId: string, changeSummary: string): Promise<ConfigurationVersion>;
+  getConfigurationVersions(configId: number, userId: string): Promise<ConfigurationVersion[]>;
+  getConfigurationVersion(versionId: number, userId: string): Promise<ConfigurationVersion | undefined>;
+  restoreConfigurationVersion(versionId: number, userId: string): Promise<DbConfiguration>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -398,6 +403,173 @@ export class DatabaseStorage implements IStorage {
       brands: updated.brands as BulkBrandInput[],
       results: updated.results as InsertConfiguration[],
       errors: updated.errors as { domain: string; error: string }[],
+      created_at: updated.created_at,
+      updated_at: updated.updated_at,
+    };
+  }
+
+  async createConfigurationVersion(configId: number, userId: string, changeSummary: string): Promise<ConfigurationVersion> {
+    const config = await this.getConfigurationById(configId, userId);
+    if (!config) {
+      throw new Error("Configuration not found");
+    }
+
+    const [latestVersion] = await db
+      .select({ maxVersion: max(configurationVersions.versionNumber) })
+      .from(configurationVersions)
+      .where(eq(configurationVersions.configurationId, configId));
+
+    const nextVersionNumber = (latestVersion?.maxVersion || 0) + 1;
+
+    const [created] = await db
+      .insert(configurationVersions)
+      .values({
+        configurationId: configId,
+        userId,
+        versionNumber: nextVersionNumber,
+        name: config.name,
+        brand: config.brand,
+        category_definition: config.category_definition,
+        competitors: config.competitors,
+        demand_definition: config.demand_definition,
+        strategic_intent: config.strategic_intent,
+        channel_context: config.channel_context,
+        negative_scope: config.negative_scope,
+        governance: config.governance,
+        change_summary: changeSummary,
+      })
+      .returning();
+
+    return {
+      id: created.id,
+      configurationId: created.configurationId,
+      userId: created.userId,
+      versionNumber: created.versionNumber,
+      name: created.name,
+      brand: created.brand as Brand,
+      category_definition: created.category_definition as CategoryDefinition,
+      competitors: created.competitors as Competitors,
+      demand_definition: created.demand_definition as DemandDefinition,
+      strategic_intent: created.strategic_intent as StrategicIntent,
+      channel_context: created.channel_context as ChannelContext,
+      negative_scope: created.negative_scope as NegativeScope,
+      governance: created.governance as Governance,
+      change_summary: created.change_summary || "",
+      created_at: created.created_at,
+    };
+  }
+
+  async getConfigurationVersions(configId: number, userId: string): Promise<ConfigurationVersion[]> {
+    const config = await this.getConfigurationById(configId, userId);
+    if (!config) {
+      throw new Error("Configuration not found");
+    }
+
+    const versions = await db
+      .select()
+      .from(configurationVersions)
+      .where(and(
+        eq(configurationVersions.configurationId, configId),
+        eq(configurationVersions.userId, userId)
+      ))
+      .orderBy(desc(configurationVersions.versionNumber));
+
+    return versions.map(v => ({
+      id: v.id,
+      configurationId: v.configurationId,
+      userId: v.userId,
+      versionNumber: v.versionNumber,
+      name: v.name,
+      brand: v.brand as Brand,
+      category_definition: v.category_definition as CategoryDefinition,
+      competitors: v.competitors as Competitors,
+      demand_definition: v.demand_definition as DemandDefinition,
+      strategic_intent: v.strategic_intent as StrategicIntent,
+      channel_context: v.channel_context as ChannelContext,
+      negative_scope: v.negative_scope as NegativeScope,
+      governance: v.governance as Governance,
+      change_summary: v.change_summary || "",
+      created_at: v.created_at,
+    }));
+  }
+
+  async getConfigurationVersion(versionId: number, userId: string): Promise<ConfigurationVersion | undefined> {
+    const [version] = await db
+      .select()
+      .from(configurationVersions)
+      .where(and(
+        eq(configurationVersions.id, versionId),
+        eq(configurationVersions.userId, userId)
+      ))
+      .limit(1);
+
+    if (!version) return undefined;
+
+    return {
+      id: version.id,
+      configurationId: version.configurationId,
+      userId: version.userId,
+      versionNumber: version.versionNumber,
+      name: version.name,
+      brand: version.brand as Brand,
+      category_definition: version.category_definition as CategoryDefinition,
+      competitors: version.competitors as Competitors,
+      demand_definition: version.demand_definition as DemandDefinition,
+      strategic_intent: version.strategic_intent as StrategicIntent,
+      channel_context: version.channel_context as ChannelContext,
+      negative_scope: version.negative_scope as NegativeScope,
+      governance: version.governance as Governance,
+      change_summary: version.change_summary || "",
+      created_at: version.created_at,
+    };
+  }
+
+  async restoreConfigurationVersion(versionId: number, userId: string): Promise<DbConfiguration> {
+    const version = await this.getConfigurationVersion(versionId, userId);
+    if (!version) {
+      throw new Error("Version not found");
+    }
+
+    const config = await this.getConfigurationById(version.configurationId, userId);
+    if (!config) {
+      throw new Error("Configuration not found");
+    }
+
+    await this.createConfigurationVersion(
+      config.id,
+      userId,
+      `Auto-saved before restoring to version ${version.versionNumber}`
+    );
+
+    const [updated] = await db
+      .update(configurations)
+      .set({
+        name: version.name,
+        brand: version.brand,
+        category_definition: version.category_definition,
+        competitors: version.competitors,
+        demand_definition: version.demand_definition,
+        strategic_intent: version.strategic_intent,
+        channel_context: version.channel_context,
+        negative_scope: version.negative_scope,
+        governance: version.governance,
+        updated_at: new Date(),
+      })
+      .where(and(eq(configurations.id, version.configurationId), eq(configurations.userId, userId)))
+      .returning();
+
+    return {
+      id: updated.id,
+      userId: updated.userId,
+      name: updated.name,
+      brand: updated.brand as Brand,
+      category_definition: updated.category_definition as CategoryDefinition,
+      competitors: updated.competitors as Competitors,
+      demand_definition: updated.demand_definition as DemandDefinition,
+      strategic_intent: updated.strategic_intent as StrategicIntent,
+      channel_context: updated.channel_context as ChannelContext,
+      negative_scope: updated.negative_scope as NegativeScope,
+      governance: updated.governance as Governance,
       created_at: updated.created_at,
       updated_at: updated.updated_at,
     };

@@ -51,6 +51,7 @@ import {
   XCircle,
   FileText,
   BarChart3,
+  History,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -282,6 +283,16 @@ function ConfigurationCard({
                     data-testid={`button-keyword-gap-${config.id}`}
                   >
                     <BarChart3 className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href={`/versions/${config.id}`} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Version History"
+                    data-testid={`button-versions-${config.id}`}
+                  >
+                    <History className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Button

@@ -565,6 +565,12 @@ export async function registerRoutes(
       }
       
       const existingConfig = await storage.getConfigurationById(id, userId);
+      if (!existingConfig) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      
+      await storage.createConfigurationVersion(id, userId, editReason.trim());
+      
       const currentVersion = existingConfig?.governance?.context_version || 0;
       const contextHash = generateContextHash(result.data);
       const qualityScore = calculateQualityScore(result.data);
@@ -613,6 +619,91 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting configuration:", error);
       res.status(500).json({ error: "Failed to delete configuration" });
+    }
+  });
+
+  // Get configuration version history
+  app.get("/api/configurations/:id/versions", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const versions = await storage.getConfigurationVersions(id, userId);
+      res.json(versions);
+    } catch (error: any) {
+      console.error("Error fetching versions:", error);
+      if (error.message === "Configuration not found") {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      res.status(500).json({ error: error.message || "Failed to fetch versions" });
+    }
+  });
+
+  // Get a specific version
+  app.get("/api/versions/:versionId", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const versionId = parseInt(req.params.versionId);
+      if (isNaN(versionId)) {
+        return res.status(400).json({ error: "Invalid version ID" });
+      }
+      
+      const version = await storage.getConfigurationVersion(versionId, userId);
+      if (!version) {
+        return res.status(404).json({ error: "Version not found" });
+      }
+      res.json(version);
+    } catch (error: any) {
+      console.error("Error fetching version:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch version" });
+    }
+  });
+
+  // Create a version snapshot manually
+  app.post("/api/configurations/:id/versions", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const { changeSummary } = req.body;
+      const version = await storage.createConfigurationVersion(
+        id, 
+        userId, 
+        changeSummary || "Manual snapshot"
+      );
+      res.json(version);
+    } catch (error: any) {
+      console.error("Error creating version:", error);
+      if (error.message === "Configuration not found") {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      res.status(500).json({ error: error.message || "Failed to create version" });
+    }
+  });
+
+  // Restore a version
+  app.post("/api/versions/:versionId/restore", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const versionId = parseInt(req.params.versionId);
+      if (isNaN(versionId)) {
+        return res.status(400).json({ error: "Invalid version ID" });
+      }
+      
+      const restored = await storage.restoreConfigurationVersion(versionId, userId);
+      res.json(restored);
+    } catch (error: any) {
+      console.error("Error restoring version:", error);
+      if (error.message === "Version not found" || error.message === "Configuration not found") {
+        return res.status(404).json({ error: error.message });
+      }
+      res.status(500).json({ error: error.message || "Failed to restore version" });
     }
   });
 
