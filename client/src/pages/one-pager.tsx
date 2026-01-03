@@ -128,7 +128,7 @@ export default function OnePager() {
   const { toast } = useToast();
 
   const { data: config, isLoading, error } = useQuery<Configuration>({
-    queryKey: ["/api/configuration", configId],
+    queryKey: ["/api/configuration", Number(configId)],
     enabled: !!configId,
   });
 
