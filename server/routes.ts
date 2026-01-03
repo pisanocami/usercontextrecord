@@ -961,7 +961,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     }
   });
 
-  app.post("/api/keyword-gap/analyze", isAuthenticated, async (req, res) => {
+  app.post("/api/keyword-gap/analyze", async (req: any, res) => {
     try {
       if (!checkCredentialsConfigured()) {
         return res.status(503).json({ 
@@ -1017,7 +1017,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     }
   });
 
-  app.post("/api/keyword-gap/compare-all", isAuthenticated, async (req, res) => {
+  app.post("/api/keyword-gap/compare-all", async (req: any, res) => {
     try {
       if (!checkCredentialsConfigured()) {
         return res.status(503).json({ 
