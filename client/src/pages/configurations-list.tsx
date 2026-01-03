@@ -495,12 +495,20 @@ export default function ConfigurationsList() {
               View and manage all saved brand intelligence contexts
             </p>
           </div>
-          <Link href="/new">
-            <Button data-testid="button-new-config">
-              <Plus className="h-4 w-4 mr-2" />
-              New Context
-            </Button>
-          </Link>
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/context">
+              <Button data-testid="button-fortune500">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Create Fortune 500
+              </Button>
+            </Link>
+            <Link href="/new">
+              <Button variant="outline" data-testid="button-new-config">
+                <Plus className="h-4 w-4 mr-2" />
+                New Context
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <div className="mb-6">
