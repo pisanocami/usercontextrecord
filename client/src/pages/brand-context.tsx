@@ -99,6 +99,9 @@ export function BrandContextPage() {
           funding_stage: "public" as const,
           geo_overlap: [],
           evidence: {
+            why_selected: c.why || "",
+            top_overlap_keywords: [],
+            serp_examples: [],
             summary: c.why || "",
             sources: [],
             confidence: 70,
@@ -146,7 +149,46 @@ export function BrandContextPage() {
         form.setValue("negative_scope.excluded_categories", brand.exclusions.excluded_categories || [], { shouldDirty: true });
         form.setValue("negative_scope.excluded_keywords", brand.exclusions.excluded_keywords || [], { shouldDirty: true });
         form.setValue("negative_scope.excluded_use_cases", brand.exclusions.excluded_use_cases || [], { shouldDirty: true });
+        
+        // Also map to Phase 3 enhanced exclusion entries if schema requires it
+        if (brand.exclusions.excluded_categories) {
+          form.setValue("negative_scope.category_exclusions", brand.exclusions.excluded_categories.map((c: string) => ({
+            value: c,
+            reason: "AI suggested",
+            added_by: "ai",
+            added_at: new Date().toISOString(),
+            match_type: "exact",
+            semantic_sensitivity: "medium",
+            expiration_ttl: "90d"
+          })), { shouldDirty: true });
+        }
+        if (brand.exclusions.excluded_keywords) {
+          form.setValue("negative_scope.keyword_exclusions", brand.exclusions.excluded_keywords.map((k: string) => ({
+            value: k,
+            reason: "AI suggested",
+            added_by: "ai",
+            added_at: new Date().toISOString(),
+            match_type: "exact",
+            semantic_sensitivity: "medium",
+            expiration_ttl: "90d"
+          })), { shouldDirty: true });
+        }
+        if (brand.exclusions.excluded_use_cases) {
+          form.setValue("negative_scope.use_case_exclusions", brand.exclusions.excluded_use_cases.map((u: string) => ({
+            value: u,
+            reason: "AI suggested",
+            added_by: "ai",
+            added_at: new Date().toISOString(),
+            match_type: "exact",
+            semantic_sensitivity: "medium",
+            expiration_ttl: "90d"
+          })), { shouldDirty: true });
+        }
       }
+
+      // Update governance fields to trigger re-calculation
+      form.setValue("governance.model_suggested", true, { shouldDirty: true });
+      form.setValue("governance.last_reviewed", new Date().toISOString().split("T")[0], { shouldDirty: true });
       
       toast({
         title: "Fortune 500 brand generated",
