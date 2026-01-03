@@ -7,8 +7,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { TagInput } from "@/components/tag-input";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Info, Check, User, Calendar, AlertCircle } from "lucide-react";
-import type { InsertConfiguration } from "@shared/schema";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Shield, Info, Check, User, Calendar, AlertCircle, BarChart3, Target, Users, Ban, FileText, AlertTriangle, CheckCircle2 } from "lucide-react";
+import type { InsertConfiguration, ContextQualityScore } from "@shared/schema";
 
 const CONFIDENCE_LEVELS = [
   { value: "high", label: "High", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
@@ -16,9 +18,158 @@ const CONFIDENCE_LEVELS = [
   { value: "low", label: "Low", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
 ] as const;
 
+function getScoreColor(score: number): string {
+  if (score >= 75) return "text-green-600 dark:text-green-400";
+  if (score >= 50) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function getGradeBadge(grade: "high" | "medium" | "low"): { variant: "default" | "secondary" | "destructive"; label: string } {
+  switch (grade) {
+    case "high": return { variant: "default", label: "High Quality" };
+    case "medium": return { variant: "secondary", label: "Medium Quality" };
+    case "low": return { variant: "destructive", label: "Low Quality" };
+  }
+}
+
+function QualityScoreCard({ qualityScore }: { qualityScore: ContextQualityScore | undefined }) {
+  if (!qualityScore || !qualityScore.calculated_at) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-lg">Context Quality Score</CardTitle>
+          </div>
+          <CardDescription>Save the configuration to calculate quality score</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
+            <AlertCircle className="mr-2 h-5 w-5" />
+            <span>Quality score not yet calculated</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const gradeBadge = getGradeBadge(qualityScore.grade);
+  const dimensions = [
+    { 
+      name: "Completeness", 
+      score: qualityScore.completeness, 
+      icon: CheckCircle2,
+      description: "Required fields filled",
+      details: qualityScore.breakdown?.completeness_details || ""
+    },
+    { 
+      name: "Competitor Confidence", 
+      score: qualityScore.competitor_confidence, 
+      icon: Users,
+      description: "Competitor coverage and evidence",
+      details: qualityScore.breakdown?.competitor_details || ""
+    },
+    { 
+      name: "Negative Strength", 
+      score: qualityScore.negative_strength, 
+      icon: Ban,
+      description: "Exclusion rule coverage",
+      details: qualityScore.breakdown?.negative_details || ""
+    },
+    { 
+      name: "Evidence Coverage", 
+      score: qualityScore.evidence_coverage, 
+      icon: FileText,
+      description: "Competitor documentation",
+      details: qualityScore.breakdown?.evidence_details || ""
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-lg">Context Quality Score</CardTitle>
+          </div>
+          <Badge variant={gradeBadge.variant}>{gradeBadge.label}</Badge>
+        </div>
+        <CardDescription>Composite score based on configuration completeness and quality</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-4">
+          <div className={`text-4xl font-bold ${getScoreColor(qualityScore.overall)}`} data-testid="text-quality-score-overall">
+            {qualityScore.overall}
+          </div>
+          <div className="flex-1">
+            <Progress value={qualityScore.overall} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-1">
+              Overall score out of 100
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {dimensions.map((dim) => (
+            <Tooltip key={dim.name}>
+              <TooltipTrigger asChild>
+                <div 
+                  className="rounded-lg border p-3 space-y-2 cursor-help"
+                  data-testid={`quality-dimension-${dim.name.toLowerCase().replace(/ /g, "-")}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <dim.icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{dim.name}</span>
+                    </div>
+                    <span className={`text-sm font-bold ${getScoreColor(dim.score)}`}>
+                      {dim.score}
+                    </span>
+                  </div>
+                  <Progress value={dim.score} className="h-1.5" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="font-medium">{dim.description}</p>
+                {dim.details && <p className="text-xs text-muted-foreground mt-1">{dim.details}</p>}
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+
+        {qualityScore.overall < 50 && (
+          <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950/30 dark:border-amber-900">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-800 dark:text-amber-200">
+              <p className="font-medium">Human review required</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                Score below 50 requires manual verification before use
+              </p>
+            </div>
+          </div>
+        )}
+
+        {qualityScore.overall >= 80 && (
+          <div className="flex items-start gap-2 rounded-lg bg-green-50 border border-green-200 p-3 dark:bg-green-950/30 dark:border-green-900">
+            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+            <div className="text-sm text-green-800 dark:text-green-200">
+              <p className="font-medium">Auto-approved</p>
+              <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                High quality configuration, ready for production use
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function GovernanceSection() {
   const form = useFormContext<InsertConfiguration>();
   const cmoSafe = form.watch("governance.cmo_safe");
+  const qualityScore = form.watch("governance.quality_score");
 
   return (
     <div className="space-y-6">
@@ -33,6 +184,8 @@ export function GovernanceSection() {
           </p>
         </div>
       </div>
+
+      <QualityScoreCard qualityScore={qualityScore} />
 
       <Card>
         <CardHeader>

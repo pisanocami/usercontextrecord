@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, type InsertConfiguration, type BulkBrandInput } from "@shared/schema";
+import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, type InsertConfiguration, type BulkBrandInput, type ContextQualityScore } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import OpenAI from "openai";
@@ -114,6 +114,144 @@ function validateConfiguration(config: InsertConfiguration): ValidationResult {
     status: "complete",
     blockedReasons: [],
     isValid: true,
+  };
+}
+
+function calculateQualityScore(config: InsertConfiguration): ContextQualityScore {
+  const breakdown = {
+    completeness_details: "",
+    competitor_details: "",
+    negative_details: "",
+    evidence_details: "",
+  };
+
+  // 1. Completeness Score (0-100)
+  // Check required fields
+  const requiredFields = [
+    { name: "name", value: config.name },
+    { name: "brand.name", value: config.brand?.name },
+    { name: "brand.domain", value: config.brand?.domain },
+    { name: "brand.industry", value: config.brand?.industry },
+    { name: "brand.target_market", value: config.brand?.target_market },
+    { name: "primary_category", value: config.category_definition?.primary_category },
+    { name: "primary_goal", value: config.strategic_intent?.primary_goal },
+    { name: "growth_priority", value: config.strategic_intent?.growth_priority },
+  ];
+  
+  const filledRequired = requiredFields.filter(f => f.value && String(f.value).trim().length > 0);
+  const missingFields = requiredFields.filter(f => !f.value || String(f.value).trim().length === 0).map(f => f.name);
+  const completeness = Math.round((filledRequired.length / requiredFields.length) * 100);
+  breakdown.completeness_details = missingFields.length > 0 
+    ? `Missing: ${missingFields.join(", ")}` 
+    : "All required fields complete";
+
+  // 2. Competitor Confidence Score (0-100)
+  // Based on number of competitors and evidence
+  const competitors = config.competitors?.competitors || [];
+  const directCount = config.competitors?.direct?.length || 0;
+  const totalCompetitors = competitors.length + directCount;
+  
+  let competitorScore = 0;
+  if (totalCompetitors >= 5) {
+    competitorScore = 80;
+  } else if (totalCompetitors >= 3) {
+    competitorScore = 60;
+  } else if (totalCompetitors >= 1) {
+    competitorScore = 40;
+  }
+
+  // Bonus for competitors with evidence packs
+  const competitorsWithEvidence = competitors.filter(c => c.evidence && c.evidence.why_selected).length;
+  if (competitorsWithEvidence > 0 && competitors.length > 0) {
+    const evidenceBonus = Math.round((competitorsWithEvidence / competitors.length) * 20);
+    competitorScore = Math.min(100, competitorScore + evidenceBonus);
+  }
+  
+  breakdown.competitor_details = `${totalCompetitors} competitors defined, ${competitorsWithEvidence} with evidence packs`;
+
+  // 3. Negative Strength Score (0-100)
+  // Based on coverage of exclusion types
+  const neg = config.negative_scope;
+  const exclusionCounts = {
+    categories: (neg?.excluded_categories?.length || 0) + (neg?.category_exclusions?.length || 0),
+    keywords: (neg?.excluded_keywords?.length || 0) + (neg?.keyword_exclusions?.length || 0),
+    use_cases: (neg?.excluded_use_cases?.length || 0) + (neg?.use_case_exclusions?.length || 0),
+    competitors: (neg?.excluded_competitors?.length || 0) + (neg?.competitor_exclusions?.length || 0),
+  };
+
+  const totalExclusions = Object.values(exclusionCounts).reduce((a, b) => a + b, 0);
+  const exclusionTypesUsed = Object.values(exclusionCounts).filter(c => c > 0).length;
+  
+  let negativeScore = 0;
+  if (exclusionTypesUsed >= 3) {
+    negativeScore = 80;
+  } else if (exclusionTypesUsed >= 2) {
+    negativeScore = 60;
+  } else if (exclusionTypesUsed >= 1) {
+    negativeScore = 40;
+  }
+
+  // Bonus for hard exclusion enabled
+  if (neg?.enforcement_rules?.hard_exclusion) {
+    negativeScore = Math.min(100, negativeScore + 10);
+  }
+  
+  // Bonus for depth
+  if (totalExclusions >= 10) {
+    negativeScore = Math.min(100, negativeScore + 10);
+  }
+  
+  breakdown.negative_details = `${totalExclusions} exclusions across ${exclusionTypesUsed} types`;
+
+  // 4. Evidence Coverage Score (0-100)
+  // Based on how well competitors are documented
+  let evidenceScore = 0;
+  if (competitors.length > 0) {
+    const withEvidence = competitors.filter(c => c.evidence?.why_selected).length;
+    const withKeywords = competitors.filter(c => c.evidence?.top_overlap_keywords?.length > 0).length;
+    const withExamples = competitors.filter(c => c.evidence?.serp_examples?.length > 0).length;
+    
+    evidenceScore = Math.round(((withEvidence + withKeywords + withExamples) / (competitors.length * 3)) * 100);
+    breakdown.evidence_details = `Evidence: ${withEvidence}/${competitors.length}, Keywords: ${withKeywords}/${competitors.length}, Examples: ${withExamples}/${competitors.length}`;
+  } else if (directCount > 0) {
+    evidenceScore = 30; // Legacy format without detailed evidence
+    breakdown.evidence_details = "Using legacy competitor format (no detailed evidence)";
+  } else {
+    breakdown.evidence_details = "No competitors defined";
+  }
+
+  // Calculate overall score (weighted average)
+  const weights = {
+    completeness: 0.25,
+    competitor_confidence: 0.25,
+    negative_strength: 0.30,
+    evidence_coverage: 0.20,
+  };
+
+  const overall = Math.round(
+    completeness * weights.completeness +
+    competitorScore * weights.competitor_confidence +
+    negativeScore * weights.negative_strength +
+    evidenceScore * weights.evidence_coverage
+  );
+
+  // Determine grade
+  let grade: "high" | "medium" | "low" = "low";
+  if (overall >= 75) {
+    grade = "high";
+  } else if (overall >= 50) {
+    grade = "medium";
+  }
+
+  return {
+    completeness,
+    competitor_confidence: competitorScore,
+    negative_strength: negativeScore,
+    evidence_coverage: evidenceScore,
+    overall,
+    grade,
+    breakdown,
+    calculated_at: new Date().toISOString(),
   };
 }
 
@@ -361,6 +499,12 @@ export async function registerRoutes(
       }
       
       const contextHash = generateContextHash(result.data);
+      const qualityScore = calculateQualityScore(result.data);
+      
+      // Determine if human review is required based on quality score
+      const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
+      const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
+      const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
       
       const configWithValidation = {
         ...result.data,
@@ -370,6 +514,12 @@ export async function registerRoutes(
           blocked_reasons: validation.blockedReasons,
           context_hash: contextHash,
           context_version: 1,
+          quality_score: qualityScore,
+          ai_behavior: {
+            ...(result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
+            requires_human_review: requiresHumanReview,
+            auto_approved: autoApproved,
+          },
         },
       };
       
@@ -416,6 +566,12 @@ export async function registerRoutes(
       const existingConfig = await storage.getConfigurationById(id, userId);
       const currentVersion = existingConfig?.governance?.context_version || 0;
       const contextHash = generateContextHash(result.data);
+      const qualityScore = calculateQualityScore(result.data);
+      
+      // Determine if human review is required based on quality score
+      const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
+      const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
+      const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
       
       const configWithValidation = {
         ...result.data,
@@ -425,6 +581,12 @@ export async function registerRoutes(
           blocked_reasons: validation.blockedReasons,
           context_hash: contextHash,
           context_version: currentVersion + 1,
+          quality_score: qualityScore,
+          ai_behavior: {
+            ...(result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
+            requires_human_review: requiresHumanReview,
+            auto_approved: autoApproved,
+          },
         },
       };
       

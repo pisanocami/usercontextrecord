@@ -94,7 +94,18 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
         },
         channel_context: { ...defaultConfiguration.channel_context, ...configToLoad.channel_context },
         negative_scope: { ...defaultConfiguration.negative_scope, ...configToLoad.negative_scope },
-        governance: { ...defaultConfiguration.governance, ...configToLoad.governance },
+        governance: { 
+          ...defaultConfiguration.governance, 
+          ...configToLoad.governance,
+          quality_score: {
+            ...defaultConfiguration.governance.quality_score,
+            ...(configToLoad.governance?.quality_score || {}),
+          },
+          ai_behavior: {
+            ...defaultConfiguration.governance.ai_behavior,
+            ...(configToLoad.governance?.ai_behavior || {}),
+          },
+        },
       });
       setLastSaved(new Date(configToLoad.updated_at));
     }
@@ -141,7 +152,18 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
         },
         channel_context: { ...defaultConfiguration.channel_context, ...savedConfig.channel_context },
         negative_scope: { ...defaultConfiguration.negative_scope, ...savedConfig.negative_scope },
-        governance: { ...defaultConfiguration.governance, ...savedConfig.governance },
+        governance: { 
+          ...defaultConfiguration.governance, 
+          ...savedConfig.governance,
+          quality_score: {
+            ...defaultConfiguration.governance.quality_score,
+            ...(savedConfig.governance?.quality_score || {}),
+          },
+          ai_behavior: {
+            ...defaultConfiguration.governance.ai_behavior,
+            ...(savedConfig.governance?.ai_behavior || {}),
+          },
+        },
       };
       form.reset(resetData);
       toast({

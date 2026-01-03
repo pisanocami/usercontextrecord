@@ -226,6 +226,56 @@ export const negativeScopeSchema = z.object({
   audit_log: z.array(exclusionAuditEntrySchema).default([]),
 });
 
+// Phase 4: Context Quality Score Schema
+export const contextQualityScoreSchema = z.object({
+  // Individual dimension scores (0-100)
+  completeness: z.number().min(0).max(100).default(0), // % of required fields filled
+  competitor_confidence: z.number().min(0).max(100).default(0), // Avg evidence strength across competitors
+  negative_strength: z.number().min(0).max(100).default(0), // Coverage of exclusions
+  evidence_coverage: z.number().min(0).max(100).default(0), // % of competitors with evidence packs
+  // Composite score
+  overall: z.number().min(0).max(100).default(0),
+  grade: z.enum(["high", "medium", "low"]).default("low"),
+  // Breakdown notes for transparency
+  breakdown: z.object({
+    completeness_details: z.string().default(""),
+    competitor_details: z.string().default(""),
+    negative_details: z.string().default(""),
+    evidence_details: z.string().default(""),
+  }).default({
+    completeness_details: "",
+    competitor_details: "",
+    negative_details: "",
+    evidence_details: "",
+  }),
+  // Timestamp
+  calculated_at: z.string().default(""),
+});
+
+// Phase 4: AI Behavior Contract Schema
+export const aiBehaviorContractSchema = z.object({
+  // Auto-regeneration tracking
+  regeneration_count: z.number().default(0), // How many times AI has regenerated
+  max_regenerations: z.number().default(1), // Max allowed auto-regenerations
+  last_regeneration_at: z.string().optional(),
+  regeneration_reason: z.string().optional(),
+  // Redaction tracking
+  redacted_fields: z.array(z.object({
+    field_path: z.string(),
+    original_value: z.string(),
+    redacted_at: z.string(),
+    reason: z.string(),
+  })).default([]),
+  // Confidence thresholds for auto-approval
+  auto_approve_threshold: z.number().min(0).max(100).default(80), // Score above which auto-approve
+  require_human_below: z.number().min(0).max(100).default(50), // Score below which force human review
+  // Flags
+  requires_human_review: z.boolean().default(false),
+  auto_approved: z.boolean().default(false),
+  violation_detected: z.boolean().default(false),
+  violation_details: z.string().optional(),
+});
+
 // Governance Schema
 export const governanceSchema = z.object({
   model_suggested: z.boolean(),
@@ -249,6 +299,32 @@ export const governanceSchema = z.object({
   human_verified: z.boolean().default(false),
   human_verified_at: z.string().optional(), // ISO date when human verified
   blocked_reasons: z.array(z.string()).default([]), // Why validation is blocked
+  // Phase 4: Quality Score & AI Behavior
+  quality_score: contextQualityScoreSchema.default({
+    completeness: 0,
+    competitor_confidence: 0,
+    negative_strength: 0,
+    evidence_coverage: 0,
+    overall: 0,
+    grade: "low",
+    breakdown: {
+      completeness_details: "",
+      competitor_details: "",
+      negative_details: "",
+      evidence_details: "",
+    },
+    calculated_at: "",
+  }),
+  ai_behavior: aiBehaviorContractSchema.default({
+    regeneration_count: 0,
+    max_regenerations: 1,
+    redacted_fields: [],
+    auto_approve_threshold: 80,
+    require_human_below: 50,
+    requires_human_review: false,
+    auto_approved: false,
+    violation_detected: false,
+  }),
 });
 
 // Full Configuration Schema
@@ -286,6 +362,8 @@ export type ChannelContext = z.infer<typeof channelContextSchema>;
 export type ExclusionEntry = z.infer<typeof exclusionEntrySchema>;
 export type ExclusionAuditEntry = z.infer<typeof exclusionAuditEntrySchema>;
 export type NegativeScope = z.infer<typeof negativeScopeSchema>;
+export type ContextQualityScore = z.infer<typeof contextQualityScoreSchema>;
+export type AIBehaviorContract = z.infer<typeof aiBehaviorContractSchema>;
 export type Governance = z.infer<typeof governanceSchema>;
 export type Configuration = z.infer<typeof configurationSchema>;
 export type InsertConfiguration = z.infer<typeof insertConfigurationSchema>;
@@ -388,5 +466,30 @@ export const defaultConfiguration: InsertConfiguration = {
     validation_status: "incomplete",
     human_verified: false,
     blocked_reasons: [],
+    quality_score: {
+      completeness: 0,
+      competitor_confidence: 0,
+      negative_strength: 0,
+      evidence_coverage: 0,
+      overall: 0,
+      grade: "low",
+      breakdown: {
+        completeness_details: "",
+        competitor_details: "",
+        negative_details: "",
+        evidence_details: "",
+      },
+      calculated_at: "",
+    },
+    ai_behavior: {
+      regeneration_count: 0,
+      max_regenerations: 1,
+      redacted_fields: [],
+      auto_approve_threshold: 80,
+      require_human_below: 50,
+      requires_human_review: false,
+      auto_approved: false,
+      violation_detected: false,
+    },
   },
 };
