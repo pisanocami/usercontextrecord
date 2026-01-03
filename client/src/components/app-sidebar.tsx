@@ -13,6 +13,7 @@ import {
   Sparkles,
   List,
   Plus,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -145,6 +146,24 @@ export function AppSidebar({
                     <Plus className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
                       <span className="text-sm font-medium">New Configuration</span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/context">
+                  <SidebarMenuButton
+                    isActive={activeSection === "context"}
+                    className={`group relative ${
+                      activeSection === "context"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-context"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">Brand Context</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>

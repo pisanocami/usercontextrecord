@@ -2,11 +2,19 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Save, Clock, AlertCircle, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { Save, Clock, AlertCircle, ArrowLeft, Sparkles, Loader2, ChevronRight, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link, useSearch } from "wouter";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 import { ContextHeader, ContextStatus } from "@/components/context-header";
 import { ApprovalChecklist, ChecklistItem } from "@/components/approval-checklist";
@@ -306,6 +314,36 @@ export function BrandContextPage() {
 
         <main className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="mx-auto max-w-4xl space-y-6">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/" data-testid="breadcrumb-home">
+                      <Home className="h-4 w-4" />
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator>
+                  <ChevronRight className="h-4 w-4" />
+                </BreadcrumbSeparator>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/" data-testid="breadcrumb-configurations">
+                      Configurations
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator>
+                  <ChevronRight className="h-4 w-4" />
+                </BreadcrumbSeparator>
+                <BreadcrumbItem>
+                  <BreadcrumbPage data-testid="breadcrumb-current">
+                    {brandName || "New Brand Context"}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+
             <div className="flex items-center justify-between rounded-lg border bg-gradient-to-r from-primary/5 to-primary/10 p-4">
               <div>
                 <h3 className="text-sm font-medium">Quick Start with AI</h3>
