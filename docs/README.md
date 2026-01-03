@@ -28,6 +28,14 @@ Esto genera `SYSTEM_DOCUMENTATION.md` en la raíz del proyecto.
 
 ### 2. Capturar Screenshots Públicos
 
+Primero, instala los navegadores de Playwright (solo la primera vez):
+
+```bash
+npx playwright install chromium
+```
+
+Luego ejecuta el script de captura:
+
 ```bash
 npx tsx docs/capture-screenshots.ts
 ```
