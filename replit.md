@@ -125,3 +125,6 @@ The frontend features:
 - Added navigation icons (FileText, BarChart3) in configurations list for One Pager and Keyword Gap
 - Added Version History with rollback capability for configuration versions
 - Implemented Keyword Gap Lite module with theme-based grouping and UCR guardrails filtering
+- Added Context Validation Council: automated validator with weighted scoring and approval workflow
+- Enhanced AI competitor generation: now includes "why" reasoning for each suggested competitor
+- Keyword Gap Lite improvements: filters applied badge, context version tracking, borderline bucket for human review
