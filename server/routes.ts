@@ -646,6 +646,76 @@ export async function registerRoutes(
     }
   });
 
+  // Update section approval status
+  app.patch("/api/configurations/:id/section-approval", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const { section, status, rejected_reason } = req.body;
+      
+      const validSections = [
+        "brand_identity", "category_definition", "competitive_set",
+        "demand_definition", "strategic_intent", "channel_context", "negative_scope"
+      ];
+      
+      if (!section || !validSections.includes(section)) {
+        return res.status(400).json({ error: `Invalid section. Must be one of: ${validSections.join(", ")}` });
+      }
+      
+      const validStatuses = ["pending", "approved", "rejected", "ai_generated"];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      }
+      
+      if (status === "rejected" && (!rejected_reason || rejected_reason.trim().length < 5)) {
+        return res.status(400).json({ error: "Rejection reason is required (minimum 5 characters)" });
+      }
+      
+      const existingConfig = await storage.getConfigurationById(id, userId);
+      if (!existingConfig) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      
+      const now = new Date().toISOString();
+      const sectionApprovals = existingConfig.governance?.section_approvals || {};
+      
+      const updatedApproval = {
+        status,
+        ...(status === "approved" ? { approved_at: now, approved_by: userId } : {}),
+        ...(status === "rejected" ? { rejected_reason: rejected_reason?.trim() } : {}),
+        last_edited_at: now,
+        last_edited_by: userId,
+      };
+      
+      const updatedSectionApprovals = {
+        ...sectionApprovals,
+        [section]: updatedApproval,
+      };
+      
+      const updatedGovernance = {
+        ...existingConfig.governance,
+        section_approvals: updatedSectionApprovals,
+      };
+      
+      const { id: _, created_at, updated_at, ...configWithoutMeta } = existingConfig as any;
+      const updatedConfig = await storage.updateConfiguration(
+        id, 
+        userId, 
+        { ...configWithoutMeta, governance: updatedGovernance },
+        `Section approval: ${section} set to ${status}`
+      );
+      
+      res.json(updatedConfig);
+    } catch (error) {
+      console.error("Error updating section approval:", error);
+      res.status(500).json({ error: "Failed to update section approval" });
+    }
+  });
+
   // Get configuration version history
   app.get("/api/configurations/:id/versions", async (req: any, res) => {
     try {
