@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, RefreshCw, BarChart3, PieChart, Activity } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, RefreshCw, BarChart3, PieChart, Activity, FileText, ExternalLink } from 'lucide-react';
 import { ConfidenceBar } from '@/components/ui/confidence-bar';
 import { FreshnessIndicator } from '@/components/ui/freshness-indicator';
 import { InsightBlock } from '@/components/ui/insight-block';
@@ -44,11 +45,20 @@ interface DashboardData {
 const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
   const { data: modulesData, isLoading: modulesLoading } = useQuery<{ modules: any[] }>({
     queryKey: ['/api/fon/modules']
   });
+
+  const navigateToModule = (moduleId: string) => {
+    setLocation(`/modules/${moduleId}`);
+  };
+
+  const navigateToMasterReport = () => {
+    setLocation('/master-report');
+  };
 
   const executeMutation = useMutation({
     mutationFn: async (moduleId: string) => {
@@ -124,10 +134,21 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Executive Intelligence Dashboard</h1>
           <p className="text-muted-foreground">Real-time brand intelligence across all modules</p>
         </div>
-        <Button onClick={executeAllModules} disabled={executeMutation.isPending} data-testid="button-execute-all">
-          {executeMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Run All Modules
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={executeAllModules} disabled={executeMutation.isPending} data-testid="button-execute-all">
+            {executeMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Run All Modules
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={navigateToMasterReport}
+            disabled={Object.keys(executedResults).length === 0}
+            data-testid="button-master-report"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Master Report
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -257,7 +278,13 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3 min-w-0">
                       {resultData ? getStatusIcon(resultData.freshnessStatus?.status || 'fresh') : <div className="h-4 w-4" />}
                       <div className="min-w-0">
-                        <p className="font-medium truncate">{mod.name}</p>
+                        <button 
+                          onClick={() => navigateToModule(mod.id)}
+                          className="font-medium truncate text-left hover:underline hover:text-primary transition-colors"
+                          data-testid={`link-module-${mod.id}`}
+                        >
+                          {mod.name}
+                        </button>
                         <p className="text-sm text-muted-foreground truncate">{mod.category}</p>
                       </div>
                     </div>

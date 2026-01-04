@@ -25,6 +25,7 @@ import {
   Share2,
   Brain,
   Loader2,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -257,6 +258,24 @@ export function AppSidebar({
                     <BarChart3 className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
                       <span className="text-sm font-medium">All Modules</span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/master-report">
+                  <SidebarMenuButton
+                    isActive={activeSection === "master-report" || location === "/master-report"}
+                    className={`group relative ${
+                      activeSection === "master-report" || location === "/master-report"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-master-report"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">Master Report</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
