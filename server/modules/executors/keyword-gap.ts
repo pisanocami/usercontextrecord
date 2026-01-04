@@ -57,7 +57,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
           volume: k.search_volume || 0,
           difficulty: k.competition || 0,
           cpc: k.cpc || 0,
-          intent: 'commercial', // Simplified mapping
+          intent: 'commercial' as const, // Simplified mapping
           position: k.position
         }));
 
@@ -66,7 +66,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
           volume: k.search_volume || 0,
           difficulty: k.competition || 0,
           cpc: k.cpc || 0,
-          intent: 'commercial',
+          intent: 'commercial' as const,
           position: k.position
         }));
 
