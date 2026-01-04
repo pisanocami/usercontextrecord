@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Save, Copy, Download, Upload, Clock, Check, AlertCircle, ArrowLeft } from "lucide-react";
+import { Save, Copy, Download, Upload, Clock, Check, AlertCircle, ArrowLeft, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { ContextReviewPanel } from "@/components/context-review-panel";
 import { BrandContextSection } from "@/components/sections/brand-context";
 import { CategoryDefinitionSection } from "@/components/sections/category-definition";
 import { CompetitiveSetSection } from "@/components/sections/competitive-set";
@@ -386,8 +387,24 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
         </header>
 
         <main className="flex-1 overflow-auto p-4 sm:p-6">
-          <div className="mx-auto max-w-4xl">
-            {ActiveSection && <ActiveSection />}
+          <div className="mx-auto max-w-6xl">
+            <div className={isEditMode && existingConfig ? "grid gap-6 lg:grid-cols-[1fr_320px]" : ""}>
+              <div className="max-w-4xl">
+                {ActiveSection && <ActiveSection />}
+              </div>
+              {isEditMode && existingConfig && (
+                <div className="hidden lg:block">
+                  <div className="sticky top-4">
+                    <ContextReviewPanel
+                      configuration={existingConfig as Configuration}
+                      onStatusChange={() => {
+                        queryClient.invalidateQueries({ queryKey: ["/api/configurations", editId] });
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </main>
       </div>

@@ -745,6 +745,99 @@ export async function registerRoutes(
     }
   });
 
+  // Context status transition endpoint
+  app.patch("/api/configurations/:id/status", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const { status, reason } = req.body;
+      
+      const validStatuses = ["DRAFT_AI", "AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      }
+      
+      const existingConfig = await storage.getConfigurationById(id, userId);
+      if (!existingConfig) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      
+      const currentStatus = existingConfig.governance?.context_status || "DRAFT_AI";
+      
+      // Define valid state transitions
+      const validTransitions: Record<string, string[]> = {
+        "DRAFT_AI": ["AI_READY"],
+        "AI_READY": ["DRAFT_AI", "AI_ANALYSIS_RUN"],
+        "AI_ANALYSIS_RUN": ["AI_READY", "HUMAN_CONFIRMED"],
+        "HUMAN_CONFIRMED": ["AI_ANALYSIS_RUN", "LOCKED"],
+        "LOCKED": [], // LOCKED is terminal, cannot transition
+      };
+      
+      if (currentStatus === "LOCKED") {
+        return res.status(400).json({ 
+          error: "Context is LOCKED and cannot be modified. Create a new version to make changes." 
+        });
+      }
+      
+      if (!validTransitions[currentStatus]?.includes(status)) {
+        return res.status(400).json({ 
+          error: `Invalid transition: ${currentStatus} → ${status}. Valid transitions: ${validTransitions[currentStatus]?.join(", ") || "none"}` 
+        });
+      }
+      
+      // Validate requirements for certain transitions
+      if (status === "AI_READY") {
+        const validation = validateConfiguration(existingConfig as any);
+        if (!validation.isValid) {
+          return res.status(400).json({ 
+            error: "Cannot transition to AI_READY: validation failed", 
+            blockedReasons: validation.blockedReasons 
+          });
+        }
+      }
+      
+      if (status === "HUMAN_CONFIRMED") {
+        // Check if all sections are approved
+        const sectionApprovals = existingConfig.governance?.section_approvals || {};
+        const pendingSections = Object.entries(sectionApprovals)
+          .filter(([_, approval]: [string, any]) => approval.status !== "approved")
+          .map(([section]) => section);
+        
+        if (pendingSections.length > 0) {
+          return res.status(400).json({ 
+            error: `Cannot confirm: sections not approved: ${pendingSections.join(", ")}` 
+          });
+        }
+      }
+      
+      const now = new Date().toISOString();
+      const updatedGovernance = {
+        ...existingConfig.governance,
+        context_status: status,
+        context_status_updated_at: now,
+        ...(status === "HUMAN_CONFIRMED" ? { human_verified: true, adopted_at: now } : {}),
+        ...(status === "AI_ANALYSIS_RUN" ? { analysis_run_at: now } : {}),
+      };
+      
+      const { id: _, created_at, updated_at, ...configWithoutMeta } = existingConfig as any;
+      const updatedConfig = await storage.updateConfiguration(
+        id, 
+        userId, 
+        { ...configWithoutMeta, governance: updatedGovernance },
+        reason || `Status transition: ${currentStatus} → ${status}`
+      );
+      
+      res.json(updatedConfig);
+    } catch (error) {
+      console.error("Error updating context status:", error);
+      res.status(500).json({ error: "Failed to update context status" });
+    }
+  });
+
   // Get configuration version history
   app.get("/api/configurations/:id/versions", async (req: any, res) => {
     try {
