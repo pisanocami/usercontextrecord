@@ -88,10 +88,10 @@ export interface BulkJob {
   updated_at: Date;
 }
 
-// Brand Context Schema - validation is optional to allow partial saves
+// Brand Context Schema - only domain is required, rest is optional for AI auto-generation
 export const brandSchema = z.object({
   name: z.string().default(""),
-  domain: z.string().default(""),
+  domain: z.string().min(1, "Domain is required"),
   industry: z.string().default(""),
   business_model: z.enum(["B2B", "DTC", "Marketplace", "Hybrid"]),
   primary_geography: z.array(z.string()).default([]),
@@ -107,9 +107,9 @@ export const categoryAlternativeSchema = z.object({
   confidence: z.number().min(0).max(100).default(50),
 });
 
-// Category Definition Schema - allows partial saves
+// Category Definition Schema - primary_category is required, rest is optional for AI auto-generation
 export const categoryDefinitionSchema = z.object({
-  primary_category: z.string().default(""),
+  primary_category: z.string().min(1, "Primary category is required"),
   included: z.array(z.string()).default([]),
   excluded: z.array(z.string()).default([]),
   approved_categories: z.array(z.string()).default([]), // Human-approved categories
@@ -406,10 +406,10 @@ export const governanceSchema = z.object({
   }),
 });
 
-// Full Configuration Schema
+// Full Configuration Schema - name is optional (auto-generated from domain if empty)
 export const configurationSchema = z.object({
   id: z.string(),
-  name: z.string().min(1, "Configuration name is required"),
+  name: z.string().default(""), // Auto-generated from domain if not provided
   brand: brandSchema,
   category_definition: categoryDefinitionSchema,
   competitors: competitorsSchema,
@@ -469,12 +469,12 @@ export interface ConfigurationVersion {
 // Category Alternative type export
 export type CategoryAlternative = z.infer<typeof categoryAlternativeSchema>;
 
-// Default configuration for new configurations
+// Default configuration for new configurations - minimal required fields
 export const defaultConfiguration: InsertConfiguration = {
-  name: "New Context",
+  name: "", // Auto-generated from domain
   brand: {
     name: "",
-    domain: "",
+    domain: "", // REQUIRED
     industry: "",
     business_model: "B2B",
     primary_geography: [],
@@ -482,28 +482,9 @@ export const defaultConfiguration: InsertConfiguration = {
     target_market: "",
   },
   category_definition: {
-    primary_category: "",
-    included: [
-      "parcel delivery",
-      "shipping services",
-      "package tracking",
-      "international shipping",
-      "freight shipping",
-      "logistics solutions",
-      "e-commerce fulfillment",
-      "returns and reverse logistics",
-      "customs clearance",
-      "last-mile delivery",
-    ],
-    excluded: [
-      "jobs and careers",
-      "customer complaints",
-      "shipping scams or fraud",
-      "anonymous or untraceable shipping",
-      "illegal or restricted goods transport",
-      "tracking number generators",
-      "personal moving services",
-    ],
+    primary_category: "", // REQUIRED
+    included: [], // AI will populate based on category
+    excluded: [], // AI will populate based on category
     approved_categories: [],
     alternative_categories: [],
   },
