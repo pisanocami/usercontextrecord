@@ -257,7 +257,7 @@ export default function ModulesPage() {
                               </CardHeader>
                               <CardContent>
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                  {moduleResult.rawData.trends.slice(0, 12).map((item: any, i: number) => (
+                                  {moduleResult.rawData.trends.slice(-12).map((item: any, i: number) => (
                                     <div key={i} className="p-3 border rounded-md">
                                       <p className="text-xs text-muted-foreground">{item.date}</p>
                                       <p className="text-sm font-bold">{item.value}</p>

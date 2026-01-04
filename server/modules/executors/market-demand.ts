@@ -93,11 +93,18 @@ export class MarketDemandExecutor extends BaseModuleExecutor {
         const data = await response.json();
         
         if (data.interest_over_time?.timeline_data) {
-          return data.interest_over_time.timeline_data.map((item: any) => ({
-            date: item.date,
-            value: item.values[0].extracted_value,
-            keyword: keywords[0]
-          }));
+          return data.interest_over_time.timeline_data.map((item: any) => {
+            // Handle various date formats from SerpApi
+            let formattedDate = item.date;
+            if (item.timestamp) {
+              formattedDate = new Date(parseInt(item.timestamp) * 1000).toISOString().slice(0, 7);
+            }
+            return {
+              date: formattedDate,
+              value: item.values[0].extracted_value || 0,
+              keyword: keywords[0]
+            };
+          });
         }
       } catch (error) {
         console.error('SerpApi request failed, falling back to mock:', error);
@@ -148,8 +155,10 @@ export class MarketDemandExecutor extends BaseModuleExecutor {
     let count = 0;
     
     for (const [month, values] of Object.entries(monthlyAvg)) {
+      const monthIdx = parseInt(month) - 1;
+      const monthName = monthNames[monthIdx] || `Month ${month}`;
       const avg = values.reduce((a, b) => a + b, 0) / values.length;
-      monthlyIndex[monthNames[parseInt(month) - 1]] = avg;
+      monthlyIndex[monthName] = avg;
       overallAvg += avg;
       count++;
     }

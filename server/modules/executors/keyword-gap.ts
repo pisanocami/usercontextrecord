@@ -57,7 +57,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
           volume: k.search_volume || 0,
           difficulty: k.competition || 0,
           cpc: k.cpc || 0,
-          intent: 'commercial' as const, // Simplified mapping
+          intent: 'commercial' as const,
           position: k.position
         }));
 
@@ -69,6 +69,17 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
           intent: 'commercial' as const,
           position: k.position
         }));
+
+        competitorKeywords = {
+          [competitors[0]]: apiResult.competitor_keywords.map(k => ({
+            keyword: k.keyword,
+            volume: k.search_volume || 0,
+            difficulty: k.competition || 0,
+            cpc: k.cpc || 0,
+            intent: 'commercial' as const,
+            position: k.position
+          }))
+        };
 
         const byIntent: Record<string, number> = {
           informational: 0,
