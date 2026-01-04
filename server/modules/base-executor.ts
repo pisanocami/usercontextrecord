@@ -8,6 +8,7 @@ import type {
   ChartData,
   CouncilContext
 } from './types';
+import { applyTimeDecay, getModuleDecayConfig, calculateFreshnessStatus } from './time-decay';
 
 export abstract class BaseModuleExecutor implements ModuleExecutor {
   abstract definition: ModuleDefinition;
@@ -16,16 +17,11 @@ export abstract class BaseModuleExecutor implements ModuleExecutor {
 
   validate(input: ModuleInput): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
-    if (!input.brandId) {
-      errors.push('brandId is required');
-    }
-    if (!input.tenantId) {
-      errors.push('tenantId is required');
-    }
 
     for (const required of this.definition.requiredInputs) {
-      if (!(required in input) && !(required in (input.customParams || {}))) {
+      const hasField = (required in input && input[required as keyof ModuleInput] !== undefined) || 
+                       (input.customParams && required in input.customParams);
+      if (!hasField) {
         errors.push(`${required} is required for ${this.definition.id}`);
       }
     }
@@ -49,7 +45,7 @@ export abstract class BaseModuleExecutor implements ModuleExecutor {
         dataQuality: 'low',
         analysisDepth: 'limited'
       },
-      freshnessStatus: 'fresh',
+      freshnessStatus: { status: 'fresh', ageDays: 0 },
       errors: ['No data available']
     };
   }
@@ -131,13 +127,13 @@ export abstract class BaseModuleExecutor implements ModuleExecutor {
     );
   }
 
-  protected getFreshnessStatus(dataTimestamp: Date): 'fresh' | 'moderate' | 'stale' | 'expired' {
-    const ageMs = Date.now() - dataTimestamp.getTime();
-    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+  protected getFreshnessStatus(dataTimestamp: Date): { status: 'fresh' | 'moderate' | 'stale' | 'expired'; ageDays: number; warning?: string } {
+    const config = getModuleDecayConfig(this.definition.id);
+    return calculateFreshnessStatus(dataTimestamp, config);
+  }
 
-    if (ageDays <= 7) return 'fresh';
-    if (ageDays <= 30) return 'moderate';
-    if (ageDays <= 90) return 'stale';
-    return 'expired';
+  protected applyTimeDecayToConfidence(baseConfidence: number, dataTimestamp: Date): number {
+    const config = getModuleDecayConfig(this.definition.id);
+    return applyTimeDecay(baseConfidence, dataTimestamp, config);
   }
 }

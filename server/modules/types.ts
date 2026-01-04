@@ -1,11 +1,14 @@
 export interface ModuleInput {
-  brandId: number;
-  tenantId: number;
+  brandId?: number;
+  tenantId?: number;
   periodStart?: Date;
   periodEnd?: Date;
   keywords?: string[];
   competitors?: string[];
   domain?: string;
+  products?: string[];
+  dateRange?: { start: Date; end: Date };
+  attributionModel?: string;
   customParams?: Record<string, unknown>;
 }
 
@@ -44,6 +47,12 @@ export interface CouncilContext {
   additionalContext?: Record<string, unknown>;
 }
 
+export interface FreshnessInfo {
+  status: 'fresh' | 'moderate' | 'stale' | 'expired';
+  ageDays: number;
+  warning?: string;
+}
+
 export interface ModuleOutput {
   moduleId: string;
   hasData: boolean;
@@ -55,7 +64,7 @@ export interface ModuleOutput {
   recommendations: Recommendation[];
   chartsData: ChartData[];
   councilContext: CouncilContext;
-  freshnessStatus: 'fresh' | 'moderate' | 'stale' | 'expired';
+  freshnessStatus: FreshnessInfo;
   errors?: string[];
 }
 

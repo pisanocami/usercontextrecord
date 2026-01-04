@@ -21,11 +21,22 @@ interface ModuleDefinition {
   dataSources: string[];
 }
 
+interface FreshnessInfo {
+  status: 'fresh' | 'moderate' | 'stale' | 'expired';
+  ageDays: number;
+  warning?: string;
+}
+
 interface ModuleResult {
   moduleId: string;
   hasData: boolean;
   confidence: number;
   dataSources: string[];
+  chartsData?: Array<{
+    type: string;
+    title: string;
+    data: unknown;
+  }>;
   insights: Array<{
     id: string;
     title: string;
@@ -45,7 +56,8 @@ interface ModuleResult {
     timeline?: string;
     withAccessCta?: string;
   }>;
-  freshnessStatus: 'fresh' | 'moderate' | 'stale' | 'expired';
+  freshnessStatus: FreshnessInfo;
+  errors?: string[];
 }
 
 const categoryIcons: Record<string, typeof BarChart3> = {
@@ -192,7 +204,11 @@ export default function ModulesPage() {
                       <div className="flex-1">
                         <ConfidenceBar score={moduleResult.confidence} />
                       </div>
-                      <FreshnessIndicator status={moduleResult.freshnessStatus} />
+                      <FreshnessIndicator 
+                        status={moduleResult.freshnessStatus.status} 
+                        ageDays={moduleResult.freshnessStatus.ageDays}
+                        warning={moduleResult.freshnessStatus.warning}
+                      />
                     </div>
 
                     <Tabs defaultValue="insights">

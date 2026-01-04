@@ -12,6 +12,12 @@ import { RecommendationCard } from '@/components/ui/recommendation-card';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
+interface FreshnessInfo {
+  status: 'fresh' | 'moderate' | 'stale' | 'expired';
+  ageDays: number;
+  warning?: string;
+}
+
 interface ModuleResult {
   moduleId: string;
   moduleName: string;
@@ -20,7 +26,8 @@ interface ModuleResult {
   insights: any[];
   recommendations: any[];
   chartsData: any[];
-  freshnessStatus: { status: string; ageDays: number };
+  freshnessStatus: FreshnessInfo;
+  errors?: string[];
 }
 
 interface DashboardData {

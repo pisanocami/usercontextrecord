@@ -21,10 +21,15 @@ The platform implements a FON architecture for brand intelligence analysis:
 ### Module Executors (`server/modules/`)
 - **Base Executor**: Abstract class providing standard output structure (hasData, confidence, insights, recommendations)
 - **Registry**: Central registry for module executors
-- **Implemented Modules**:
-  - `market-demand`: Google Trends integration with seasonality detection
-  - `keyword-gap`: SEO visibility analysis with competitor keyword gaps
+- **Time Decay**: Module-specific confidence decay based on data age
+- **Implemented Modules** (7 total):
+  - `market-demand`: Market demand and seasonality analysis
+  - `keyword-gap`: SEO keyword gap and visibility analysis
   - `strategic-summary`: Cross-module synthesis for executive recommendations
+  - `competitive-positioning`: Competitive landscape and positioning analysis
+  - `content-performance`: Content effectiveness and engagement metrics
+  - `pricing-intelligence`: Pricing strategy and competitor price analysis
+  - `channel-attribution`: Marketing channel attribution and ROAS analysis
 
 ### Playbooks (`server/playbooks/`)
 - **Loader**: JSON-based playbook configuration system
@@ -40,7 +45,11 @@ The platform implements a FON architecture for brand intelligence analysis:
 - `ConfidenceBar`: Visual confidence score indicator
 - `InsightBlock`: Structured insight display with data_point, source, why_it_matters
 - `RecommendationCard`: Priority-based action cards with effort/timeline
-- `FreshnessIndicator`: Data age status (fresh/moderate/stale/expired)
+- `FreshnessIndicator`: Data age status (fresh/moderate/stale/expired) with warnings
+
+### FON Pages (`client/src/pages/`)
+- `dashboard.tsx`: Executive Intelligence Dashboard with charts (bar, line, pie, radar)
+- `modules.tsx`: Individual module execution and results view
 
 ### FON API Routes
 - `GET /api/fon/modules` - List all available modules
