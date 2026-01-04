@@ -119,12 +119,14 @@ export abstract class BaseModuleExecutor implements ModuleExecutor {
 
     const sourceScore = Math.min(factors.sourceCount / 2, 1);
     
-    return (
+    const baseConfidence = (
       factors.dataCompleteness * weights.dataCompleteness +
       sourceScore * weights.sourceCount +
       factors.dataFreshness * weights.dataFreshness +
       factors.insightQuality * weights.insightQuality
     );
+
+    return isNaN(baseConfidence) ? 0 : baseConfidence;
   }
 
   protected getFreshnessStatus(dataTimestamp: Date): { status: 'fresh' | 'moderate' | 'stale' | 'expired'; ageDays: number; warning?: string } {

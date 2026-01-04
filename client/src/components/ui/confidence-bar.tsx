@@ -15,7 +15,7 @@ export function ConfidenceBar({
   size = 'md',
   className
 }: ConfidenceBarProps) {
-  const normalizedScore = Math.max(0, Math.min(1, score));
+  const normalizedScore = isNaN(score) ? 0 : Math.max(0, Math.min(1, score));
   const percentage = Math.round(normalizedScore * 100);
   
   const getColor = () => {
