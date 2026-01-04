@@ -25,10 +25,6 @@ import {
   createDatabaseError,
   AppError 
 } from "./utils/error-handling";
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
 function getTenantId(req: Request): number | null {
   const tenantHeader = req.headers["x-tenant-id"];
