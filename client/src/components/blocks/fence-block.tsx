@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
 import { Ban, ShieldAlert, Layers, Tag, Users, Plus, X, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { ContextBlock } from "@/components/context-block";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,29 +12,53 @@ import type { InsertConfiguration, ExclusionEntry } from "@shared/schema";
 
 function ExclusionChip({ 
   entry, 
-  onRemove 
+  onRemove,
+  onToggleMatchType 
 }: { 
   entry: ExclusionEntry; 
   onRemove: () => void;
+  onToggleMatchType: () => void;
 }) {
+  const isExact = entry.match_type === "exact";
+  
   return (
-    <Badge 
-      variant="outline" 
-      className="gap-1.5 text-red-700 border-red-300 bg-red-50 dark:text-red-300 dark:border-red-700 dark:bg-red-950/50 hover-elevate"
-    >
+    <div className={cn(
+      "group relative inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm",
+      isExact 
+        ? "text-red-700 border-red-300 bg-red-50 dark:text-red-300 dark:border-red-700 dark:bg-red-950/50"
+        : "text-purple-700 border-purple-300 bg-purple-50 dark:text-purple-300 dark:border-purple-700 dark:bg-purple-950/50"
+    )}>
       <Ban className="h-3 w-3" />
       <span>{entry.value}</span>
-      {entry.match_type === "semantic" && (
-        <span className="text-xs opacity-70">~</span>
-      )}
+      
+      {/* Match Type Toggle */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onToggleMatchType(); }}
+        className={cn(
+          "ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors",
+          isExact 
+            ? "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700" 
+            : "bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700"
+        )}
+        title={isExact ? "Exact match - click to change to Semantic" : "Semantic match - click to change to Exact"}
+      >
+        {isExact ? "EXACT" : "~SEM"}
+      </button>
+      
       <button 
         type="button"
         onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        className="ml-0.5 hover:text-red-900 dark:hover:text-red-100"
+        className={cn(
+          "ml-0.5",
+          isExact 
+            ? "hover:text-red-900 dark:hover:text-red-100"
+            : "hover:text-purple-900 dark:hover:text-purple-100"
+        )}
       >
         <X className="h-3 w-3" />
       </button>
-    </Badge>
+    </div>
   );
 }
 
@@ -53,8 +79,9 @@ function ExclusionSection({
 }) {
   const form = useFormContext<InsertConfiguration>();
   const [newValue, setNewValue] = useState("");
+  const [newMatchType, setNewMatchType] = useState<"exact" | "semantic">("exact");
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: enhancedFieldName,
   });
@@ -66,7 +93,7 @@ function ExclusionSection({
     
     const newEntry: ExclusionEntry = {
       value: newValue.trim(),
-      match_type: "exact",
+      match_type: newMatchType,
       semantic_sensitivity: "medium",
       added_by: "human",
       added_at: new Date().toISOString(),
@@ -75,6 +102,16 @@ function ExclusionSection({
     
     append(newEntry);
     setNewValue("");
+  };
+
+  const handleToggleMatchType = (index: number) => {
+    const entry = fields[index] as ExclusionEntry;
+    const newType = entry.match_type === "exact" ? "semantic" : "exact";
+    
+    update(index, {
+      ...entry,
+      match_type: newType,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -109,25 +146,51 @@ function ExclusionSection({
       </div>
       
       <div className="flex flex-wrap gap-2">
-        {uniqueEntries.map((entry, i) => (
-          <ExclusionChip
-            key={`${entry.value}-${i}`}
-            entry={entry}
-            onRemove={() => {
-              const enhancedIndex = fields.findIndex(f => (f as ExclusionEntry).value === entry.value);
-              if (enhancedIndex >= 0) {
-                remove(enhancedIndex);
-              } else {
-                const legacyIndex = legacyValues.indexOf(entry.value);
-                if (legacyIndex >= 0) {
-                  const updated = [...legacyValues];
-                  updated.splice(legacyIndex, 1);
-                  form.setValue(fieldName, updated, { shouldDirty: true });
+        {uniqueEntries.map((entry, i) => {
+          const enhancedIndex = fields.findIndex(f => (f as ExclusionEntry).value === entry.value);
+          const isEnhanced = enhancedIndex >= 0;
+          
+          return (
+            <ExclusionChip
+              key={`${entry.value}-${i}`}
+              entry={entry}
+              onRemove={() => {
+                if (isEnhanced) {
+                  remove(enhancedIndex);
+                } else {
+                  const legacyIndex = legacyValues.indexOf(entry.value);
+                  if (legacyIndex >= 0) {
+                    const updated = [...legacyValues];
+                    updated.splice(legacyIndex, 1);
+                    form.setValue(fieldName, updated, { shouldDirty: true });
+                  }
                 }
-              }
-            }}
-          />
-        ))}
+              }}
+              onToggleMatchType={() => {
+                if (isEnhanced) {
+                  handleToggleMatchType(enhancedIndex);
+                } else {
+                  // Convert legacy to enhanced with toggled match type
+                  const legacyIndex = legacyValues.indexOf(entry.value);
+                  if (legacyIndex >= 0) {
+                    const updated = [...legacyValues];
+                    updated.splice(legacyIndex, 1);
+                    form.setValue(fieldName, updated, { shouldDirty: true });
+                    
+                    append({
+                      value: entry.value,
+                      match_type: "semantic", // Toggle from default exact to semantic
+                      semantic_sensitivity: "medium",
+                      added_by: "human",
+                      added_at: new Date().toISOString(),
+                      reason: "",
+                    });
+                  }
+                }
+              }}
+            />
+          );
+        })}
         
         <div className="flex items-center gap-1">
           <Input
@@ -135,16 +198,46 @@ function ExclusionSection({
             onChange={(e) => setNewValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="h-7 w-40 text-sm border-dashed border-red-300 dark:border-red-700"
+            className={cn(
+              "h-7 w-32 text-sm border-dashed",
+              newMatchType === "exact" 
+                ? "border-red-300 dark:border-red-700" 
+                : "border-purple-300 dark:border-purple-700"
+            )}
             data-testid={`${testIdPrefix}-input`}
           />
+          <Select 
+            value={newMatchType} 
+            onValueChange={(v: "exact" | "semantic") => setNewMatchType(v)}
+          >
+            <SelectTrigger 
+              className={cn(
+                "h-7 w-24 text-xs",
+                newMatchType === "exact"
+                  ? "border-red-300 dark:border-red-700 text-red-700 dark:text-red-300"
+                  : "border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300"
+              )}
+              data-testid={`${testIdPrefix}-match-type`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="exact">Exact</SelectItem>
+              <SelectItem value="semantic">Semantic</SelectItem>
+            </SelectContent>
+          </Select>
           <Button 
             type="button"
             size="icon"
             variant="ghost"
             onClick={handleAdd}
             disabled={!newValue.trim()}
-            className="h-7 w-7 text-red-600 dark:text-red-400"
+            className={cn(
+              "h-7 w-7",
+              newMatchType === "exact"
+                ? "text-red-600 dark:text-red-400"
+                : "text-purple-600 dark:text-purple-400"
+            )}
             data-testid={`${testIdPrefix}-add`}
           >
             <Plus className="h-4 w-4" />

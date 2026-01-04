@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { Users, Check, X, ChevronDown, ChevronRight, AlertTriangle, Target, TrendingUp, Star, Building2, Globe, Plus } from "lucide-react";
+import { Users, Check, X, ChevronDown, ChevronRight, AlertTriangle, Target, TrendingUp, Star, Building2, Globe, Plus, DollarSign } from "lucide-react";
 import { ContextBlock, BlockStatus } from "@/components/context-block";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AIGenerateButton } from "@/components/ai-generate-button";
+import { cn } from "@/lib/utils";
 import { useAIGenerate } from "@/hooks/use-ai-generate";
 import { useToast } from "@/hooks/use-toast";
 import type { InsertConfiguration, CompetitorEntry } from "@shared/schema";
@@ -114,6 +115,12 @@ function CompetitorRow({
             </Badge>
           )}
           
+          {competitor.funding_stage === "public" && (
+            <Badge className="text-xs bg-blue-600 text-white hover:bg-blue-700">
+              <DollarSign className="h-3 w-3 mr-0.5" /> PUBLIC
+            </Badge>
+          )}
+          
           {competitor.added_by === "ai" && (
             <Badge variant="secondary" className="text-xs">AI</Badge>
           )}
@@ -168,6 +175,18 @@ function CompetitorRow({
               <span className="flex items-center gap-1">
                 <Users className="h-3 w-3" /> {competitor.employee_count}
               </span>
+            )}
+            {competitor.funding_stage && competitor.funding_stage !== "unknown" && (
+              <Badge 
+                variant={competitor.funding_stage === "public" ? "default" : "secondary"}
+                className={cn(
+                  "text-xs",
+                  competitor.funding_stage === "public" && "bg-blue-600 text-white hover:bg-blue-700"
+                )}
+              >
+                <DollarSign className="h-3 w-3 mr-0.5" />
+                {competitor.funding_stage === "public" ? "PUBLIC" : competitor.funding_stage.replace("_", " ").toUpperCase()}
+              </Badge>
             )}
           </div>
           
@@ -240,7 +259,7 @@ export function CompetitorSetBlock() {
   const { generate, isGenerating } = useAIGenerate();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newCompetitor, setNewCompetitor] = useState({ name: "", tier: "tier1" as const });
+  const [newCompetitor, setNewCompetitor] = useState({ name: "", tier: "tier1" as const, funding_stage: "unknown" as const });
 
   const competitors = form.watch("competitors.competitors") || [];
   
@@ -291,7 +310,7 @@ export function CompetitorSetBlock() {
       size_proximity: 50,
       revenue_range: "",
       employee_count: "",
-      funding_stage: "unknown",
+      funding_stage: newCompetitor.funding_stage,
       geo_overlap: [],
       evidence: { why_selected: "Manually added", top_overlap_keywords: [], serp_examples: [] },
       added_by: "human",
@@ -301,7 +320,7 @@ export function CompetitorSetBlock() {
     
     form.setValue("competitors.competitors", [...competitors, entry], { shouldDirty: true });
     setShowAddDialog(false);
-    setNewCompetitor({ name: "", tier: "tier1" });
+    setNewCompetitor({ name: "", tier: "tier1", funding_stage: "unknown" });
     toast({ title: "Competitor added" });
   };
 
@@ -467,6 +486,26 @@ export function CompetitorSetBlock() {
                   <SelectItem value="tier1">Tier 1 - Direct</SelectItem>
                   <SelectItem value="tier2">Tier 2 - Adjacent</SelectItem>
                   <SelectItem value="tier3">Tier 3 - Aspirational</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Funding Stage</label>
+              <Select
+                value={newCompetitor.funding_stage}
+                onValueChange={(v) => setNewCompetitor(prev => ({ ...prev, funding_stage: v as any }))}
+              >
+                <SelectTrigger data-testid="select-add-competitor-funding">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unknown">Unknown</SelectItem>
+                  <SelectItem value="bootstrap">Bootstrap</SelectItem>
+                  <SelectItem value="seed">Seed</SelectItem>
+                  <SelectItem value="series_a">Series A</SelectItem>
+                  <SelectItem value="series_b">Series B</SelectItem>
+                  <SelectItem value="series_c_plus">Series C+</SelectItem>
+                  <SelectItem value="public">Public</SelectItem>
                 </SelectContent>
               </Select>
             </div>
