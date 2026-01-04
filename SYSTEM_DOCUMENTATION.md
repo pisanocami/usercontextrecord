@@ -2,7 +2,7 @@
 
 > Documentación del Sistema - Versión 1.0.0
 >
-> Generado automáticamente: auto
+> Generado automáticamente: 2026-01-03T03:22:19.366Z
 
 ---
 

@@ -1,0 +1,11 @@
+# Requirements for documentation generation
+# Install with: pip install -r docs/requirements.txt
+
+# PDF generation
+pandoc>=2.0
+
+# Alternative: WeasyPrint (if pandoc not available)
+# weasyprint>=59.0
+
+# Image processing (optional, for screenshot optimization)
+# Pillow>=9.0.0

@@ -40,11 +40,28 @@ async function delay(ms: number): Promise<void> {
 
 async function captureScreenshots(): Promise<void> {
   console.log("🚀 Starting screenshot capture...\n");
-  console.log("⚠️  Note: This script captures public screens only.");
-  console.log("   For authenticated screens, use manual capture or provide session cookies.\n");
-
+  
+  // Check if server is running
+  console.log("🔍 Checking if server is running...");
+  try {
+    const response = await fetch('http://localhost:5000/api/auth/user');
+    if (response.ok) {
+      console.log("✅ Server is running and responding");
+    }
+  } catch (error) {
+    console.log("❌ Server is not running or not accessible");
+    console.log("   Please start the server first:");
+    console.log("   - Make sure DATABASE_URL is set");
+    console.log("   - npm run dev");
+    console.log("   - or NODE_ENV=development tsx server/index.ts");
+    console.log("   Then try again.\n");
+    process.exit(1);
+  }
+  
+  // Ensure screenshots directory exists
   if (!fs.existsSync(SCREENSHOTS_DIR)) {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+    console.log("📁 Created screenshots directory");
   }
 
   const manifest: Manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf-8"));
@@ -58,8 +75,6 @@ async function captureScreenshots(): Promise<void> {
     deviceScaleFactor: 2,
   });
 
-  const page: Page = await context.newPage();
-
   const publicScreens = manifest.screens.filter((s) => !s.requiresAuth);
   const authScreens = manifest.screens.filter((s) => s.requiresAuth);
 
@@ -67,43 +82,45 @@ async function captureScreenshots(): Promise<void> {
 
   for (const screen of publicScreens) {
     try {
+      const page: Page = await context.newPage();
       const url = `${BASE_URL}${screen.route}`;
+      
       console.log(`  → ${screen.name} (${url})`);
-
-      await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
-      await delay(1000);
-
+      await page.goto(url, { waitUntil: "networkidle" });
+      
+      // Wait a bit more for any dynamic content
+      await page.waitForTimeout(2000);
+      
       const screenshotPath = path.join(SCREENSHOTS_DIR, screen.screenshotFile);
-      await page.screenshot({
-        path: screenshotPath,
-        fullPage: false,
-      });
-
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      
       console.log(`    ✅ Saved: ${screen.screenshotFile}`);
+      await page.close();
+      
     } catch (error) {
-      console.error(`    ❌ Error capturing ${screen.name}:`, error);
+      console.log(`    ❌ Error capturing ${screen.name}: ${(error as Error).message}`);
     }
   }
 
-  await browser.close();
-
-  manifest.metadata.generated = new Date().toISOString();
-  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-
-  console.log("\n✨ Public screenshot capture complete!");
+  console.log(`\n✨ Public screenshot capture complete!`);
   console.log(`   Screenshots saved to: ${SCREENSHOTS_DIR}`);
 
   if (authScreens.length > 0) {
     console.log(`\n📋 Manual capture required for ${authScreens.length} authenticated screens:`);
-    for (const screen of authScreens) {
+    authScreens.forEach((screen) => {
       console.log(`   - ${screen.screenshotFile}: ${screen.name}`);
-    }
-    console.log("\n   To capture these screens:");
-    console.log("   1. Log in to the application in your browser");
-    console.log("   2. Navigate to each screen");
-    console.log("   3. Take screenshots (1440x900 viewport recommended)");
-    console.log(`   4. Save to: ${SCREENSHOTS_DIR}/`);
+    });
+    console.log(`\n   To capture these screens:`);
+    console.log(`   1. Log in to the application in your browser`);
+    console.log(`   2. Navigate to each screen`);
+    console.log(`   3. Take screenshots (1440x900 viewport recommended)`);
+    console.log(`   4. Save to: ${SCREENSHOTS_DIR}`);
   }
+  
+  await browser.close();
+
+  manifest.metadata.generated = new Date().toISOString();
+  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
 }
 
 captureScreenshots().catch(console.error);
