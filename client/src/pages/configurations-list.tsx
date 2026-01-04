@@ -60,6 +60,7 @@ import type { Brand, CategoryDefinition, Competitors, DemandDefinition, Strategi
 import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ConfigCardList } from "@/components/mobile/config-card";
+import { BrandSelector } from "@/components/brand-selector";
 
 interface Configuration {
   id: number;
@@ -525,8 +526,11 @@ export default function ConfigurationsList() {
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="relative">
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="w-full sm:w-64">
+            <BrandSelector />
+          </div>
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by name, domain, or industry..."

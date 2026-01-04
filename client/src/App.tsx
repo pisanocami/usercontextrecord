@@ -29,6 +29,7 @@ import { LogOut, User, List } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { Link } from "wouter";
 import { MobileNav } from "@/components/mobile-nav";
+import { BrandProvider } from "@/contexts/brand-context";
 import GapComplianceReport from "./pages/gap-compliance-report.md?raw";
 import RemediationPlan from "../../remediation-plan.md?raw";
 import ReactMarkdown from "react-markdown";
@@ -508,13 +509,15 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <div className="pb-[72px] sm:pb-0">
-          <Router />
-        </div>
-        <MobileNav />
-      </TooltipProvider>
+      <BrandProvider>
+        <TooltipProvider>
+          <Toaster />
+          <div className="pb-[72px] sm:pb-0">
+            <Router />
+          </div>
+          <MobileNav />
+        </TooltipProvider>
+      </BrandProvider>
     </QueryClientProvider>
   );
 }

@@ -452,6 +452,127 @@ export async function registerRoutes(
   // Setup authentication FIRST
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // ============ BRAND API ROUTES ============
+  
+  // Get all brands for user
+  app.get("/api/brands", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const brandsList = await storage.getBrands(userId);
+      res.json(brandsList);
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+      res.status(500).json({ error: "Failed to fetch brands" });
+    }
+  });
+
+  // Get single brand by ID
+  app.get("/api/brands/:id", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid brand ID" });
+      }
+      
+      const brand = await storage.getBrandById(id, userId);
+      if (!brand) {
+        return res.status(404).json({ error: "Brand not found" });
+      }
+      
+      res.json(brand);
+    } catch (error) {
+      console.error("Error fetching brand:", error);
+      res.status(500).json({ error: "Failed to fetch brand" });
+    }
+  });
+
+  // Create new brand
+  app.post("/api/brands", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const { domain, name, industry, business_model, primary_geography, revenue_band, target_market } = req.body;
+      
+      if (!domain || typeof domain !== "string" || domain.trim().length === 0) {
+        return res.status(400).json({ error: "Domain is required" });
+      }
+      
+      // Check if brand with this domain already exists
+      const existing = await storage.getBrandByDomain(userId, domain);
+      if (existing) {
+        return res.status(409).json({ error: "Brand with this domain already exists", existingBrand: existing });
+      }
+      
+      const brand = await storage.createBrand(userId, {
+        domain: domain.trim(),
+        name: name || "",
+        industry: industry || "",
+        business_model: business_model || "B2B",
+        primary_geography: primary_geography || [],
+        revenue_band: revenue_band || "",
+        target_market: target_market || "",
+      });
+      
+      res.status(201).json(brand);
+    } catch (error) {
+      console.error("Error creating brand:", error);
+      res.status(500).json({ error: "Failed to create brand" });
+    }
+  });
+
+  // Update brand
+  app.put("/api/brands/:id", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid brand ID" });
+      }
+      
+      const brand = await storage.updateBrand(id, userId, req.body);
+      res.json(brand);
+    } catch (error) {
+      console.error("Error updating brand:", error);
+      res.status(500).json({ error: "Failed to update brand" });
+    }
+  });
+
+  // Delete brand
+  app.delete("/api/brands/:id", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid brand ID" });
+      }
+      
+      await storage.deleteBrand(id, userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting brand:", error);
+      res.status(500).json({ error: "Failed to delete brand" });
+    }
+  });
+
+  // Get configurations for a specific brand
+  app.get("/api/brands/:id/configurations", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const brandId = parseInt(req.params.id);
+      if (isNaN(brandId)) {
+        return res.status(400).json({ error: "Invalid brand ID" });
+      }
+      
+      const configs = await storage.getConfigurationsByBrand(brandId, userId);
+      res.json(configs);
+    } catch (error) {
+      console.error("Error fetching brand configurations:", error);
+      res.status(500).json({ error: "Failed to fetch configurations" });
+    }
+  });
+
+  // ============ CONFIGURATION API ROUTES ============
   
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {

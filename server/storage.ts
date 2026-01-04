@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions } from "@shared/schema";
+import { configurations, bulkJobs, configurationVersions, brands } from "@shared/schema";
 import { eq, and, desc, max } from "drizzle-orm";
 import type {
   Brand,
@@ -14,12 +14,30 @@ import type {
   BulkJob,
   BulkBrandInput,
   ConfigurationVersion,
+  BrandEntity,
+  InsertBrandEntity,
 } from "@shared/schema";
+
+// Database brand type (global brand entity)
+export interface DbBrand {
+  id: number;
+  userId: string;
+  domain: string;
+  name: string;
+  industry: string;
+  business_model: string;
+  primary_geography: string[];
+  revenue_band: string;
+  target_market: string;
+  created_at: Date;
+  updated_at: Date;
+}
 
 // Database configuration type (includes userId for security)
 export interface DbConfiguration {
   id: number;
   userId: string;
+  brandId?: number | null;
   name: string;
   brand: Brand;
   category_definition: CategoryDefinition;
@@ -34,6 +52,15 @@ export interface DbConfiguration {
 }
 
 export interface IStorage {
+  // Brand CRUD operations
+  getBrands(userId: string): Promise<DbBrand[]>;
+  getBrandById(id: number, userId: string): Promise<DbBrand | undefined>;
+  getBrandByDomain(userId: string, domain: string): Promise<DbBrand | undefined>;
+  createBrand(userId: string, brand: InsertBrandEntity): Promise<DbBrand>;
+  updateBrand(id: number, userId: string, brand: Partial<InsertBrandEntity>): Promise<DbBrand>;
+  deleteBrand(id: number, userId: string): Promise<void>;
+  getConfigurationsByBrand(brandId: number, userId: string): Promise<DbConfiguration[]>;
+  // Configuration operations
   getConfiguration(userId: string): Promise<DbConfiguration | undefined>;
   getConfigurationById(id: number, userId?: string): Promise<DbConfiguration | undefined>;
   getAllConfigurations(userId: string): Promise<DbConfiguration[]>;
@@ -52,6 +79,174 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // ============ BRAND CRUD OPERATIONS ============
+  
+  async getBrands(userId: string): Promise<DbBrand[]> {
+    const results = await db
+      .select()
+      .from(brands)
+      .where(eq(brands.userId, userId))
+      .orderBy(desc(brands.updated_at));
+    
+    return results.map(b => ({
+      id: b.id,
+      userId: b.userId,
+      domain: b.domain,
+      name: b.name || "",
+      industry: b.industry || "",
+      business_model: b.business_model || "B2B",
+      primary_geography: (b.primary_geography as string[]) || [],
+      revenue_band: b.revenue_band || "",
+      target_market: b.target_market || "",
+      created_at: b.created_at,
+      updated_at: b.updated_at,
+    }));
+  }
+
+  async getBrandById(id: number, userId: string): Promise<DbBrand | undefined> {
+    const [brand] = await db
+      .select()
+      .from(brands)
+      .where(and(eq(brands.id, id), eq(brands.userId, userId)))
+      .limit(1);
+    
+    if (!brand) return undefined;
+    
+    return {
+      id: brand.id,
+      userId: brand.userId,
+      domain: brand.domain,
+      name: brand.name || "",
+      industry: brand.industry || "",
+      business_model: brand.business_model || "B2B",
+      primary_geography: (brand.primary_geography as string[]) || [],
+      revenue_band: brand.revenue_band || "",
+      target_market: brand.target_market || "",
+      created_at: brand.created_at,
+      updated_at: brand.updated_at,
+    };
+  }
+
+  async getBrandByDomain(userId: string, domain: string): Promise<DbBrand | undefined> {
+    const normalizedDomain = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
+    const [brand] = await db
+      .select()
+      .from(brands)
+      .where(eq(brands.userId, userId))
+      .limit(100);
+    
+    const found = brand ? [brand].find(b => {
+      const bDomain = b.domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
+      return bDomain === normalizedDomain;
+    }) : undefined;
+    
+    if (!found) return undefined;
+    
+    return {
+      id: found.id,
+      userId: found.userId,
+      domain: found.domain,
+      name: found.name || "",
+      industry: found.industry || "",
+      business_model: found.business_model || "B2B",
+      primary_geography: (found.primary_geography as string[]) || [],
+      revenue_band: found.revenue_band || "",
+      target_market: found.target_market || "",
+      created_at: found.created_at,
+      updated_at: found.updated_at,
+    };
+  }
+
+  async createBrand(userId: string, brandData: InsertBrandEntity): Promise<DbBrand> {
+    const [created] = await db
+      .insert(brands)
+      .values({
+        userId,
+        domain: brandData.domain,
+        name: brandData.name || "",
+        industry: brandData.industry || "",
+        business_model: brandData.business_model || "B2B",
+        primary_geography: brandData.primary_geography || [],
+        revenue_band: brandData.revenue_band || "",
+        target_market: brandData.target_market || "",
+      })
+      .returning();
+    
+    return {
+      id: created.id,
+      userId: created.userId,
+      domain: created.domain,
+      name: created.name || "",
+      industry: created.industry || "",
+      business_model: created.business_model || "B2B",
+      primary_geography: (created.primary_geography as string[]) || [],
+      revenue_band: created.revenue_band || "",
+      target_market: created.target_market || "",
+      created_at: created.created_at,
+      updated_at: created.updated_at,
+    };
+  }
+
+  async updateBrand(id: number, userId: string, brandData: Partial<InsertBrandEntity>): Promise<DbBrand> {
+    const [updated] = await db
+      .update(brands)
+      .set({
+        ...brandData,
+        updated_at: new Date(),
+      })
+      .where(and(eq(brands.id, id), eq(brands.userId, userId)))
+      .returning();
+    
+    if (!updated) {
+      throw new Error("Brand not found or access denied");
+    }
+    
+    return {
+      id: updated.id,
+      userId: updated.userId,
+      domain: updated.domain,
+      name: updated.name || "",
+      industry: updated.industry || "",
+      business_model: updated.business_model || "B2B",
+      primary_geography: (updated.primary_geography as string[]) || [],
+      revenue_band: updated.revenue_band || "",
+      target_market: updated.target_market || "",
+      created_at: updated.created_at,
+      updated_at: updated.updated_at,
+    };
+  }
+
+  async deleteBrand(id: number, userId: string): Promise<void> {
+    await db.delete(brands).where(and(eq(brands.id, id), eq(brands.userId, userId)));
+  }
+
+  async getConfigurationsByBrand(brandId: number, userId: string): Promise<DbConfiguration[]> {
+    const results = await db
+      .select()
+      .from(configurations)
+      .where(and(eq(configurations.brandId, brandId), eq(configurations.userId, userId)))
+      .orderBy(desc(configurations.updated_at));
+    
+    return results.map(config => ({
+      id: config.id,
+      userId: config.userId,
+      brandId: config.brandId,
+      name: config.name,
+      brand: config.brand as Brand,
+      category_definition: config.category_definition as CategoryDefinition,
+      competitors: config.competitors as Competitors,
+      demand_definition: config.demand_definition as DemandDefinition,
+      strategic_intent: config.strategic_intent as StrategicIntent,
+      channel_context: config.channel_context as ChannelContext,
+      negative_scope: config.negative_scope as NegativeScope,
+      governance: config.governance as Governance,
+      created_at: config.created_at,
+      updated_at: config.updated_at,
+    }));
+  }
+
+  // ============ CONFIGURATION OPERATIONS ============
+  
   async getConfiguration(userId: string): Promise<DbConfiguration | undefined> {
     const [config] = await db
       .select()

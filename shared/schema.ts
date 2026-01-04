@@ -6,12 +6,28 @@ import { sql } from "drizzle-orm";
 export * from "./models/auth";
 export * from "./models/chat";
 
+// Brands table - first-class entity that owns configurations
+export const brands = pgTable("brands", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  domain: varchar("domain").notNull(), // unique per user
+  name: text("name").default(""),
+  industry: text("industry").default(""),
+  business_model: varchar("business_model").default("B2B"),
+  primary_geography: jsonb("primary_geography").default([]),
+  revenue_band: text("revenue_band").default(""),
+  target_market: text("target_market").default(""),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 // Configurations table for persistent storage
 export const configurations = pgTable("configurations", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
+  brandId: integer("brand_id"), // FK to brands table (nullable for migration)
   name: text("name").notNull(),
-  brand: jsonb("brand").notNull(),
+  brand: jsonb("brand").notNull(), // Kept for backward compatibility / snapshots
   category_definition: jsonb("category_definition").notNull(),
   competitors: jsonb("competitors").notNull(),
   demand_definition: jsonb("demand_definition").notNull(),
@@ -436,7 +452,32 @@ export const insertConfigurationSchema = configurationSchema.omit({
   updated_at: true,
 });
 
+// Brand Entity Schema (for brands table - global brand that owns contexts)
+export const brandEntitySchema = z.object({
+  id: z.number(),
+  userId: z.string(),
+  domain: z.string().min(1, "Domain is required"),
+  name: z.string().default(""),
+  industry: z.string().default(""),
+  business_model: z.string().default("B2B"),
+  primary_geography: z.array(z.string()).default([]),
+  revenue_band: z.string().default(""),
+  target_market: z.string().default(""),
+  created_at: z.date(),
+  updated_at: z.date(),
+});
+
+// Insert schema for brands (without auto-generated fields)
+export const insertBrandEntitySchema = brandEntitySchema.omit({
+  id: true,
+  userId: true,
+  created_at: true,
+  updated_at: true,
+});
+
 // Types
+export type BrandEntity = z.infer<typeof brandEntitySchema>;
+export type InsertBrandEntity = z.infer<typeof insertBrandEntitySchema>;
 export type Brand = z.infer<typeof brandSchema>;
 export type CategoryDefinition = z.infer<typeof categoryDefinitionSchema>;
 export type CompetitorEvidence = z.infer<typeof competitorEvidenceSchema>;
