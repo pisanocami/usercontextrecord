@@ -46,7 +46,7 @@ const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--c
 export default function Dashboard() {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
-  const { data: modulesData, isLoading: modulesLoading } = useQuery<any[]>({
+  const { data: modulesData, isLoading: modulesLoading } = useQuery<{ modules: any[] }>({
     queryKey: ['/api/fon/modules']
   });
 
@@ -68,15 +68,15 @@ export default function Dashboard() {
 
   const executeModule = async (moduleId: string) => {
     try {
-      const result = await executeMutation.mutateAsync(moduleId);
-      setExecutedResults(prev => ({ ...prev, [moduleId]: result }));
+      const response = await executeMutation.mutateAsync(moduleId);
+      setExecutedResults(prev => ({ ...prev, [moduleId]: response.result }));
     } catch (error) {
       console.error('Module execution failed:', error);
     }
   };
 
   const executeAllModules = async () => {
-    if (!modules) return;
+    if (!modules || modules.length === 0) return;
     for (const mod of modules) {
       await executeModule(mod.id);
     }
@@ -247,7 +247,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-3">
               {modules.map((mod: any) => {
-                const result = executedResults[mod.id];
+                const resultData = executedResults[mod.id];
                 return (
                   <div 
                     key={mod.id} 
@@ -255,18 +255,18 @@ export default function Dashboard() {
                     data-testid={`module-status-${mod.id}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      {result ? getStatusIcon(result.freshnessStatus?.status || 'fresh') : <div className="h-4 w-4" />}
+                      {resultData ? getStatusIcon(resultData.freshnessStatus?.status || 'fresh') : <div className="h-4 w-4" />}
                       <div className="min-w-0">
                         <p className="font-medium truncate">{mod.name}</p>
                         <p className="text-sm text-muted-foreground truncate">{mod.category}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
-                      {result ? (
+                      {resultData ? (
                         <>
-                          <ConfidenceBar score={result.confidence} size="sm" />
-                          <Badge variant={result.hasData ? 'default' : 'secondary'}>
-                            {result.hasData ? 'Has Data' : 'No Data'}
+                          <ConfidenceBar score={resultData.confidence} size="sm" />
+                          <Badge variant={resultData.hasData ? 'default' : 'secondary'}>
+                            {resultData.hasData ? 'Has Data' : 'No Data'}
                           </Badge>
                         </>
                       ) : (
@@ -335,9 +335,9 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="charts" className="space-y-4">
-          {Object.entries(executedResults).map(([moduleId, result]: [string, any]) => {
-            if (!result?.chartsData?.length) return null;
-            const modInfo = modulesData?.find((m: any) => m.id === moduleId);
+          {Object.entries(executedResults).map(([moduleId, resultData]: [string, any]) => {
+            if (!resultData?.chartsData?.length) return null;
+            const modInfo = modulesData?.modules?.find((m: any) => m.id === moduleId);
             
             return (
               <Card key={moduleId} data-testid={`card-charts-${moduleId}`}>
@@ -346,7 +346,7 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {result.chartsData.map((chart: any, idx: number) => (
+                    {resultData.chartsData.map((chart: any, idx: number) => (
                       <div key={idx} className="h-64">
                         <h4 className="text-sm font-medium mb-2">{chart.title}</h4>
                         <ResponsiveContainer width="100%" height="100%">

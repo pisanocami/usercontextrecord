@@ -77,15 +77,12 @@ export default function ModulesPage() {
 
   const executeMutation = useMutation({
     mutationFn: async (moduleId: string) => {
-      const response = await apiRequest(`/api/fon/modules/${moduleId}/execute`, {
-        method: 'POST',
-        body: JSON.stringify({
-          brandId: 1,
-          tenantId: 1,
-          keywords: ['marketing automation', 'email marketing', 'crm software'],
-          domain: 'example.com',
-          competitors: ['competitor1.com', 'competitor2.com'],
-        }),
+      const response = await apiRequest('POST', `/api/fon/modules/${moduleId}/execute`, {
+        brandId: 1,
+        tenantId: 1,
+        keywords: ['marketing automation', 'email marketing', 'crm software'],
+        domain: 'example.com',
+        competitors: ['competitor1.com', 'competitor2.com'],
       });
       return response.json();
     },
