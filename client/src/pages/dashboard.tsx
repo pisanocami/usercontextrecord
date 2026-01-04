@@ -4,7 +4,7 @@ import { useLocation, Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, TrendingUp, AlertTriangle, CheckCircle, RefreshCw, BarChart3, Activity, FileText, ArrowRight, Zap, Settings } from 'lucide-react';
+import { Loader2, TrendingUp, AlertTriangle, CheckCircle, RefreshCw, BarChart3, Activity, FileText, ArrowRight, Zap, Settings, Clock, Shield } from 'lucide-react';
 import { ConfidenceBar } from '@/components/ui/confidence-bar';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -27,6 +27,37 @@ interface ModuleResult {
 }
 
 const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
+function ContextExpirationBadge({ validUntil }: { validUntil: string }) {
+  const expirationDate = new Date(validUntil);
+  const now = new Date();
+  const daysUntilExpiration = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysUntilExpiration < 0) {
+    return (
+      <Badge variant="destructive" className="gap-1" data-testid="badge-context-expired">
+        <Clock className="h-3 w-3" />
+        Expired
+      </Badge>
+    );
+  }
+  
+  if (daysUntilExpiration <= 7) {
+    return (
+      <Badge className="bg-amber-500 text-white gap-1" data-testid="badge-context-expiring">
+        <Clock className="h-3 w-3" />
+        Expires in {daysUntilExpiration}d
+      </Badge>
+    );
+  }
+  
+  return (
+    <Badge variant="outline" className="gap-1 text-muted-foreground" data-testid="badge-context-valid">
+      <Shield className="h-3 w-3" />
+      Valid {daysUntilExpiration}d
+    </Badge>
+  );
+}
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -184,8 +215,18 @@ export default function Dashboard() {
                 <span className="mx-2 text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{contextStatus.domain}</span>
                 <span className="mx-2 text-muted-foreground">|</span>
-                <span className="text-muted-foreground">{contextStatus.competitors.length} competitors configured</span>
+                <span className="text-muted-foreground">{contextStatus.competitors.length} competitors</span>
               </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {activeConfig?.governance?.cmo_safe && (
+                <Badge className="bg-green-600 text-white" data-testid="badge-cmo-safe">
+                  CMO Safe
+                </Badge>
+              )}
+              {activeConfig?.governance?.context_valid_until && (
+                <ContextExpirationBadge validUntil={activeConfig.governance.context_valid_until} />
+              )}
             </div>
           </CardContent>
         </Card>

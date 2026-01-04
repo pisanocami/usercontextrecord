@@ -9,7 +9,7 @@ import { ConfidenceBar } from "@/components/ui/confidence-bar";
 import { InsightBlock } from "@/components/ui/insight-block";
 import { RecommendationCard } from "@/components/ui/recommendation-card";
 import { FreshnessIndicator } from "@/components/ui/freshness-indicator";
-import { Loader2, Play, BarChart3, Target, Users, TrendingUp, AlertTriangle, Settings } from "lucide-react";
+import { Loader2, Play, BarChart3, Target, Users, TrendingUp, AlertTriangle, Settings, Clock, Shield } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Configuration } from "@shared/schema";
 
@@ -195,6 +195,25 @@ export default function ModulesPage() {
                 <span className="mx-2 text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{contextStatus.competitors.length} competitors</span>
               </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {activeConfig?.governance?.cmo_safe && (
+                <Badge className="bg-green-600 text-white" data-testid="badge-cmo-safe">
+                  CMO Safe
+                </Badge>
+              )}
+              {activeConfig?.governance?.context_valid_until && (() => {
+                const expirationDate = new Date(activeConfig.governance.context_valid_until);
+                const now = new Date();
+                const daysUntil = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                if (daysUntil < 0) {
+                  return <Badge variant="destructive" className="gap-1"><Clock className="h-3 w-3" /> Expired</Badge>;
+                }
+                if (daysUntil <= 7) {
+                  return <Badge className="bg-amber-500 text-white gap-1"><Clock className="h-3 w-3" /> Expires {daysUntil}d</Badge>;
+                }
+                return <Badge variant="outline" className="gap-1 text-muted-foreground"><Shield className="h-3 w-3" /> Valid {daysUntil}d</Badge>;
+              })()}
             </div>
           </CardContent>
         </Card>
