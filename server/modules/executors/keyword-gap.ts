@@ -1,6 +1,8 @@
 import { BaseModuleExecutor } from '../base-executor';
 import type { ModuleInput, ModuleOutput, ModuleDefinition } from '../types';
 import { getKeywordGap, checkCredentialsConfigured } from '../../dataforseo';
+import { filterWithNegativeScope } from '../../ucr-enforcement';
+import type { NegativeScope } from '@shared/schema';
 
 interface KeywordData {
   keyword: string;
@@ -116,8 +118,41 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
         competitorKeywords = Object.fromEntries(competitorKeywordsMap);
       }
 
-      const insights = this.generateInsights(gapAnalysis);
-      const recommendations = this.generateRecommendations(gapAnalysis);
+      // Apply negative scope filter if provided
+      const negativeScope = input.negativeScope as NegativeScope | undefined;
+      let filteredGapAnalysis = gapAnalysis;
+      let blockedKeywords: string[] = [];
+      
+      if (negativeScope) {
+        const filterResult = filterWithNegativeScope(
+          gapAnalysis.gapKeywords,
+          negativeScope,
+          'keyword',
+          (kw) => kw.keyword
+        );
+        
+        blockedKeywords = filterResult.blocked.map(k => k.keyword);
+        
+        if (filterResult.blocked.length > 0) {
+          const filteredKeywords = filterResult.filtered;
+          const totalVolume = filteredKeywords.reduce((sum, k) => sum + (k.volume || 0), 0);
+          const avgDifficulty = filteredKeywords.length > 0
+            ? Math.round(filteredKeywords.reduce((sum, k) => sum + (k.difficulty || 0), 0) / filteredKeywords.length)
+            : 0;
+          
+          filteredGapAnalysis = {
+            ...gapAnalysis,
+            gapKeywords: filteredKeywords,
+            topGapKeywords: filteredKeywords.slice(0, 20),
+            totalGapKeywords: filteredKeywords.length,
+            totalGapVolume: totalVolume,
+            avgDifficulty,
+          };
+        }
+      }
+
+      const insights = this.generateInsights(filteredGapAnalysis);
+      const recommendations = this.generateRecommendations(filteredGapAnalysis);
       const dataTimestamp = new Date();
 
       return {
@@ -152,14 +187,17 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
         ],
         councilContext: {
           keyFindings: [
-            `${gapAnalysis.totalGapKeywords} keywords where competitors rank but you don't`,
-            `${gapAnalysis.totalGapVolume.toLocaleString()} monthly search volume opportunity`,
-            `Average difficulty: ${gapAnalysis.avgDifficulty}%`
+            `${filteredGapAnalysis.totalGapKeywords} keywords where competitors rank but you don't`,
+            `${filteredGapAnalysis.totalGapVolume.toLocaleString()} monthly search volume opportunity`,
+            `Average difficulty: ${filteredGapAnalysis.avgDifficulty}%`,
+            ...(blockedKeywords.length > 0 ? [`${blockedKeywords.length} keywords filtered by guardrails`] : [])
           ],
           dataQuality: checkCredentialsConfigured() ? 'high' : 'medium',
           analysisDepth: 'comprehensive',
           additionalContext: {
-            topOpportunities: gapAnalysis.topGapKeywords.slice(0, 5)
+            topOpportunities: filteredGapAnalysis.topGapKeywords.slice(0, 5),
+            blockedByGuardrails: blockedKeywords.length,
+            guardrailsApplied: !!negativeScope
           }
         },
         freshnessStatus: this.getFreshnessStatus(dataTimestamp)

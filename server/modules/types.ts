@@ -1,3 +1,5 @@
+import type { NegativeScope, Configuration } from "@shared/schema";
+
 export interface ModuleInput {
   brandId?: number;
   tenantId?: number;
@@ -10,6 +12,8 @@ export interface ModuleInput {
   dateRange?: { start: Date; end: Date };
   attributionModel?: string;
   customParams?: Record<string, unknown>;
+  negativeScope?: NegativeScope;
+  configuration?: Configuration;
 }
 
 export interface Insight {

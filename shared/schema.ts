@@ -45,6 +45,22 @@ export const configurationVersions = pgTable("configuration_versions", {
   created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Audit log table for tracking human overrides and changes
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id"),
+  userId: varchar("user_id").notNull(),
+  configurationId: integer("configuration_id"),
+  action: varchar("action").notNull(), // create, update, override, approve, reject, expire
+  entityType: varchar("entity_type").notNull(), // configuration, competitor, keyword, category, exclusion
+  entityId: varchar("entity_id").notNull(),
+  previousValue: jsonb("previous_value"),
+  newValue: jsonb("new_value"),
+  reason: text("reason"),
+  metadata: jsonb("metadata"),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 // Bulk generation jobs table
 export const bulkJobs = pgTable("bulk_jobs", {
   id: serial("id").primaryKey(),
@@ -413,6 +429,22 @@ export interface ConfigurationVersion {
 
 // Category Alternative type export
 export type CategoryAlternative = z.infer<typeof categoryAlternativeSchema>;
+
+// Audit log type
+export interface AuditLog {
+  id: number;
+  tenantId: number | null;
+  userId: string;
+  configurationId: number | null;
+  action: "create" | "update" | "override" | "approve" | "reject" | "expire";
+  entityType: "configuration" | "competitor" | "keyword" | "category" | "exclusion";
+  entityId: string;
+  previousValue?: any;
+  newValue?: any;
+  reason?: string;
+  metadata?: Record<string, any>;
+  created_at: Date;
+}
 
 // Default configuration for new configurations
 export const defaultConfiguration: InsertConfiguration = {
