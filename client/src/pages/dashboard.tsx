@@ -76,8 +76,8 @@ export default function Dashboard() {
   };
 
   const executeAllModules = async () => {
-    if (!modulesData) return;
-    for (const mod of modulesData) {
+    if (!modules) return;
+    for (const mod of modules) {
       await executeModule(mod.id);
     }
   };
@@ -95,7 +95,9 @@ export default function Dashboard() {
   const allRecommendations = Object.values(executedResults).flatMap((r: any) => r?.recommendations || []);
   const highPriorityRecs = allRecommendations.filter((r: any) => r.priority === 'high');
 
-  const moduleHealthData = modulesData?.map(mod => ({
+  const modules = modulesData?.modules || [];
+
+  const moduleHealthData = modules.map((mod: any) => ({
     name: mod.name.split(' ').slice(0, 2).join(' '),
     confidence: executedResults[mod.id]?.confidence ? Math.round(executedResults[mod.id].confidence * 100) : 0
   })) || [];
@@ -135,7 +137,7 @@ export default function Dashboard() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-modules-count">{modulesData?.length || 0}</div>
+            <div className="text-2xl font-bold" data-testid="text-total-modules-count">{modules.length}</div>
             <p className="text-xs text-muted-foreground">Intelligence modules available</p>
           </CardContent>
         </Card>
@@ -242,49 +244,49 @@ export default function Dashboard() {
               <CardTitle>Module Status</CardTitle>
               <CardDescription>Execution status and freshness of all modules</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {modulesData?.map((mod: any) => {
-                  const result = executedResults[mod.id];
-                  return (
-                    <div 
-                      key={mod.id} 
-                      className="flex items-center justify-between gap-4 p-3 rounded-md border flex-wrap"
-                      data-testid={`module-status-${mod.id}`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {result ? getStatusIcon(result.freshnessStatus?.status || 'fresh') : <div className="h-4 w-4" />}
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{mod.name}</p>
-                          <p className="text-sm text-muted-foreground truncate">{mod.category}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 flex-wrap">
-                        {result ? (
-                          <>
-                            <ConfidenceBar score={result.confidence} size="sm" />
-                            <Badge variant={result.hasData ? 'default' : 'secondary'}>
-                              {result.hasData ? 'Has Data' : 'No Data'}
-                            </Badge>
-                          </>
-                        ) : (
-                          <Badge variant="outline">Not Executed</Badge>
-                        )}
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => executeModule(mod.id)}
-                          disabled={executeMutation.isPending}
-                          data-testid={`button-execute-${mod.id}`}
-                        >
-                          {executeMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Run'}
-                        </Button>
+          <CardContent>
+            <div className="space-y-3">
+              {modules.map((mod: any) => {
+                const result = executedResults[mod.id];
+                return (
+                  <div 
+                    key={mod.id} 
+                    className="flex items-center justify-between gap-4 p-3 rounded-md border flex-wrap"
+                    data-testid={`module-status-${mod.id}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {result ? getStatusIcon(result.freshnessStatus?.status || 'fresh') : <div className="h-4 w-4" />}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{mod.name}</p>
+                        <p className="text-sm text-muted-foreground truncate">{mod.category}</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {result ? (
+                        <>
+                          <ConfidenceBar score={result.confidence} size="sm" />
+                          <Badge variant={result.hasData ? 'default' : 'secondary'}>
+                            {result.hasData ? 'Has Data' : 'No Data'}
+                          </Badge>
+                        </>
+                      ) : (
+                        <Badge variant="outline">Not Executed</Badge>
+                      )}
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => executeModule(mod.id)}
+                        disabled={executeMutation.isPending}
+                        data-testid={`button-execute-${mod.id}`}
+                      >
+                        {executeMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Run'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
           </Card>
         </TabsContent>
 
