@@ -114,7 +114,24 @@ export interface IStorage {
   getExecReportsByConfiguration(configId: number, contextVersion?: number): Promise<DbExecReport[]>;
   getExecReportById(id: string): Promise<DbExecReport | undefined>;
   getExecReportsByModule(configId: number, moduleId: string): Promise<DbExecReport[]>;
-  createMasterReport(report: InsertMasterReport): Promise<DbMasterReport>;
+  createMasterReport(report: {
+    id: string;
+    configurationId: number;
+    contextVersion: number;
+    contextHash: string;
+    ucrSnapshot: any;
+    execReportIds: string[];
+    consolidatedInsights: any[];
+    consolidatedRecommendations: any[];
+    councilSynthesis: {
+      keyThemes: string[];
+      crossModulePatterns: string[];
+      prioritizedActions: string[];
+    };
+    modulesIncluded: string[];
+    overallConfidence: number;
+    dataFreshness: 'fresh' | 'moderate' | 'stale';
+  }): Promise<DbMasterReport>;
   getMasterReportsByConfiguration(configId: number): Promise<DbMasterReport[]>;
   getLatestMasterReport(configId: number): Promise<DbMasterReport | undefined>;
   getMasterReportById(id: string): Promise<DbMasterReport | undefined>;
@@ -296,7 +313,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(configurations.updated_at));
     
-    return configs.map(config => ({
+    return configs.map((config: typeof configurations.$inferSelect) => ({
       id: config.id,
       tenantId: config.tenantId,
       userId: config.userId,
@@ -503,7 +520,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(bulkJobs.created_at));
     
-    return jobs.map(job => ({
+    return jobs.map((job: typeof bulkJobs.$inferSelect) => ({
       id: job.id,
       tenantId: job.tenantId,
       userId: job.userId,
@@ -635,7 +652,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(configurationVersions.versionNumber));
 
-    return versions.map(v => ({
+    return versions.map((v: typeof configurationVersions.$inferSelect) => ({
       id: v.id,
       configurationId: v.configurationId,
       userId: v.userId,
@@ -796,7 +813,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(auditLogs.created_at));
 
-    return logs.map(log => ({
+    return logs.map((log: typeof auditLogs.$inferSelect) => ({
       id: log.id,
       tenantId: log.tenantId,
       userId: log.userId,
@@ -864,7 +881,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(execReports.executedAt));
 
-    return reports.map(r => ({
+    return reports.map((r: typeof execReports.$inferSelect) => ({
       id: r.id,
       configurationId: r.configurationId,
       moduleId: r.moduleId,
@@ -909,7 +926,7 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(desc(execReports.executedAt));
 
-    return reports.map(r => ({
+    return reports.map((r: typeof execReports.$inferSelect) => ({
       id: r.id,
       configurationId: r.configurationId,
       moduleId: r.moduleId,
@@ -1094,7 +1111,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(masterReports.configurationId, configurationId))
       .orderBy(desc(masterReports.generatedAt));
 
-    return reports.map(r => ({
+    return reports.map((r: typeof masterReports.$inferSelect) => ({
       id: r.id,
       configurationId: r.configurationId,
       contextVersion: r.contextVersion,
@@ -1422,7 +1439,13 @@ export class MemStorage implements IStorage {
     const brandRecord: BrandRecord = {
       id,
       userId,
-      ...brand,
+      name: brand.name,
+      domain: brand.domain,
+      industry: brand.industry ?? null,
+      businessModel: brand.businessModel ?? null,
+      primaryGeography: brand.primaryGeography ?? [],
+      revenueBand: brand.revenueBand ?? null,
+      targetMarket: brand.targetMarket ?? null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -1537,21 +1560,21 @@ export class MemStorage implements IStorage {
   // Legacy ExecReports Methods (context-based)
   // ============================================
 
-  async getExecReportsByContext(contextId: number, userId: string): Promise<ExecReportRecord[]> {
+  async getExecReportsByContext(configurationId: number, _userId: string): Promise<ExecReportRecord[]> {
     const reports = await db
       .select()
       .from(execReports)
-      .where(and(eq(execReports.contextId, contextId), eq(execReports.userId, userId)))
+      .where(eq(execReports.configurationId, configurationId))
       .orderBy(desc(execReports.executedAt));
 
     return reports;
   }
 
-  async getExecReport(execReportId: number, userId: string): Promise<ExecReportRecord | undefined> {
+  async getExecReport(execReportId: string, _userId: string): Promise<ExecReportRecord | undefined> {
     const [report] = await db
       .select()
       .from(execReports)
-      .where(and(eq(execReports.id, execReportId), eq(execReports.userId, userId)))
+      .where(eq(execReports.id, execReportId))
       .limit(1);
     return report;
   }

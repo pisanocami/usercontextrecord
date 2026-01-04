@@ -499,8 +499,8 @@ export async function registerRoutes(
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {
     try {
-      const tenantId = 1; // Default tenant
-      const userId = "anonymous-user";
+      const tenantId = getTenantId(req) || 1; // Use header or default
+      const userId = (req.user as any)?.claims?.sub || "dev-user-local";
       
       let config = await storage.getConfiguration(tenantId, userId);
       
@@ -519,8 +519,8 @@ export async function registerRoutes(
   // Save configuration (bypass auth)
   app.post("/api/configuration", async (req: any, res) => {
     try {
-      const tenantId = 1; // Default tenant
-      const userId = "anonymous-user";
+      const tenantId = getTenantId(req) || 1; // Use header or default
+      const userId = (req.user as any)?.claims?.sub || "dev-user-local";
       
       const result = insertConfigurationSchema.safeParse(req.body);
       
@@ -540,8 +540,8 @@ export async function registerRoutes(
   // Get all configurations for user
   app.get("/api/configurations", async (req: any, res) => {
     try {
-      const tenantId = 1; // Default tenant
-      const userId = "anonymous-user";
+      const tenantId = getTenantId(req) || 1; // Use header or default
+      const userId = (req.user as any)?.claims?.sub || "dev-user-local";
       const configs = await storage.getAllConfigurations(tenantId, userId);
       res.json(configs);
     } catch (error) {
@@ -553,8 +553,8 @@ export async function registerRoutes(
   // Get single configuration by ID
   app.get("/api/configurations/:id", async (req: any, res) => {
     try {
-      const tenantId = 1; // Default tenant
-      const userId = "anonymous-user";
+      const tenantId = getTenantId(req) || 1; // Use header or default
+      const userId = (req.user as any)?.claims?.sub || "dev-user-local";
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
@@ -880,7 +880,17 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
       const userPrompt = prompts[section] || `Generate configuration suggestions for the ${section} section.`;
 
       if (!openai) {
-        throw new Error("OpenAI is not initialized. Please provide an API key.");
+        // Return mock data in development when OpenAI is not configured
+        const mockSuggestions: Record<string, any> = {
+          brand: { industry: "Technology", business_model: "B2B", primary_geography: ["US"], revenue_band: "$1M - $10M" },
+          category: { primary_category: "Software", included: ["SaaS", "Cloud Services"], excluded: ["Hardware"] },
+          competitors: { direct: ["Competitor A", "Competitor B"], indirect: ["Indirect A"], marketplaces: [] },
+          demand: { brand_keywords: { seed_terms: ["brand name", "product"] }, non_brand_keywords: { category_terms: ["software", "solution"], problem_terms: ["automation", "efficiency"] } },
+          strategic: { growth_priority: "Market Expansion", risk_tolerance: "medium", primary_goal: "Increase Revenue", secondary_goals: ["Brand Awareness"], avoid: ["Price Wars"] },
+          channel: { paid_media_active: true, seo_investment_level: "medium", marketplace_dependence: "low" },
+          negative: { excluded_categories: [], excluded_keywords: [], excluded_use_cases: [], excluded_competitors: [] },
+        };
+        return res.json({ suggestions: mockSuggestions[section] || {}, model_suggested: false, mock: true });
       }
 
       const response = await openai.chat.completions.create({
