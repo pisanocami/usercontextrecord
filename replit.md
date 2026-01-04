@@ -157,8 +157,23 @@ The frontend features:
 - **Theme Groups**: Brand, Category, Problem/Solution, Product, Other
 - **Status Badges**: Pass (valid), Warn (needs review), Block (excluded by guardrails)
 
+## Planning Documents
+
+- **docs/MVP_KEYWORD_GAP_ROADMAP.md**: Comprehensive roadmap for making Keyword Gap CMO-safe
+  - In-Scope Classifier implementation
+  - Default NegativeScope (navigational/support/careers blocking)
+  - Competitor Gating (pending_review for low confidence)
+  - Opportunity Scoring (Intent × Gap × Brand Fit)
+  - Context Mismatch Bug fix (ucr_id, hash, snapshot)
+  - Context Council pre-validation module
+
 ## Recent Changes
 
+- Redesigned Executive UI with 4-section sidebar (Intelligence Hub, Brand Context, Analysis Tools, Settings)
+- Updated Dashboard with large KPIs (5xl typography) and executive-focused layout
+- Applied sophisticated navy/slate corporate color palette
+- Simplified module navigation with collapsible categories
+- Added Master Report with executive summary and print functionality
 - Added PostgreSQL database for persistent storage
 - Integrated Replit Auth for secure authentication
 - Added AI-powered "Generate with AI" buttons on configuration sections
