@@ -1,38 +1,25 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Building2,
-  Layers,
-  Users,
-  Search,
-  Target,
-  Radio,
-  Ban,
-  Shield,
-  Settings,
-  ChevronRight,
-  Sparkles,
-  List,
-  Plus,
-  BarChart3,
   LayoutDashboard,
+  FileText,
+  Briefcase,
+  BarChart3,
+  Settings,
+  ChevronDown,
+  Loader2,
   TrendingUp,
   Eye,
   Swords,
-  LineChart,
-  Activity,
-  DollarSign,
-  Share2,
   Brain,
-  Loader2,
-  FileText,
+  Activity,
+  LineChart,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -66,13 +53,13 @@ const categoryIcons: Record<string, typeof TrendingUp> = {
 };
 
 const categoryLabels: Record<string, string> = {
-  demand: "Demand Analysis",
-  visibility: "SEO & Visibility",
-  competitive: "Competitive Intel",
-  strategy: "Strategic Planning",
-  performance: "Performance Metrics",
-  content: "Content Analysis",
-  other: "Other Modules",
+  demand: "Demand",
+  visibility: "Visibility",
+  competitive: "Competitive",
+  strategy: "Strategy",
+  performance: "Performance",
+  content: "Content",
+  other: "Other",
 };
 
 const categoryOrder = ['demand', 'visibility', 'competitive', 'strategy', 'performance', 'content', 'other'];
@@ -83,57 +70,6 @@ interface SidebarProps {
   hasUnsavedChanges?: boolean;
   cmoSafe?: boolean;
 }
-
-const navigationItems = [
-  {
-    id: "brand",
-    title: "Brand Context",
-    icon: Building2,
-    description: "Company identity and market position",
-  },
-  {
-    id: "category",
-    title: "Category Definition",
-    icon: Layers,
-    description: "Semantic fence for scope",
-  },
-  {
-    id: "competitors",
-    title: "Competitive Set",
-    icon: Users,
-    description: "Direct and indirect competitors",
-  },
-  {
-    id: "demand",
-    title: "Demand Definition",
-    icon: Search,
-    description: "Brand and non-brand keywords",
-  },
-  {
-    id: "strategic",
-    title: "Strategic Intent",
-    icon: Target,
-    description: "Goals and risk tolerance",
-  },
-  {
-    id: "channel",
-    title: "Channel Context",
-    icon: Radio,
-    description: "Marketing channel overview",
-  },
-  {
-    id: "negative",
-    title: "Negative Scope",
-    icon: Ban,
-    description: "Exclusions and boundaries",
-  },
-  {
-    id: "governance",
-    title: "Governance",
-    icon: Shield,
-    description: "Overrides and confidence",
-  },
-];
 
 export function AppSidebar({
   activeSection,
@@ -157,275 +93,209 @@ export function AppSidebar({
   }, {} as Record<string, FONModule[]>);
 
   const isModuleActive = (moduleId: string) => location === `/modules/${moduleId}`;
-  const isModulesSection = location.startsWith("/modules");
+  const isIntelligenceSection = location === "/dashboard" || location === "/master-report" || location.startsWith("/modules");
+  const isBrandContextSection = location === "/" || location === "/new" || location.startsWith("/one-pager") || location.startsWith("/keyword-gap") || location.startsWith("/version-history");
+  const isAnalysisSection = location === "/bulk";
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Settings className="h-5 w-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <BarChart3 className="h-5 w-5 text-primary" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">Brand Intelligence</span>
-            <span className="text-xs text-muted-foreground">FON Platform</span>
+            <span className="text-base font-semibold tracking-tight">Brand Intel</span>
+            <span className="text-xs text-muted-foreground font-medium">Executive Platform</span>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-3 py-4">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Navigation
-          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/">
-                  <SidebarMenuButton
-                    isActive={activeSection === "list"}
-                    className={`group relative ${
-                      activeSection === "list"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid="nav-list"
-                  >
-                    <List className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">All Configurations</span>
+            <SidebarMenu className="space-y-1">
+              <Collapsible defaultOpen={isIntelligenceSection}>
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      className={`group h-11 px-3 ${isIntelligenceSection ? "bg-sidebar-accent" : ""}`}
+                      data-testid="nav-intelligence-hub"
+                    >
+                      <LayoutDashboard className="h-5 w-5" />
+                      <span className="text-sm font-semibold flex-1 text-left">Intelligence Hub</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-1 ml-3 border-l-2 border-sidebar-border pl-3 space-y-1">
+                      <Link href="/dashboard">
+                        <SidebarMenuButton
+                          isActive={location === "/dashboard"}
+                          className={`h-10 ${location === "/dashboard" ? "bg-primary/10 text-primary font-medium" : ""}`}
+                          data-testid="nav-dashboard"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          <span>Executive Dashboard</span>
+                        </SidebarMenuButton>
+                      </Link>
+                      <Link href="/master-report">
+                        <SidebarMenuButton
+                          isActive={location === "/master-report"}
+                          className={`h-10 ${location === "/master-report" ? "bg-primary/10 text-primary font-medium" : ""}`}
+                          data-testid="nav-master-report"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Master Report</span>
+                        </SidebarMenuButton>
+                      </Link>
+                      
+                      {modulesLoading ? (
+                        <div className="flex items-center justify-center py-3">
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : (
+                        categoryOrder
+                          .filter(cat => modulesByCategory[cat]?.length > 0)
+                          .map((category) => {
+                            const categoryModules = modulesByCategory[category] || [];
+                            const CategoryIcon = categoryIcons[category] || BarChart3;
+                            const hasActiveModule = categoryModules.some(m => isModuleActive(m.id));
+                            
+                            return (
+                              <Collapsible key={category} defaultOpen={hasActiveModule}>
+                                <CollapsibleTrigger asChild>
+                                  <SidebarMenuButton
+                                    className="group h-9"
+                                    data-testid={`nav-category-${category}`}
+                                  >
+                                    <CategoryIcon className="h-4 w-4" />
+                                    <span className="text-sm flex-1 text-left">{categoryLabels[category]}</span>
+                                    <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                      {categoryModules.length}
+                                    </Badge>
+                                    <ChevronDown className="h-3 w-3 transition-transform group-data-[state=open]:rotate-180" />
+                                  </SidebarMenuButton>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="ml-4 space-y-0.5">
+                                    {categoryModules.map((mod) => (
+                                      <Link key={mod.id} href={`/modules/${mod.id}`}>
+                                        <SidebarMenuButton
+                                          isActive={isModuleActive(mod.id)}
+                                          className={`h-8 text-sm ${isModuleActive(mod.id) ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+                                          data-testid={`nav-module-${mod.id}`}
+                                        >
+                                          <span className="truncate">{mod.name}</span>
+                                        </SidebarMenuButton>
+                                      </Link>
+                                    ))}
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            );
+                          })
+                      )}
                     </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/new">
-                  <SidebarMenuButton
-                    isActive={activeSection === "brand"}
-                    className={`group relative ${
-                      activeSection === "brand"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid="nav-new"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">New Configuration</span>
-                    </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Intelligence
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/dashboard">
-                  <SidebarMenuButton
-                    isActive={activeSection === "dashboard"}
-                    className={`group relative ${
-                      activeSection === "dashboard"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid="nav-dashboard"
-                  >
-                    <LayoutDashboard className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">Dashboard</span>
-                    </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/modules">
-                  <SidebarMenuButton
-                    isActive={activeSection === "modules" && location === "/modules"}
-                    className={`group relative ${
-                      activeSection === "modules" && location === "/modules"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid="nav-modules"
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">All Modules</span>
-                    </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/master-report">
-                  <SidebarMenuButton
-                    isActive={activeSection === "master-report" || location === "/master-report"}
-                    className={`group relative ${
-                      activeSection === "master-report" || location === "/master-report"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid="nav-master-report"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">Master Report</span>
-                    </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            FON Modules
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            {modulesLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <SidebarMenu>
-                {categoryOrder
-                  .filter(cat => modulesByCategory[cat]?.length > 0)
-                  .map((category) => {
-                  const categoryModules = modulesByCategory[category] || [];
-                  const CategoryIcon = categoryIcons[category] || BarChart3;
-                  const categoryLabel = categoryLabels[category] || category;
-                  const hasActiveModule = categoryModules.some(m => isModuleActive(m.id));
-                  
-                  return (
-                    <Collapsible key={category} defaultOpen={hasActiveModule || isModulesSection}>
-                      <SidebarMenuItem>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton
-                            className="group"
-                            data-testid={`nav-category-${category}`}
-                          >
-                            <CategoryIcon className="h-4 w-4" />
-                            <span className="text-sm font-medium flex-1 text-left">{categoryLabel}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {categoryModules.length}
-                            </Badge>
-                            <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="ml-4 border-l pl-2 mt-1 space-y-1">
-                            {categoryModules.map((mod) => (
-                              <Link key={mod.id} href={`/modules/${mod.id}`}>
-                                <SidebarMenuButton
-                                  isActive={isModuleActive(mod.id)}
-                                  className={`group relative text-sm ${
-                                    isModuleActive(mod.id)
-                                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                      : ""
-                                  }`}
-                                  data-testid={`nav-module-${mod.id}`}
-                                >
-                                  <span className="truncate">{mod.name}</span>
-                                </SidebarMenuButton>
-                              </Link>
-                            ))}
-                          </div>
-                        </CollapsibleContent>
-                      </SidebarMenuItem>
-                    </Collapsible>
-                  );
-                })}
-              </SidebarMenu>
-            )}
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Tools
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/bulk">
-                  <SidebarMenuButton
-                    isActive={activeSection === "bulk"}
-                    className={`group relative ${
-                      activeSection === "bulk"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid="nav-bulk"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">Bulk Generation</span>
-                    </div>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Configuration Sections
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    onClick={() => onSectionChange(item.id)}
-                    isActive={activeSection === item.id}
-                    className={`group relative ${
-                      activeSection === item.id
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid={`nav-${item.id}`}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">{item.title}</span>
-                    </div>
-                    <ChevronRight
-                      className={`h-4 w-4 transition-transform ${
-                        activeSection === item.id ? "rotate-90" : ""
-                      }`}
-                    />
-                  </SidebarMenuButton>
+                  </CollapsibleContent>
                 </SidebarMenuItem>
-              ))}
+              </Collapsible>
+
+              <Collapsible defaultOpen={isBrandContextSection}>
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      className={`group h-11 px-3 ${isBrandContextSection ? "bg-sidebar-accent" : ""}`}
+                      data-testid="nav-brand-context"
+                    >
+                      <Briefcase className="h-5 w-5" />
+                      <span className="text-sm font-semibold flex-1 text-left">Brand Context</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-1 ml-3 border-l-2 border-sidebar-border pl-3 space-y-1">
+                      <Link href="/">
+                        <SidebarMenuButton
+                          isActive={location === "/"}
+                          className={`h-10 ${location === "/" ? "bg-primary/10 text-primary font-medium" : ""}`}
+                          data-testid="nav-configurations"
+                        >
+                          <span>All Configurations</span>
+                        </SidebarMenuButton>
+                      </Link>
+                      <Link href="/new">
+                        <SidebarMenuButton
+                          isActive={location === "/new" || activeSection === "brand"}
+                          className={`h-10 ${location === "/new" || activeSection === "brand" ? "bg-primary/10 text-primary font-medium" : ""}`}
+                          data-testid="nav-new"
+                        >
+                          <span>New Configuration</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </div>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              <Collapsible defaultOpen={isAnalysisSection}>
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      className={`group h-11 px-3 ${isAnalysisSection ? "bg-sidebar-accent" : ""}`}
+                      data-testid="nav-analysis-tools"
+                    >
+                      <BarChart3 className="h-5 w-5" />
+                      <span className="text-sm font-semibold flex-1 text-left">Analysis Tools</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-1 ml-3 border-l-2 border-sidebar-border pl-3 space-y-1">
+                      <Link href="/bulk">
+                        <SidebarMenuButton
+                          isActive={location === "/bulk"}
+                          className={`h-10 ${location === "/bulk" ? "bg-primary/10 text-primary font-medium" : ""}`}
+                          data-testid="nav-bulk"
+                        >
+                          <span>Bulk Generation</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </div>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  className="h-11 px-3"
+                  data-testid="nav-settings"
+                >
+                  <Settings className="h-5 w-5" />
+                  <span className="text-sm font-semibold">Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="flex flex-col gap-2">
-          {hasUnsavedChanges && (
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-amber-500" />
-              <span className="text-xs text-muted-foreground">Unsaved changes</span>
-            </div>
-          )}
+      <SidebarFooter className="p-4 border-t border-sidebar-border">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Badge
-              variant={cmoSafe ? "default" : "secondary"}
-              className="text-xs"
-            >
-              {cmoSafe ? "CMO Safe" : "Not Validated"}
-            </Badge>
+            {hasUnsavedChanges && (
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-xs text-muted-foreground">Unsaved</span>
+              </div>
+            )}
           </div>
+          <Badge
+            variant={cmoSafe ? "default" : "outline"}
+            className="text-xs"
+          >
+            {cmoSafe ? "Validated" : "Draft"}
+          </Badge>
         </div>
       </SidebarFooter>
     </Sidebar>
