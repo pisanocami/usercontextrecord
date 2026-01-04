@@ -12,6 +12,7 @@ import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRanke
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
 import moduleRoutes from "./modules/routes";
 import councilRoutes from "./councils/routes";
+import ucrRoutes from "./ucr/routes";
 
 function getTenantId(req: Request): number | null {
   const tenantHeader = req.headers["x-tenant-id"];
@@ -469,6 +470,7 @@ export async function registerRoutes(
   // FON Architecture Routes
   app.use('/api/fon', moduleRoutes);
   app.use('/api/fon', councilRoutes);
+  app.use('/api/ucr', ucrRoutes);
   
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {

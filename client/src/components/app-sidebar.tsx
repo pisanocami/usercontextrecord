@@ -14,7 +14,10 @@ import {
   Brain,
   Activity,
   LineChart,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
+import { ContextStatusBadge, ContextCompletionIndicator } from "@/components/context-guard";
 import {
   Sidebar,
   SidebarContent,
@@ -280,8 +283,9 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center justify-between">
+      <SidebarFooter className="p-4 border-t border-sidebar-border space-y-3">
+        <ContextCompletionIndicator />
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {hasUnsavedChanges && (
               <div className="flex items-center gap-1.5">
@@ -290,12 +294,7 @@ export function AppSidebar({
               </div>
             )}
           </div>
-          <Badge
-            variant={cmoSafe ? "default" : "outline"}
-            className="text-xs"
-          >
-            {cmoSafe ? "Validated" : "Draft"}
-          </Badge>
+          <ContextStatusBadge />
         </div>
       </SidebarFooter>
     </Sidebar>

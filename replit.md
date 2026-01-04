@@ -40,6 +40,29 @@ The platform implements a FON architecture for brand intelligence analysis:
 - **7 Councils**: Strategic Intelligence, SEO Visibility, Performance Media, Content Commerce, Product GTM, Ops Attribution, Growth Strategy
 - **Reasoning**: OpenAI-powered strategic analysis from each council's perspective
 - **Synthesis**: Unified recommendations from multiple council perspectives
+- **Guardrails Enforcement** (`guardrails.ts`): Filters recommendations against negative_scope exclusions with strict/moderate enforcement levels
+
+### UCR Controller (`server/ucr/`)
+The UCR (User Context Record) is the SINGLE SOURCE OF TRUTH for all analysis:
+- **Context-First Architecture**: NO modules can execute without validated UCR
+- **8 Canonical Sections**: Brand (A), Category (B), Competitors (C), Demand (D), Strategic (E), Channel (F), Negative Scope (G), Governance (H)
+- **Validation Engine**: Section-by-section completeness checking with required/optional distinction
+- **requireValidUCR() Middleware**: Gates all module execution, returns 403 if UCR incomplete
+- **Snapshot System**: Immutable hash-based snapshots for audit trail
+
+### UCR API Routes (`/api/ucr/`)
+- `GET /api/ucr/status` - Get current UCR validation status with section breakdown
+- `GET /api/ucr/gate` - Check if modules can execute (allowed/blocked with reason)
+- `GET /api/ucr/snapshot` - Get full UCR snapshot with hash
+- `GET /api/ucr/sections` - Get individual section completion status
+- `POST /api/ucr/override` - Log human override with snapshot hash validation
+- `GET /api/ucr/audit-log` - Retrieve audit trail
+- `POST /api/ucr/verify` - Mark UCR as human-verified
+
+### Audit Logging
+- **audit_logs Table**: Full audit trail for human overrides, verifications, and changes
+- **Snapshot Hash Linkage**: All audit entries linked to immutable UCR snapshot hash
+- **CMO-Safe Governance**: Complete traceability from decision to context state
 
 ### FON UI Components (`client/src/components/ui/`)
 - `ConfidenceBar`: Visual confidence score indicator

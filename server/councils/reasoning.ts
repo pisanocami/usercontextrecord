@@ -2,6 +2,16 @@ import OpenAI from 'openai';
 import type { CouncilPerspective, CouncilSynthesis } from './types';
 import { COUNCIL_DEFINITIONS } from './definitions';
 import { MODULE_COUNCIL_MAP, SUPPORTING_COUNCILS } from './types';
+import { 
+  checkRecommendationGuardrails, 
+  filterRecommendationsWithGuardrails, 
+  createCouncilGuardrails,
+  summarizeGuardrailViolations,
+  type CouncilGuardrails,
+  type GuardrailCheckResult,
+  type GuardrailViolation
+} from './guardrails';
+import type { NegativeScope, StrategicIntent } from '@shared/schema';
 
 let openaiClient: OpenAI | null = null;
 
@@ -212,6 +222,67 @@ Respond as JSON with:
     if (total === 0) return 0.5;
     return agreements / total;
   }
+
+  applyGuardrailsToSynthesis(
+    synthesis: CouncilSynthesis,
+    negativeScope: NegativeScope,
+    strategicIntent?: StrategicIntent
+  ): CouncilSynthesis & { guardrailEnforcement: GuardrailEnforcement } {
+    const guardrails = createCouncilGuardrails(negativeScope, strategicIntent);
+    
+    const primaryCheck = checkRecommendationGuardrails(
+      synthesis.unifiedRecommendation.primaryAction,
+      guardrails
+    );
+
+    const supportingFiltered = filterRecommendationsWithGuardrails(
+      synthesis.unifiedRecommendation.supportingActions,
+      guardrails
+    );
+
+    const allViolations: GuardrailViolation[] = [
+      ...primaryCheck.violations,
+      ...Array.from(supportingFiltered.violations.values()).flat(),
+    ];
+
+    const enforcement: GuardrailEnforcement = {
+      passed: primaryCheck.passed && supportingFiltered.blocked.length === 0,
+      primaryActionBlocked: !primaryCheck.passed,
+      blockedActions: supportingFiltered.blocked,
+      allowedActions: supportingFiltered.allowed,
+      violations: allViolations,
+      summary: summarizeGuardrailViolations(allViolations),
+      enforcementLevel: guardrails.enforcementRules.hardExclusion ? "strict" : "moderate",
+    };
+
+    let adjustedPrimaryAction = synthesis.unifiedRecommendation.primaryAction;
+    if (!primaryCheck.passed) {
+      adjustedPrimaryAction = `[BLOCKED BY GUARDRAILS] ${synthesis.unifiedRecommendation.primaryAction}`;
+    }
+
+    return {
+      ...synthesis,
+      unifiedRecommendation: {
+        ...synthesis.unifiedRecommendation,
+        primaryAction: adjustedPrimaryAction,
+        supportingActions: supportingFiltered.allowed,
+        confidence: enforcement.passed 
+          ? synthesis.unifiedRecommendation.confidence 
+          : Math.min(synthesis.unifiedRecommendation.confidence, 0.5),
+      },
+      guardrailEnforcement: enforcement,
+    };
+  }
+}
+
+export interface GuardrailEnforcement {
+  passed: boolean;
+  primaryActionBlocked: boolean;
+  blockedActions: string[];
+  allowedActions: string[];
+  violations: GuardrailViolation[];
+  summary: string;
+  enforcementLevel: "strict" | "moderate" | "permissive";
 }
 
 export const councilReasoning = new CouncilReasoning();

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions } from "@shared/schema";
+import { configurations, bulkJobs, configurationVersions, auditLogs } from "@shared/schema";
 import { eq, and, desc, max, isNull } from "drizzle-orm";
 import type {
   Brand,
@@ -50,6 +50,26 @@ export interface IStorage {
   getConfigurationVersions(configId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion[]>;
   getConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion | undefined>;
   restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration>;
+  createAuditLog(entry: AuditLogInsert): Promise<AuditLog>;
+  getAuditLogs(tenantId: number | null, configurationId?: number, limit?: number): Promise<AuditLog[]>;
+}
+
+export interface AuditLogInsert {
+  tenantId: number | null;
+  userId: string;
+  configurationId?: number;
+  action: string;
+  entityType: string;
+  entityId: string;
+  previousValue?: any;
+  newValue?: any;
+  reason?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface AuditLog extends AuditLogInsert {
+  id: number;
+  created_at: Date;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -661,6 +681,75 @@ export class DatabaseStorage implements IStorage {
       created_at: updated.created_at,
       updated_at: updated.updated_at,
     };
+  }
+
+  async createAuditLog(entry: AuditLogInsert): Promise<AuditLog> {
+    const [log] = await db
+      .insert(auditLogs)
+      .values({
+        tenantId: entry.tenantId,
+        userId: entry.userId,
+        configurationId: entry.configurationId,
+        action: entry.action,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        previousValue: entry.previousValue,
+        newValue: entry.newValue,
+        reason: entry.reason,
+        metadata: entry.metadata,
+      })
+      .returning();
+
+    return {
+      id: log.id,
+      tenantId: log.tenantId,
+      userId: log.userId,
+      configurationId: log.configurationId ?? undefined,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      previousValue: log.previousValue,
+      newValue: log.newValue,
+      reason: log.reason ?? undefined,
+      metadata: log.metadata as Record<string, any> | undefined,
+      created_at: log.created_at,
+    };
+  }
+
+  async getAuditLogs(tenantId: number | null, configurationId?: number, limit: number = 50): Promise<AuditLog[]> {
+    const conditions = [];
+    
+    if (tenantId !== null) {
+      conditions.push(eq(auditLogs.tenantId, tenantId));
+    } else {
+      conditions.push(isNull(auditLogs.tenantId));
+    }
+    
+    if (configurationId) {
+      conditions.push(eq(auditLogs.configurationId, configurationId));
+    }
+
+    const logs = await db
+      .select()
+      .from(auditLogs)
+      .where(and(...conditions))
+      .orderBy(desc(auditLogs.created_at))
+      .limit(limit);
+
+    return logs.map(log => ({
+      id: log.id,
+      tenantId: log.tenantId,
+      userId: log.userId,
+      configurationId: log.configurationId ?? undefined,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      previousValue: log.previousValue,
+      newValue: log.newValue,
+      reason: log.reason ?? undefined,
+      metadata: log.metadata as Record<string, any> | undefined,
+      created_at: log.created_at,
+    }));
   }
 }
 

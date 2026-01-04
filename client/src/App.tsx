@@ -11,6 +11,8 @@ import { TenantSelector } from "@/components/tenant-selector";
 import { BrandSelector } from "@/components/brand-selector";
 import { TenantProvider, useTenant } from "@/hooks/use-tenant";
 import { BrandProvider } from "@/hooks/use-brand";
+import { UCRProvider } from "@/hooks/use-ucr";
+import { ContextGuard } from "@/components/context-guard";
 import { ConfigurationPage } from "@/pages/configuration";
 import BulkGeneration from "@/pages/bulk-generation";
 import ConfigurationsList from "@/pages/configurations-list";
@@ -434,7 +436,9 @@ function DashboardLayout() {
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <Dashboard />
+            <ContextGuard>
+              <Dashboard />
+            </ContextGuard>
           </main>
         </div>
       </div>
@@ -500,7 +504,9 @@ function ModulesLayout() {
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <ModulesPage />
+            <ContextGuard>
+              <ModulesPage />
+            </ContextGuard>
           </main>
         </div>
       </div>
@@ -565,7 +571,9 @@ function MasterReportLayout() {
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <MasterReport />
+            <ContextGuard>
+              <MasterReport />
+            </ContextGuard>
           </main>
         </div>
       </div>
@@ -643,8 +651,10 @@ function App() {
       <TooltipProvider>
         <TenantProvider>
           <BrandProvider>
-            <Toaster />
-            <Router />
+            <UCRProvider>
+              <Toaster />
+              <Router />
+            </UCRProvider>
           </BrandProvider>
         </TenantProvider>
       </TooltipProvider>

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { moduleRegistry } from './registry';
 import { councilReasoning } from '../councils/reasoning';
 import { playbookExecutor } from '../playbooks/executor';
+import { requireValidUCR, type UCRSnapshot } from '../ucr/controller';
 import './executors';
 
 const router = Router();
@@ -20,9 +21,10 @@ router.get('/modules/:moduleId', (req: Request, res: Response) => {
   res.json({ module: executor.definition });
 });
 
-router.post('/modules/:moduleId/execute', async (req: Request, res: Response) => {
+router.post('/modules/:moduleId/execute', requireValidUCR(), async (req: Request, res: Response) => {
   const { moduleId } = req.params;
   const executor = moduleRegistry.get(moduleId);
+  const ucr = (req as any).ucr as UCRSnapshot;
   
   if (!executor) {
     res.status(404).json({ error: 'Module not found' });
@@ -30,21 +32,38 @@ router.post('/modules/:moduleId/execute', async (req: Request, res: Response) =>
   }
 
   try {
-    const validation = executor.validate(req.body);
+    const enrichedInput = {
+      ...req.body,
+      ucrContext: {
+        domain: ucr.brand?.domain,
+        competitors: ucr.competitors?.direct || [],
+        negativeScope: ucr.negative_scope,
+        demandDefinition: ucr.demand_definition,
+        categoryDefinition: ucr.category_definition,
+        strategicIntent: ucr.strategic_intent,
+      },
+    };
+
+    const validation = executor.validate(enrichedInput);
     if (!validation.valid) {
       res.status(400).json({ error: 'Validation failed', details: validation.errors });
       return;
     }
 
-    const output = await executor.execute(req.body);
+    const output = await executor.execute(enrichedInput);
     
-    const playbookResult = await playbookExecutor.execute(moduleId, req.body, output);
+    const playbookResult = await playbookExecutor.execute(moduleId, enrichedInput, output);
     
     const finalOutput = {
       ...output,
       insights: playbookResult.insights,
       recommendations: playbookResult.recommendations,
-      deprioritizedActions: playbookResult.deprioritized
+      deprioritizedActions: playbookResult.deprioritized,
+      ucrSnapshot: {
+        hash: ucr.snapshotHash,
+        validatedAt: ucr.snapshotAt,
+        isCMOSafe: ucr.validation.isCMOSafe,
+      },
     };
 
     res.json({ result: finalOutput });
@@ -54,9 +73,10 @@ router.post('/modules/:moduleId/execute', async (req: Request, res: Response) =>
   }
 });
 
-router.post('/modules/:moduleId/execute-with-council', async (req: Request, res: Response) => {
+router.post('/modules/:moduleId/execute-with-council', requireValidUCR(), async (req: Request, res: Response) => {
   const { moduleId } = req.params;
   const executor = moduleRegistry.get(moduleId);
+  const ucr = (req as any).ucr as UCRSnapshot;
   
   if (!executor) {
     res.status(404).json({ error: 'Module not found' });
@@ -64,20 +84,76 @@ router.post('/modules/:moduleId/execute-with-council', async (req: Request, res:
   }
 
   try {
-    const output = await executor.execute(req.body);
+    const enrichedInput = {
+      ...req.body,
+      ucrContext: {
+        domain: ucr.brand?.domain,
+        competitors: ucr.competitors?.direct || [],
+        negativeScope: ucr.negative_scope,
+        demandDefinition: ucr.demand_definition,
+        categoryDefinition: ucr.category_definition,
+        strategicIntent: ucr.strategic_intent,
+      },
+    };
+
+    const output = await executor.execute(enrichedInput);
+    
+    const brandContextStr = JSON.stringify({
+      brand: ucr.brand,
+      competitors: ucr.competitors,
+      category: ucr.category_definition,
+      strategic: ucr.strategic_intent,
+    });
     
     const perspectives = await councilReasoning.getModulePerspectives(
       moduleId,
       output.rawData,
-      req.body.brandContext
+      brandContextStr
     );
 
     const synthesis = await councilReasoning.synthesizePerspectives(perspectives);
 
+    const enforcedSynthesis = ucr.negative_scope
+      ? councilReasoning.applyGuardrailsToSynthesis(
+          synthesis,
+          ucr.negative_scope,
+          ucr.strategic_intent
+        )
+      : synthesis;
+
+    const guardrailEnforcement = (enforcedSynthesis as any).guardrailEnforcement;
+    const hasBlockedViolations = guardrailEnforcement && !guardrailEnforcement.passed;
+
+    if (hasBlockedViolations && guardrailEnforcement.enforcementLevel === "strict") {
+      return res.status(409).json({
+        error: "GUARDRAIL_VIOLATION",
+        message: guardrailEnforcement.summary,
+        result: output,
+        synthesis: enforcedSynthesis,
+        violations: guardrailEnforcement.violations,
+        requiresHumanOverride: true,
+        ucrSnapshot: {
+          hash: ucr.snapshotHash,
+          validatedAt: ucr.snapshotAt,
+          isCMOSafe: ucr.validation.isCMOSafe,
+        },
+      });
+    }
+
     res.json({
       result: output,
       councilPerspectives: Object.fromEntries(perspectives),
-      synthesis
+      synthesis: enforcedSynthesis,
+      guardrailStatus: guardrailEnforcement ? {
+        passed: guardrailEnforcement.passed,
+        summary: guardrailEnforcement.summary,
+        enforcementLevel: guardrailEnforcement.enforcementLevel,
+      } : null,
+      ucrSnapshot: {
+        hash: ucr.snapshotHash,
+        validatedAt: ucr.snapshotAt,
+        isCMOSafe: ucr.validation.isCMOSafe,
+      },
     });
   } catch (error) {
     console.error(`Module ${moduleId} with council execution failed:`, error);
