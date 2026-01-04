@@ -13,6 +13,7 @@ import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as 
 import moduleRoutes from "./modules/routes";
 import councilRoutes from "./councils/routes";
 import ucrRoutes from "./ucr/routes";
+import { reportExecutor } from "./reports/executor";
 
 function getTenantId(req: Request): number | null {
   const tenantHeader = req.headers["x-tenant-id"];
@@ -27,10 +28,20 @@ async function validateTenantAccess(req: Request, res: Response): Promise<number
   return 1; // Temporarily bypass for all users
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let openai: OpenAI | null = null;
+
+try {
+  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  } else {
+    console.warn("⚠️ OpenAI API Key not found. AI features will be disabled.");
+  }
+} catch (error) {
+  console.error("❌ Failed to initialize OpenAI:", error);
+}
 
 interface ValidationResult {
   status: "complete" | "needs_review" | "blocked" | "incomplete";
@@ -307,6 +318,10 @@ Use your knowledge to identify:
 - Strategic recommendations based on their market position
 
 Return a complete JSON object with ALL sections filled.`;
+
+  if (!openai) {
+    throw new Error("OpenAI is not initialized. Please provide an API key in .env");
+  }
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -855,6 +870,10 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
 
       const userPrompt = prompts[section] || `Generate configuration suggestions for the ${section} section.`;
 
+      if (!openai) {
+        throw new Error("OpenAI is not initialized. Please provide an API key.");
+      }
+
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -1207,6 +1226,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     res.json({ message: "Cache cleared" });
   });
 
+<<<<<<< Updated upstream
   // ============================================================================
   // BRANDS API
   // ============================================================================
@@ -1395,6 +1415,114 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     } catch (error) {
       console.error("Error generating master report:", error);
       res.status(500).json({ error: "Failed to generate master report" });
+=======
+  // ============================================
+  // ExecReports & MasterReports API Routes
+  // ============================================
+
+  // Get all ExecReports for a configuration
+  app.get("/api/configurations/:configId/exec-reports", async (req, res) => {
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const contextVersion = req.query.contextVersion 
+        ? parseInt(req.query.contextVersion as string, 10) 
+        : undefined;
+
+      const reports = await storage.getExecReportsByConfiguration(configId, contextVersion);
+      res.json({ reports });
+    } catch (error: any) {
+      console.error("Error fetching exec reports:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch exec reports" });
+    }
+  });
+
+  // Get a specific ExecReport by ID
+  app.get("/api/exec-reports/:id", async (req, res) => {
+    try {
+      const report = await storage.getExecReportById(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "ExecReport not found" });
+      }
+      res.json({ report });
+    } catch (error: any) {
+      console.error("Error fetching exec report:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch exec report" });
+    }
+  });
+
+  // Get ExecReports by module
+  app.get("/api/configurations/:configId/modules/:moduleId/exec-reports", async (req, res) => {
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const moduleId = req.params.moduleId;
+
+      const reports = await storage.getExecReportsByModule(configId, moduleId);
+      res.json({ reports });
+    } catch (error: any) {
+      console.error("Error fetching module exec reports:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch module exec reports" });
+    }
+  });
+
+  // Generate a new MasterReport
+  app.post("/api/configurations/:configId/master-reports", async (req, res) => {
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const { contextVersion } = req.body;
+
+      if (!contextVersion) {
+        return res.status(400).json({ error: "contextVersion is required" });
+      }
+
+      const masterReport = await reportExecutor.generateMasterReport(configId, contextVersion);
+      res.json({ report: masterReport });
+    } catch (error: any) {
+      console.error("Error generating master report:", error);
+      res.status(500).json({ error: error.message || "Failed to generate master report" });
+    }
+  });
+
+  // Get all MasterReports for a configuration
+  app.get("/api/configurations/:configId/master-reports", async (req, res) => {
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const reports = await storage.getMasterReportsByConfiguration(configId);
+      res.json({ reports });
+    } catch (error: any) {
+      console.error("Error fetching master reports:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch master reports" });
+    }
+  });
+
+  // Get the latest MasterReport for a configuration
+  app.get("/api/configurations/:configId/master-reports/latest", async (req, res) => {
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const report = await reportExecutor.getLatestReport(configId);
+      
+      if (!report) {
+        return res.status(404).json({ error: "No master report found for this configuration" });
+      }
+      
+      res.json({ report });
+    } catch (error: any) {
+      console.error("Error fetching latest master report:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch latest master report" });
+    }
+  });
+
+  // Get a specific MasterReport by ID
+  app.get("/api/master-reports/:id", async (req, res) => {
+    try {
+      const report = await reportExecutor.getReportById(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "MasterReport not found" });
+      }
+      res.json({ report });
+    } catch (error: any) {
+      console.error("Error fetching master report:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch master report" });
+>>>>>>> Stashed changes
     }
   });
 

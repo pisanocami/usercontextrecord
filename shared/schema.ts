@@ -1,6 +1,11 @@
 import { z } from "zod";
+<<<<<<< Updated upstream
 import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, real, index } from "drizzle-orm/pg-core";
+=======
+import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, index } from "drizzle-orm/pg-core";
+>>>>>>> Stashed changes
 import { sql } from "drizzle-orm";
+import { users } from "./models/auth";
 
 // Re-export auth, chat and tenant models
 export * from "./models/auth";
@@ -109,7 +114,7 @@ export const execReports = pgTable("exec_reports", {
 export const configurations = pgTable("configurations", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id"),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   brand: jsonb("brand").notNull(),
   category_definition: jsonb("category_definition").notNull(),
@@ -119,16 +124,19 @@ export const configurations = pgTable("configurations", {
   channel_context: jsonb("channel_context").notNull(),
   negative_scope: jsonb("negative_scope").notNull(),
   governance: jsonb("governance").notNull(),
-  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_configs_user").on(table.userId),
+  index("idx_configs_tenant").on(table.tenantId),
+]);
 
 // Configuration versions table for version history
 export const configurationVersions = pgTable("configuration_versions", {
   id: serial("id").primaryKey(),
-  configurationId: integer("configuration_id").notNull(),
+  configurationId: integer("configuration_id").notNull().references(() => configurations.id, { onDelete: "cascade" }),
   tenantId: integer("tenant_id"),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   versionNumber: integer("version_number").notNull(),
   name: text("name").notNull(),
   brand: jsonb("brand").notNull(),
@@ -140,14 +148,17 @@ export const configurationVersions = pgTable("configuration_versions", {
   negative_scope: jsonb("negative_scope").notNull(),
   governance: jsonb("governance").notNull(),
   change_summary: text("change_summary").default(""),
-  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+  created_at: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_config_versions_config").on(table.configurationId),
+  index("idx_config_versions_user").on(table.userId),
+]);
 
 // Audit log table for tracking human overrides and changes
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id"),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   configurationId: integer("configuration_id"),
   action: varchar("action").notNull(), // create, update, override, approve, reject, expire
   entityType: varchar("entity_type").notNull(), // configuration, competitor, keyword, category, exclusion
@@ -156,14 +167,18 @@ export const auditLogs = pgTable("audit_logs", {
   newValue: jsonb("new_value"),
   reason: text("reason"),
   metadata: jsonb("metadata"),
-  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+  created_at: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_audit_logs_config").on(table.configurationId),
+  index("idx_audit_logs_user").on(table.userId),
+  index("idx_audit_logs_action").on(table.action),
+]);
 
 // Bulk generation jobs table
 export const bulkJobs = pgTable("bulk_jobs", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id"),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   status: varchar("status").notNull().default("pending"),
   totalBrands: integer("total_brands").notNull(),
   completedBrands: integer("completed_brands").notNull().default(0),
@@ -172,9 +187,12 @@ export const bulkJobs = pgTable("bulk_jobs", {
   brands: jsonb("brands").notNull(),
   results: jsonb("results").notNull().default([]),
   errors: jsonb("errors").notNull().default([]),
-  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_bulk_jobs_user").on(table.userId),
+  index("idx_bulk_jobs_status").on(table.status),
+]);
 
 // Bulk brand input schema
 export const bulkBrandInputSchema = z.object({
@@ -541,6 +559,133 @@ export interface AuditLog {
   newValue?: any;
   reason?: string;
   metadata?: Record<string, any>;
+  created_at: Date;
+}
+
+// ============================================
+// ExecReports & MasterReports - Phase 5
+// ============================================
+
+// ExecReport - resultado de ejecución de un módulo específico
+export const execReportSchema = z.object({
+  id: z.string(),
+  moduleId: z.string(),
+  configurationId: z.number(),
+  contextVersion: z.number(),
+  contextHash: z.string(),
+  executedAt: z.date(),
+  output: z.any(), // ModuleOutput
+  playbookResult: z.object({
+    insights: z.array(z.any()),
+    recommendations: z.array(z.any()),
+    deprioritized: z.array(z.string()),
+    councilPrompt: z.string(),
+  }).optional(),
+});
+
+// MasterReport - consolidación de contexto + todos los exec reports
+export const masterReportSchema = z.object({
+  id: z.string(),
+  configurationId: z.number(),
+  contextVersion: z.number(),
+  contextHash: z.string(),
+  generatedAt: z.date(),
+  ucrSnapshot: z.any(), // Partial UCR snapshot
+  execReports: z.array(execReportSchema),
+  consolidatedInsights: z.array(z.any()),
+  consolidatedRecommendations: z.array(z.any()),
+  councilSynthesis: z.object({
+    keyThemes: z.array(z.string()),
+    crossModulePatterns: z.array(z.string()),
+    prioritizedActions: z.array(z.string()),
+  }),
+  modulesIncluded: z.array(z.string()),
+  overallConfidence: z.number(),
+  dataFreshness: z.enum(['fresh', 'moderate', 'stale']),
+});
+
+// Database tables for ExecReports
+export const execReports = pgTable("exec_reports", {
+  id: varchar("id").primaryKey(), // Generated by app or could use default(sql`gen_random_uuid()`)
+  configurationId: integer("configuration_id").notNull().references(() => configurations.id, { onDelete: "cascade" }),
+  moduleId: varchar("module_id").notNull(),
+  contextVersion: integer("context_version").notNull(),
+  contextHash: varchar("context_hash").notNull(),
+  executedAt: timestamp("executed_at").defaultNow().notNull(),
+  output: jsonb("output").notNull(),
+  playbookResult: jsonb("playbook_result"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_exec_reports_config").on(table.configurationId),
+  index("idx_exec_reports_module").on(table.moduleId),
+  index("idx_exec_reports_hash").on(table.contextHash),
+]);
+
+// Database tables for MasterReports
+export const masterReports = pgTable("master_reports", {
+  id: varchar("id").primaryKey(),
+  configurationId: integer("configuration_id").notNull().references(() => configurations.id, { onDelete: "cascade" }),
+  contextVersion: integer("context_version").notNull(),
+  contextHash: varchar("context_hash").notNull(),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  ucrSnapshot: jsonb("ucr_snapshot").notNull(),
+  execReportIds: jsonb("exec_report_ids").notNull(), // Array of exec report IDs
+  consolidatedInsights: jsonb("consolidated_insights").notNull(),
+  consolidatedRecommendations: jsonb("consolidated_recommendations").notNull(),
+  councilSynthesis: jsonb("council_synthesis").notNull(),
+  modulesIncluded: jsonb("modules_included").notNull(),
+  overallConfidence: integer("overall_confidence").notNull(),
+  dataFreshness: varchar("data_freshness").notNull(), // 'fresh' | 'moderate' | 'stale'
+  created_at: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_master_reports_config").on(table.configurationId),
+  index("idx_master_reports_hash").on(table.contextHash),
+]);
+
+// Types for ExecReports
+export type ExecReport = z.infer<typeof execReportSchema>;
+export type InsertExecReport = Omit<ExecReport, 'executedAt'> & { executedAt?: Date };
+
+// Types for MasterReports  
+export type MasterReport = z.infer<typeof masterReportSchema>;
+export type InsertMasterReport = Omit<MasterReport, 'generatedAt'> & { generatedAt?: Date };
+
+// Database row types
+export interface DbExecReport {
+  id: string;
+  configurationId: number;
+  moduleId: string;
+  contextVersion: number;
+  contextHash: string;
+  executedAt: Date;
+  output: any;
+  playbookResult?: {
+    insights: any[];
+    recommendations: any[];
+    deprioritized: string[];
+    councilPrompt: string;
+  };
+  created_at: Date;
+}
+
+export interface DbMasterReport {
+  id: string;
+  configurationId: number;
+  contextVersion: number;
+  contextHash: string;
+  generatedAt: Date;
+  ucrSnapshot: any;
+  execReportIds: string[];
+  consolidatedInsights: any[];
+  consolidatedRecommendations: any[];
+  councilSynthesis: {
+    keyThemes: string[];
+    crossModulePatterns: string[];
+    prioritizedActions: string[];
+  };
+  modulesIncluded: string[];
+  overallConfidence: number;
+  dataFreshness: 'fresh' | 'moderate' | 'stale';
   created_at: Date;
 }
 

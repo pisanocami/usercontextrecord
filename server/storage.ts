@@ -1,5 +1,9 @@
 import { db } from "./db";
+<<<<<<< Updated upstream
 import { configurations, bulkJobs, configurationVersions, auditLogs, brands, contexts, execReports } from "@shared/schema";
+=======
+import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
+>>>>>>> Stashed changes
 import { eq, and, desc, max, isNull } from "drizzle-orm";
 import type {
   Brand,
@@ -14,13 +18,21 @@ import type {
   BulkJob,
   BulkBrandInput,
   ConfigurationVersion,
+<<<<<<< Updated upstream
   BrandRecord,
   InsertBrand,
   ContextRecord,
   InsertContext,
   ExecReportRecord,
   InsertExecReport,
+=======
+  DbExecReport,
+  DbMasterReport,
+>>>>>>> Stashed changes
 } from "@shared/schema";
+
+// Import AuditLog type from schema
+import type { AuditLog as SchemaAuditLog } from "@shared/schema";
 
 // Database configuration type (includes userId and tenantId for security)
 export interface DbConfiguration {
@@ -56,8 +68,8 @@ export interface IStorage {
   getConfigurationVersions(configId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion[]>;
   getConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion | undefined>;
   restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration>;
-  createAuditLog(entry: AuditLogInsert): Promise<AuditLog>;
-  getAuditLogs(tenantId: number | null, configurationId?: number, limit?: number): Promise<AuditLog[]>;
+  createAuditLog(log: Omit<AuditLog, "id" | "created_at">): Promise<AuditLog>;
+  getAuditLogs(tenantId: number | null, configurationId?: number): Promise<AuditLog[]>;
 }
 
 export interface AuditLogInsert {
@@ -73,16 +85,19 @@ export interface AuditLogInsert {
   metadata?: Record<string, any>;
 }
 
-export interface AuditLog extends AuditLogInsert {
-  id: number;
-  created_at: Date;
-}
+// Use SchemaAuditLog for the AuditLog type
+export type AuditLog = SchemaAuditLog;
+
+// Re-export database types for use in other modules
+export type { DbExecReport, DbMasterReport } from "@shared/schema";
 
 export class DatabaseStorage implements IStorage {
   async getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined> {
     const conditions = [eq(configurations.userId, userId)];
     if (tenantId !== null) {
       conditions.push(eq(configurations.tenantId, tenantId));
+    } else {
+      conditions.push(isNull(configurations.tenantId));
     }
     const [config] = await db
       .select()
@@ -227,6 +242,8 @@ export class DatabaseStorage implements IStorage {
     const conditions = [eq(configurations.userId, userId)];
     if (tenantId !== null) {
       conditions.push(eq(configurations.tenantId, tenantId));
+    } else {
+      conditions.push(isNull(configurations.tenantId));
     }
     const configs = await db
       .select()
@@ -400,6 +417,8 @@ export class DatabaseStorage implements IStorage {
     const conditions = [eq(bulkJobs.id, id)];
     if (tenantId !== null) {
       conditions.push(eq(bulkJobs.tenantId, tenantId));
+    } else {
+      conditions.push(isNull(bulkJobs.tenantId));
     }
     const [job] = await db
       .select()
@@ -430,6 +449,8 @@ export class DatabaseStorage implements IStorage {
     const conditions = [eq(bulkJobs.userId, userId)];
     if (tenantId !== null) {
       conditions.push(eq(bulkJobs.tenantId, tenantId));
+    } else {
+      conditions.push(isNull(bulkJobs.tenantId));
     }
     const jobs = await db
       .select()
@@ -468,6 +489,8 @@ export class DatabaseStorage implements IStorage {
     const conditions = [eq(bulkJobs.id, id)];
     if (tenantId !== null) {
       conditions.push(eq(bulkJobs.tenantId, tenantId));
+    } else {
+      conditions.push(isNull(bulkJobs.tenantId));
     }
     const [updated] = await db
       .update(bulkJobs)
@@ -628,7 +651,7 @@ export class DatabaseStorage implements IStorage {
   async restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration> {
     const version = await this.getConfigurationVersion(versionId, tenantId, userId);
     if (!version) {
-      throw new Error("Version not found");
+      throw new Error("Configuration version not found");
     }
 
     const config = await this.getConfigurationById(version.configurationId, tenantId, userId);
@@ -689,40 +712,27 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createAuditLog(entry: AuditLogInsert): Promise<AuditLog> {
-    const [log] = await db
+  async createAuditLog(log: Omit<AuditLog, "id" | "created_at">): Promise<AuditLog> {
+    const [created] = await db
       .insert(auditLogs)
       .values({
-        tenantId: entry.tenantId,
-        userId: entry.userId,
-        configurationId: entry.configurationId,
-        action: entry.action,
-        entityType: entry.entityType,
-        entityId: entry.entityId,
-        previousValue: entry.previousValue,
-        newValue: entry.newValue,
-        reason: entry.reason,
-        metadata: entry.metadata,
+        tenantId: log.tenantId,
+        userId: log.userId,
+        configurationId: log.configurationId,
+        action: log.action,
+        entityType: log.entityType,
+        entityId: log.entityId,
+        previousValue: log.previousValue,
+        newValue: log.newValue,
+        reason: log.reason,
+        metadata: log.metadata,
       })
       .returning();
-
-    return {
-      id: log.id,
-      tenantId: log.tenantId,
-      userId: log.userId,
-      configurationId: log.configurationId ?? undefined,
-      action: log.action,
-      entityType: log.entityType,
-      entityId: log.entityId,
-      previousValue: log.previousValue,
-      newValue: log.newValue,
-      reason: log.reason ?? undefined,
-      metadata: log.metadata as Record<string, any> | undefined,
-      created_at: log.created_at,
-    };
+    
+    return created as AuditLog;
   }
 
-  async getAuditLogs(tenantId: number | null, configurationId?: number, limit: number = 50): Promise<AuditLog[]> {
+  async getAuditLogs(tenantId: number | null, configurationId?: number): Promise<AuditLog[]> {
     const conditions = [];
     
     if (tenantId !== null) {
@@ -739,16 +749,15 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(auditLogs)
       .where(and(...conditions))
-      .orderBy(desc(auditLogs.created_at))
-      .limit(limit);
+      .orderBy(desc(auditLogs.created_at));
 
     return logs.map(log => ({
       id: log.id,
       tenantId: log.tenantId,
       userId: log.userId,
-      configurationId: log.configurationId ?? undefined,
-      action: log.action,
-      entityType: log.entityType,
+      configurationId: log.configurationId ?? null,
+      action: log.action as AuditLog['action'],
+      entityType: log.entityType as AuditLog['entityType'],
       entityId: log.entityId,
       previousValue: log.previousValue,
       newValue: log.newValue,
@@ -758,6 +767,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+<<<<<<< Updated upstream
   // ============================================================================
   // BRANDS CRUD
   // ============================================================================
@@ -943,7 +953,489 @@ export class DatabaseStorage implements IStorage {
     const reports = await this.getExecReportsByContext(contextId, userId);
     
     return { context: ctx, brand, reports };
+=======
+  // ============================================
+  // ExecReports CRUD Methods
+  // ============================================
+
+  async createExecReport(report: {
+    id: string;
+    configurationId: number;
+    moduleId: string;
+    contextVersion: number;
+    contextHash: string;
+    output: any;
+    playbookResult?: any;
+  }): Promise<DbExecReport> {
+    const [created] = await db
+      .insert(execReports)
+      .values({
+        id: report.id,
+        configurationId: report.configurationId,
+        moduleId: report.moduleId,
+        contextVersion: report.contextVersion,
+        contextHash: report.contextHash,
+        output: report.output,
+        playbookResult: report.playbookResult,
+      })
+      .returning();
+
+    return {
+      id: created.id,
+      configurationId: created.configurationId,
+      moduleId: created.moduleId,
+      contextVersion: created.contextVersion,
+      contextHash: created.contextHash,
+      executedAt: created.executedAt,
+      output: created.output,
+      playbookResult: created.playbookResult as DbExecReport['playbookResult'],
+      created_at: created.created_at,
+    };
+  }
+
+  async getExecReportsByConfiguration(configurationId: number, contextVersion?: number): Promise<DbExecReport[]> {
+    const conditions = [eq(execReports.configurationId, configurationId)];
+    
+    if (contextVersion !== undefined) {
+      conditions.push(eq(execReports.contextVersion, contextVersion));
+    }
+
+    const reports = await db
+      .select()
+      .from(execReports)
+      .where(and(...conditions))
+      .orderBy(desc(execReports.executedAt));
+
+    return reports.map(r => ({
+      id: r.id,
+      configurationId: r.configurationId,
+      moduleId: r.moduleId,
+      contextVersion: r.contextVersion,
+      contextHash: r.contextHash,
+      executedAt: r.executedAt,
+      output: r.output,
+      playbookResult: r.playbookResult as DbExecReport['playbookResult'],
+      created_at: r.created_at,
+    }));
+  }
+
+  async getExecReportById(id: string): Promise<DbExecReport | null> {
+    const [report] = await db
+      .select()
+      .from(execReports)
+      .where(eq(execReports.id, id))
+      .limit(1);
+
+    if (!report) return null;
+
+    return {
+      id: report.id,
+      configurationId: report.configurationId,
+      moduleId: report.moduleId,
+      contextVersion: report.contextVersion,
+      contextHash: report.contextHash,
+      executedAt: report.executedAt,
+      output: report.output,
+      playbookResult: report.playbookResult as DbExecReport['playbookResult'],
+      created_at: report.created_at,
+    };
+  }
+
+  async getExecReportsByModule(configurationId: number, moduleId: string): Promise<DbExecReport[]> {
+    const reports = await db
+      .select()
+      .from(execReports)
+      .where(and(
+        eq(execReports.configurationId, configurationId),
+        eq(execReports.moduleId, moduleId)
+      ))
+      .orderBy(desc(execReports.executedAt));
+
+    return reports.map(r => ({
+      id: r.id,
+      configurationId: r.configurationId,
+      moduleId: r.moduleId,
+      contextVersion: r.contextVersion,
+      contextHash: r.contextHash,
+      executedAt: r.executedAt,
+      output: r.output,
+      playbookResult: r.playbookResult as DbExecReport['playbookResult'],
+      created_at: r.created_at,
+    }));
+  }
+
+  // ============================================
+  // MasterReports CRUD Methods
+  // ============================================
+
+  async createMasterReport(report: {
+    id: string;
+    configurationId: number;
+    contextVersion: number;
+    contextHash: string;
+    ucrSnapshot: any;
+    execReportIds: string[];
+    consolidatedInsights: any[];
+    consolidatedRecommendations: any[];
+    councilSynthesis: {
+      keyThemes: string[];
+      crossModulePatterns: string[];
+      prioritizedActions: string[];
+    };
+    modulesIncluded: string[];
+    overallConfidence: number;
+    dataFreshness: 'fresh' | 'moderate' | 'stale';
+  }): Promise<DbMasterReport> {
+    const [created] = await db
+      .insert(masterReports)
+      .values({
+        id: report.id,
+        configurationId: report.configurationId,
+        contextVersion: report.contextVersion,
+        contextHash: report.contextHash,
+        ucrSnapshot: report.ucrSnapshot,
+        execReportIds: report.execReportIds,
+        consolidatedInsights: report.consolidatedInsights,
+        consolidatedRecommendations: report.consolidatedRecommendations,
+        councilSynthesis: report.councilSynthesis,
+        modulesIncluded: report.modulesIncluded,
+        overallConfidence: report.overallConfidence,
+        dataFreshness: report.dataFreshness,
+      })
+      .returning();
+
+    return {
+      id: created.id,
+      configurationId: created.configurationId,
+      contextVersion: created.contextVersion,
+      contextHash: created.contextHash,
+      generatedAt: created.generatedAt,
+      ucrSnapshot: created.ucrSnapshot,
+      execReportIds: created.execReportIds as string[],
+      consolidatedInsights: created.consolidatedInsights as any[],
+      consolidatedRecommendations: created.consolidatedRecommendations as any[],
+      councilSynthesis: created.councilSynthesis as DbMasterReport['councilSynthesis'],
+      modulesIncluded: created.modulesIncluded as string[],
+      overallConfidence: created.overallConfidence,
+      dataFreshness: created.dataFreshness as DbMasterReport['dataFreshness'],
+      created_at: created.created_at,
+    };
+  }
+
+  async getMasterReportsByConfiguration(configurationId: number): Promise<DbMasterReport[]> {
+    const reports = await db
+      .select()
+      .from(masterReports)
+      .where(eq(masterReports.configurationId, configurationId))
+      .orderBy(desc(masterReports.generatedAt));
+
+    return reports.map(r => ({
+      id: r.id,
+      configurationId: r.configurationId,
+      contextVersion: r.contextVersion,
+      contextHash: r.contextHash,
+      generatedAt: r.generatedAt,
+      ucrSnapshot: r.ucrSnapshot,
+      execReportIds: r.execReportIds as string[],
+      consolidatedInsights: r.consolidatedInsights as any[],
+      consolidatedRecommendations: r.consolidatedRecommendations as any[],
+      councilSynthesis: r.councilSynthesis as DbMasterReport['councilSynthesis'],
+      modulesIncluded: r.modulesIncluded as string[],
+      overallConfidence: r.overallConfidence,
+      dataFreshness: r.dataFreshness as DbMasterReport['dataFreshness'],
+      created_at: r.created_at,
+    }));
+  }
+
+  async getLatestMasterReport(configurationId: number): Promise<DbMasterReport | null> {
+    const [report] = await db
+      .select()
+      .from(masterReports)
+      .where(eq(masterReports.configurationId, configurationId))
+      .orderBy(desc(masterReports.generatedAt))
+      .limit(1);
+
+    if (!report) return null;
+
+    return {
+      id: report.id,
+      configurationId: report.configurationId,
+      contextVersion: report.contextVersion,
+      contextHash: report.contextHash,
+      generatedAt: report.generatedAt,
+      ucrSnapshot: report.ucrSnapshot,
+      execReportIds: report.execReportIds as string[],
+      consolidatedInsights: report.consolidatedInsights as any[],
+      consolidatedRecommendations: report.consolidatedRecommendations as any[],
+      councilSynthesis: report.councilSynthesis as DbMasterReport['councilSynthesis'],
+      modulesIncluded: report.modulesIncluded as string[],
+      overallConfidence: report.overallConfidence,
+      dataFreshness: report.dataFreshness as DbMasterReport['dataFreshness'],
+      created_at: report.created_at,
+    };
+  }
+
+  async getMasterReportById(id: string): Promise<DbMasterReport | null> {
+    const [report] = await db
+      .select()
+      .from(masterReports)
+      .where(eq(masterReports.id, id))
+      .limit(1);
+
+    if (!report) return null;
+
+    return {
+      id: report.id,
+      configurationId: report.configurationId,
+      contextVersion: report.contextVersion,
+      contextHash: report.contextHash,
+      generatedAt: report.generatedAt,
+      ucrSnapshot: report.ucrSnapshot,
+      execReportIds: report.execReportIds as string[],
+      consolidatedInsights: report.consolidatedInsights as any[],
+      consolidatedRecommendations: report.consolidatedRecommendations as any[],
+      councilSynthesis: report.councilSynthesis as DbMasterReport['councilSynthesis'],
+      modulesIncluded: report.modulesIncluded as string[],
+      overallConfidence: report.overallConfidence,
+      dataFreshness: report.dataFreshness as DbMasterReport['dataFreshness'],
+      created_at: report.created_at,
+    };
+>>>>>>> Stashed changes
   }
 }
 
-export const storage = new DatabaseStorage();
+export class MemStorage implements IStorage {
+  private configurations: Map<number, DbConfiguration> = new Map();
+  private bulkJobs: Map<number, BulkJob> = new Map();
+  private configurationVersions: Map<number, ConfigurationVersion[]> = new Map();
+  private auditLogs: AuditLog[] = [];
+  private execReports: Map<string, DbExecReport> = new Map();
+  private masterReports: Map<string, DbMasterReport> = new Map();
+  private currentConfigId = 1;
+  private currentBulkJobId = 1;
+  private currentVersionId = 1;
+  private currentAuditLogId = 1;
+
+  async getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined> {
+    return Array.from(this.configurations.values()).find(
+      c => c.userId === userId && (tenantId === null ? c.tenantId === null : c.tenantId === tenantId)
+    );
+  }
+
+  async getConfigurationById(id: number, tenantId: number | null, userId?: string): Promise<DbConfiguration | undefined> {
+    const config = this.configurations.get(id);
+    if (!config) return undefined;
+    if (userId && config.userId !== userId) return undefined;
+    if (tenantId !== null && config.tenantId !== tenantId) return undefined;
+    if (tenantId === null && config.tenantId !== null) return undefined;
+    return config;
+  }
+
+  async getAllConfigurations(tenantId: number | null, userId: string): Promise<DbConfiguration[]> {
+    return Array.from(this.configurations.values())
+      .filter(c => c.userId === userId && (tenantId === null ? c.tenantId === null : c.tenantId === tenantId))
+      .sort((a, b) => b.updated_at.getTime() - a.updated_at.getTime());
+  }
+
+  async saveConfiguration(tenantId: number | null, userId: string, config: InsertConfiguration): Promise<DbConfiguration> {
+    const existing = await this.getConfiguration(tenantId, userId);
+    if (existing) {
+      const updated: DbConfiguration = {
+        ...existing,
+        ...config,
+        updated_at: new Date()
+      };
+      this.configurations.set(existing.id, updated);
+      return updated;
+    }
+    return this.createConfiguration(tenantId, userId, config);
+  }
+
+  async createConfiguration(tenantId: number | null, userId: string, insertConfig: InsertConfiguration): Promise<DbConfiguration> {
+    const id = this.currentConfigId++;
+    const config: DbConfiguration = {
+      id,
+      tenantId,
+      userId,
+      ...insertConfig,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    this.configurations.set(id, config);
+    return config;
+  }
+
+  async updateConfiguration(id: number, tenantId: number | null, userId: string, insertConfig: InsertConfiguration, editReason: string): Promise<DbConfiguration> {
+    const existing = await this.getConfigurationById(id, tenantId, userId);
+    if (!existing) throw new Error("Configuration not found");
+
+    const updated: DbConfiguration = {
+      ...existing,
+      ...insertConfig,
+      updated_at: new Date(),
+    };
+    this.configurations.set(id, updated);
+    return updated;
+  }
+
+  async deleteConfiguration(id: number, tenantId: number | null, userId: string): Promise<void> {
+    this.configurations.delete(id);
+  }
+
+  async createBulkJob(tenantId: number | null, userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob> {
+    const id = this.currentBulkJobId++;
+    const job: BulkJob = {
+      id,
+      tenantId,
+      userId,
+      status: "pending",
+      totalBrands: brands.length,
+      completedBrands: 0,
+      failedBrands: 0,
+      primaryCategory,
+      brands,
+      results: [],
+      errors: [],
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    this.bulkJobs.set(id, job);
+    return job;
+  }
+
+  async getBulkJob(id: number, tenantId: number | null): Promise<BulkJob | undefined> {
+    return this.bulkJobs.get(id);
+  }
+
+  async getBulkJobs(tenantId: number | null, userId: string): Promise<BulkJob[]> {
+    return Array.from(this.bulkJobs.values())
+      .filter(j => j.userId === userId && (tenantId === null ? j.tenantId === null : j.tenantId === tenantId))
+      .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+  }
+
+  async updateBulkJob(id: number, tenantId: number | null, updates: Partial<BulkJob>): Promise<BulkJob> {
+    const existing = this.bulkJobs.get(id);
+    if (!existing) throw new Error("Bulk job not found");
+    const updated = { ...existing, ...updates, updated_at: new Date() };
+    this.bulkJobs.set(id, updated);
+    return updated;
+  }
+
+  async createConfigurationVersion(configId: number, tenantId: number | null, userId: string, changeSummary: string): Promise<ConfigurationVersion> {
+    const config = await this.getConfigurationById(configId, tenantId, userId);
+    if (!config) throw new Error("Configuration not found");
+
+    const versions = this.configurationVersions.get(configId) || [];
+    const versionNumber = versions.length + 1;
+    const version: ConfigurationVersion = {
+      ...config,
+      id: this.currentVersionId++,
+      configurationId: configId,
+      versionNumber,
+      change_summary: changeSummary,
+      created_at: new Date(),
+    };
+    versions.push(version);
+    this.configurationVersions.set(configId, versions);
+    return version;
+  }
+
+  async getConfigurationVersions(configId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion[]> {
+    return (this.configurationVersions.get(configId) || []).sort((a, b) => b.versionNumber - a.versionNumber);
+  }
+
+  async getConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion | undefined> {
+    for (const versions of Array.from(this.configurationVersions.values())) {
+      const v = versions.find((v: ConfigurationVersion) => v.id === versionId);
+      if (v) return v;
+    }
+    return undefined;
+  }
+
+  async restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration> {
+    const version = await this.getConfigurationVersion(versionId, tenantId, userId);
+    if (!version) throw new Error("Version not found");
+    const config: DbConfiguration = {
+      ...version,
+      id: version.configurationId,
+      tenantId: tenantId, // Explicitly set tenantId
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    this.configurations.set(config.id, config);
+    return config;
+  }
+
+  async createAuditLog(log: Omit<AuditLog, "id" | "created_at">): Promise<AuditLog> {
+    const auditLog: AuditLog = {
+      ...log,
+      id: this.currentAuditLogId++,
+      created_at: new Date(),
+    };
+    this.auditLogs.push(auditLog);
+    return auditLog;
+  }
+
+  async getAuditLogs(tenantId: number | null, configurationId?: number): Promise<AuditLog[]> {
+    return this.auditLogs
+      .filter(l => (tenantId === null ? l.tenantId === null : l.tenantId === tenantId) && 
+                  (!configurationId || l.configurationId === configurationId))
+      .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+  }
+
+  // ExecReports
+  async createExecReport(report: any): Promise<DbExecReport> {
+    const execReport: DbExecReport = {
+      ...report,
+      executedAt: new Date(),
+      created_at: new Date(),
+    };
+    this.execReports.set(report.id, execReport);
+    return execReport;
+  }
+
+  async getExecReportsByConfiguration(configurationId: number, contextVersion?: number): Promise<DbExecReport[]> {
+    return Array.from(this.execReports.values())
+      .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
+      .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
+  }
+
+  async getExecReportById(id: string): Promise<DbExecReport | null> {
+    return this.execReports.get(id) || null;
+  }
+
+  async getExecReportsByModule(configurationId: number, moduleId: string): Promise<DbExecReport[]> {
+    return Array.from(this.execReports.values())
+      .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
+      .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
+  }
+
+  // MasterReports
+  async createMasterReport(report: any): Promise<DbMasterReport> {
+    const masterReport: DbMasterReport = {
+      ...report,
+      generatedAt: new Date(),
+      created_at: new Date(),
+    };
+    this.masterReports.set(report.id, masterReport);
+    return masterReport;
+  }
+
+  async getMasterReportsByConfiguration(configurationId: number): Promise<DbMasterReport[]> {
+    return Array.from(this.masterReports.values())
+      .filter(r => r.configurationId === configurationId)
+      .sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
+  }
+
+  async getLatestMasterReport(configurationId: number): Promise<DbMasterReport | null> {
+    const reports = await this.getMasterReportsByConfiguration(configurationId);
+    return reports[0] || null;
+  }
+
+  async getMasterReportById(id: string): Promise<DbMasterReport | null> {
+    return this.masterReports.get(id) || null;
+  }
+}
+
+import { db as dbInstance } from "./db";
+export const storage = dbInstance ? new DatabaseStorage() : new MemStorage();
