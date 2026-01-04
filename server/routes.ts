@@ -14,6 +14,7 @@ import moduleRoutes from "./modules/routes";
 import councilRoutes from "./councils/routes";
 import ucrRoutes from "./ucr/routes";
 import { reportExecutor } from "./reports/executor";
+<<<<<<< Updated upstream
 import { 
   errorHandler, 
   withErrorHandling, 
@@ -23,6 +24,8 @@ import {
   createDatabaseError,
   AppError 
 } from "./utils/error-handling";
+=======
+>>>>>>> Stashed changes
 
 function getTenantId(req: Request): number | null {
   const tenantHeader = req.headers["x-tenant-id"];

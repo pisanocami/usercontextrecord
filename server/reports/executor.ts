@@ -84,11 +84,19 @@ export class ReportExecutor {
       contextVersion,
       contextHash: config.governance.context_hash || this.generateContextHash(config),
       ucrSnapshot,
+<<<<<<< Updated upstream
       execReportIds: execReports.map((r: DbExecReport) => r.id),
       consolidatedInsights,
       consolidatedRecommendations,
       councilSynthesis,
       modulesIncluded: Array.from(new Set(execReports.map((r: DbExecReport) => r.moduleId))),
+=======
+      execReportIds: execReports.map(r => r.id),
+      consolidatedInsights,
+      consolidatedRecommendations,
+      councilSynthesis,
+      modulesIncluded: Array.from(new Set(execReports.map(r => r.moduleId))),
+>>>>>>> Stashed changes
       overallConfidence,
       dataFreshness,
     });

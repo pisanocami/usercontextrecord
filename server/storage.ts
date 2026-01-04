@@ -1,5 +1,9 @@
 import { db } from "./db";
+<<<<<<< Updated upstream
 import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports, brands, contexts } from "@shared/schema";
+=======
+import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
+>>>>>>> Stashed changes
 import { eq, and, desc, max, isNull } from "drizzle-orm";
 import type {
   Brand,
@@ -14,6 +18,7 @@ import type {
   BulkJob,
   BulkBrandInput,
   ConfigurationVersion,
+<<<<<<< Updated upstream
   BrandRecord,
   InsertBrand,
   ContextRecord,
@@ -90,6 +95,12 @@ function validateModuleOutput(output: any): boolean {
   }
 }
 
+=======
+  DbExecReport,
+  DbMasterReport,
+} from "@shared/schema";
+
+>>>>>>> Stashed changes
 // Import AuditLog type from schema
 import type { AuditLog as SchemaAuditLog } from "@shared/schema";
 
@@ -129,6 +140,7 @@ export interface IStorage {
   restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration>;
   createAuditLog(log: Omit<AuditLog, "id" | "created_at">): Promise<AuditLog>;
   getAuditLogs(tenantId: number | null, configurationId?: number): Promise<AuditLog[]>;
+<<<<<<< Updated upstream
   getExecReportsByConfiguration(configId: number, contextVersion?: number): Promise<DbExecReport[]>;
   getExecReportById(id: string): Promise<DbExecReport | undefined>;
   getExecReportsByModule(configId: number, moduleId: string): Promise<DbExecReport[]>;
@@ -136,6 +148,8 @@ export interface IStorage {
   getMasterReportsByConfiguration(configId: number): Promise<DbMasterReport[]>;
   getLatestMasterReport(configId: number): Promise<DbMasterReport | undefined>;
   getMasterReportById(id: string): Promise<DbMasterReport | undefined>;
+=======
+>>>>>>> Stashed changes
 }
 
 export interface AuditLogInsert {
@@ -846,6 +860,7 @@ export class DatabaseStorage implements IStorage {
     output: any;
     playbookResult?: any;
   }): Promise<DbExecReport> {
+<<<<<<< Updated upstream
     // Validate input data before transaction
     if (!report.id || !report.configurationId || !report.moduleId) {
       throw new Error("Missing required fields for exec report creation");
@@ -903,6 +918,31 @@ export class DatabaseStorage implements IStorage {
       playbookResult: result.playbookResult,
       executedAt: result.created_at,
       createdAt: result.created_at,
+=======
+    const [created] = await db
+      .insert(execReports)
+      .values({
+        id: report.id,
+        configurationId: report.configurationId,
+        moduleId: report.moduleId,
+        contextVersion: report.contextVersion,
+        contextHash: report.contextHash,
+        output: report.output,
+        playbookResult: report.playbookResult,
+      })
+      .returning();
+
+    return {
+      id: created.id,
+      configurationId: created.configurationId,
+      moduleId: created.moduleId,
+      contextVersion: created.contextVersion,
+      contextHash: created.contextHash,
+      executedAt: created.executedAt,
+      output: created.output,
+      playbookResult: created.playbookResult as DbExecReport['playbookResult'],
+      created_at: created.created_at,
+>>>>>>> Stashed changes
     };
   }
 
@@ -978,6 +1018,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
+<<<<<<< Updated upstream
   // Brands CRUD Methods
   // ============================================
 
@@ -1122,6 +1163,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
+=======
+>>>>>>> Stashed changes
   // MasterReports CRUD Methods
   // ============================================
 
@@ -1267,14 +1310,20 @@ export class MemStorage implements IStorage {
   private auditLogs: AuditLog[] = [];
   private execReports: Map<string, DbExecReport> = new Map();
   private masterReports: Map<string, DbMasterReport> = new Map();
+<<<<<<< Updated upstream
   private brands: Map<number, BrandRecord> = new Map();
   private contexts: Map<number, ContextRecord> = new Map();
+=======
+>>>>>>> Stashed changes
   private currentConfigId = 1;
   private currentBulkJobId = 1;
   private currentVersionId = 1;
   private currentAuditLogId = 1;
+<<<<<<< Updated upstream
   private currentBrandId = 1;
   private currentContextId = 1;
+=======
+>>>>>>> Stashed changes
 
   async getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined> {
     return Array.from(this.configurations.values()).find(
@@ -1446,6 +1495,7 @@ export class MemStorage implements IStorage {
   // ExecReports
   async createExecReport(report: any): Promise<DbExecReport> {
     const execReport: DbExecReport = {
+<<<<<<< Updated upstream
       id: report.id,
       contextId: report.contextId || 0,
       brandId: report.brandId || 0,
@@ -1465,6 +1515,10 @@ export class MemStorage implements IStorage {
       ucrSnapshotHash: report.ucrSnapshotHash || null,
       executedAt: new Date(),
       expiresAt: report.expiresAt || null,
+=======
+      ...report,
+      executedAt: new Date(),
+>>>>>>> Stashed changes
       created_at: new Date(),
     };
     this.execReports.set(report.id, execReport);
@@ -1472,10 +1526,15 @@ export class MemStorage implements IStorage {
   }
 
   async getExecReportsByConfiguration(configurationId: number, contextVersion?: number): Promise<DbExecReport[]> {
+<<<<<<< Updated upstream
     // For MemStorage, we need to map from contextId to configurationId
     // This is a limitation of in-memory storage - we can't easily query by configuration
     // Return all exec reports for now (this is a fallback storage)
     return Array.from(this.execReports.values())
+=======
+    return Array.from(this.execReports.values())
+      .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
+>>>>>>> Stashed changes
       .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   }
 
@@ -1484,9 +1543,14 @@ export class MemStorage implements IStorage {
   }
 
   async getExecReportsByModule(configurationId: number, moduleId: string): Promise<DbExecReport[]> {
+<<<<<<< Updated upstream
     // For MemStorage, filter by moduleId only
     return Array.from(this.execReports.values())
       .filter(r => r.moduleId === moduleId)
+=======
+    return Array.from(this.execReports.values())
+      .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
+>>>>>>> Stashed changes
       .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   }
 
@@ -1515,6 +1579,7 @@ export class MemStorage implements IStorage {
   async getMasterReportById(id: string): Promise<DbMasterReport | null> {
     return this.masterReports.get(id) || null;
   }
+<<<<<<< Updated upstream
 
   // ============================================
   // Brands CRUD Methods
@@ -1576,7 +1641,22 @@ export class MemStorage implements IStorage {
     const id = this.currentContextId++;
     const contextRecord: ContextRecord = {
       id,
-      ...context,
+      brandId: context.brandId!,
+      tenantId: context.tenantId || null,
+      userId: context.userId,
+      name: context.name || "Default Context",
+      brand: context.brand || {},
+      category_definition: context.category_definition || {},
+      competitors: context.competitors || {},
+      demand_definition: context.demand_definition || {},
+      strategic_intent: context.strategic_intent || {},
+      channel_context: context.channel_context || {},
+      negative_scope: context.negative_scope || {},
+      governance: context.governance || {},
+      snapshotHash: context.snapshotHash || null,
+      isVerified: context.isVerified || false,
+      verifiedAt: context.verifiedAt || null,
+      verifiedBy: context.verifiedBy || null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -1659,6 +1739,8 @@ export class MemStorage implements IStorage {
 
     return { context: ctx, brand, reports };
   }
+=======
+>>>>>>> Stashed changes
 }
 
 import { db as dbInstance } from "./db";
