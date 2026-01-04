@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { Users, Check, X, ChevronDown, ChevronRight, AlertTriangle, Target, TrendingUp, Star, Building2, Globe, Plus } from "lucide-react";
+import { Users, Check, X, ChevronDown, ChevronRight, AlertTriangle, Target, TrendingUp, Star, Building2, Globe, Plus, Landmark, MapPin, Coins } from "lucide-react";
 import { ContextBlock, BlockStatus } from "@/components/context-block";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,16 @@ const TIER_CONFIG = {
     bgColor: "bg-blue-100 dark:bg-blue-900/30",
     badgeColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   },
+};
+
+const FUNDING_STAGE_CONFIG: Record<string, { label: string; color: string }> = {
+  bootstrap: { label: "Bootstrap", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
+  seed: { label: "Seed", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+  series_a: { label: "Series A", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  series_b: { label: "Series B", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
+  series_c_plus: { label: "Series C+", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" },
+  public: { label: "Public", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
+  unknown: { label: "", color: "" },
 };
 
 function ScoreBar({ score, label }: { score: number; label: string }) {
@@ -114,6 +124,12 @@ function CompetitorRow({
             </Badge>
           )}
           
+          {competitor.funding_stage === "public" && (
+            <Badge variant="outline" className="text-xs gap-1 border-amber-400 text-amber-600 dark:border-amber-600 dark:text-amber-400">
+              <Landmark className="h-3 w-3" /> Public
+            </Badge>
+          )}
+          
           {competitor.added_by === "ai" && (
             <Badge variant="secondary" className="text-xs">AI</Badge>
           )}
@@ -161,7 +177,7 @@ function CompetitorRow({
             )}
             {competitor.revenue_range && (
               <span className="flex items-center gap-1">
-                <Building2 className="h-3 w-3" /> {competitor.revenue_range}
+                <Coins className="h-3 w-3" /> {competitor.revenue_range}
               </span>
             )}
             {competitor.employee_count && (
@@ -169,7 +185,24 @@ function CompetitorRow({
                 <Users className="h-3 w-3" /> {competitor.employee_count}
               </span>
             )}
+            {competitor.funding_stage && competitor.funding_stage !== "unknown" && (
+              <Badge className={`text-xs ${FUNDING_STAGE_CONFIG[competitor.funding_stage]?.color || ""}`}>
+                {FUNDING_STAGE_CONFIG[competitor.funding_stage]?.label || competitor.funding_stage}
+              </Badge>
+            )}
           </div>
+          
+          {competitor.geo_overlap && competitor.geo_overlap.length > 0 && (
+            <div className="flex items-center gap-2 text-xs">
+              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground">Geography overlap:</span>
+              <div className="flex flex-wrap gap-1">
+                {competitor.geo_overlap.map((geo, i) => (
+                  <Badge key={i} variant="secondary" className="text-xs">{geo}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
           
           {competitor.evidence?.why_selected && (
             <p className="text-xs text-muted-foreground bg-muted/50 rounded p-2">

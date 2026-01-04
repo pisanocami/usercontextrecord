@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import type { LucideIcon } from "lucide-react";
 import {
   Building2,
   Layers,
@@ -9,7 +10,6 @@ import {
   Ban,
   Shield,
   Settings,
-  ChevronRight,
   Sparkles,
   List,
   Plus,
@@ -36,7 +36,7 @@ interface SidebarProps {
   cmoSafe?: boolean;
 }
 
-const navigationItems = [
+const identityItems = [
   {
     id: "brand",
     title: "Brand Context",
@@ -49,6 +49,9 @@ const navigationItems = [
     icon: Layers,
     description: "Semantic fence for scope",
   },
+];
+
+const marketItems = [
   {
     id: "competitors",
     title: "Competitive Set",
@@ -61,6 +64,9 @@ const navigationItems = [
     icon: Search,
     description: "Brand and non-brand keywords",
   },
+];
+
+const strategyItems = [
   {
     id: "strategic",
     title: "Strategic Intent",
@@ -73,6 +79,9 @@ const navigationItems = [
     icon: Radio,
     description: "Marketing channel overview",
   },
+];
+
+const boundaryItems = [
   {
     id: "negative",
     title: "Negative Scope",
@@ -86,6 +95,47 @@ const navigationItems = [
     description: "Overrides and confidence",
   },
 ];
+
+interface NavItem {
+  id: string;
+  title: string;
+  icon: LucideIcon;
+  description: string;
+}
+
+function SectionMenuItems({
+  items,
+  activeSection,
+  onSectionChange,
+}: {
+  items: NavItem[];
+  activeSection: string;
+  onSectionChange: (section: string) => void;
+}) {
+  return (
+    <>
+      {items.map((item) => (
+        <SidebarMenuItem key={item.id}>
+          <SidebarMenuButton
+            onClick={() => onSectionChange(item.id)}
+            isActive={activeSection === item.id}
+            className={`group relative ${
+              activeSection === item.id
+                ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                : ""
+            }`}
+            data-testid={`nav-${item.id}`}
+          >
+            <item.icon className="h-4 w-4" />
+            <div className="flex flex-1 flex-col items-start">
+              <span className="text-sm font-medium">{item.title}</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </>
+  );
+}
 
 export function AppSidebar({
   activeSection,
@@ -184,34 +234,44 @@ export function AppSidebar({
 
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Context Sections
+            Identity
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    onClick={() => onSectionChange(item.id)}
-                    isActive={activeSection === item.id}
-                    className={`group relative ${
-                      activeSection === item.id
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                        : ""
-                    }`}
-                    data-testid={`nav-${item.id}`}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">{item.title}</span>
-                    </div>
-                    <ChevronRight
-                      className={`h-4 w-4 transition-transform ${
-                        activeSection === item.id ? "rotate-90" : ""
-                      }`}
-                    />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SectionMenuItems items={identityItems} activeSection={activeSection} onSectionChange={onSectionChange} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Market
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SectionMenuItems items={marketItems} activeSection={activeSection} onSectionChange={onSectionChange} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Strategy
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SectionMenuItems items={strategyItems} activeSection={activeSection} onSectionChange={onSectionChange} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Guardrails
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SectionMenuItems items={boundaryItems} activeSection={activeSection} onSectionChange={onSectionChange} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

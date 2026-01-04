@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
@@ -9,8 +10,10 @@ import { TagInput } from "@/components/tag-input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Shield, Info, Check, User, Calendar, AlertCircle, BarChart3, Target, Users, Ban, FileText, AlertTriangle, CheckCircle2 } from "lucide-react";
-import type { InsertConfiguration, ContextQualityScore } from "@shared/schema";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Shield, Info, Check, User, Calendar, AlertCircle, BarChart3, Target, Users, Ban, FileText, AlertTriangle, CheckCircle2, RefreshCw, History, ChevronDown, Edit3 } from "lucide-react";
+import type { InsertConfiguration, ContextQualityScore, AIBehaviorContract } from "@shared/schema";
+import { format } from "date-fns";
 
 const CONFIDENCE_LEVELS = [
   { value: "high", label: "High", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
@@ -30,6 +33,127 @@ function getGradeBadge(grade: "high" | "medium" | "low"): { variant: "default" |
     case "medium": return { variant: "secondary", label: "Medium Quality" };
     case "low": return { variant: "destructive", label: "Low Quality" };
   }
+}
+
+function RegenerationTrackerCard({ aiBehavior }: { aiBehavior: AIBehaviorContract | undefined }) {
+  if (!aiBehavior) return null;
+  
+  const regenerationPercent = aiBehavior.max_regenerations > 0 
+    ? Math.min((aiBehavior.regeneration_count / aiBehavior.max_regenerations) * 100, 100)
+    : 0;
+  
+  const isAtLimit = aiBehavior.regeneration_count >= aiBehavior.max_regenerations;
+  
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">AI Regeneration Tracker</CardTitle>
+          </div>
+          <Badge variant={isAtLimit ? "destructive" : "secondary"}>
+            {aiBehavior.regeneration_count} / {aiBehavior.max_regenerations}
+          </Badge>
+        </div>
+        <CardDescription>Track how many times AI has regenerated content</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Regenerations used</span>
+            <span className={isAtLimit ? "text-red-600 dark:text-red-400 font-medium" : ""}>
+              {aiBehavior.regeneration_count} of {aiBehavior.max_regenerations}
+            </span>
+          </div>
+          <Progress value={regenerationPercent} className="h-2" />
+        </div>
+        
+        {aiBehavior.last_regeneration_at && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            <span>Last regeneration: {format(new Date(aiBehavior.last_regeneration_at), "MMM d, yyyy HH:mm")}</span>
+          </div>
+        )}
+        
+        {aiBehavior.regeneration_reason && (
+          <div className="rounded-md bg-muted/50 p-2 text-xs">
+            <span className="text-muted-foreground">Reason: </span>
+            <span>{aiBehavior.regeneration_reason}</span>
+          </div>
+        )}
+        
+        {isAtLimit && (
+          <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950/30 dark:border-amber-900">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-xs text-amber-800 dark:text-amber-200">
+              <p className="font-medium">Regeneration limit reached</p>
+              <p className="text-amber-700 dark:text-amber-300 mt-0.5">
+                Further regenerations require human approval
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {aiBehavior.violation_detected && (
+          <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-3 dark:bg-red-950/30 dark:border-red-900">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+            <div className="text-xs text-red-800 dark:text-red-200">
+              <p className="font-medium">Violation Detected</p>
+              {aiBehavior.violation_details && (
+                <p className="text-red-700 dark:text-red-300 mt-0.5">{aiBehavior.violation_details}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RedactedFieldsCard({ aiBehavior }: { aiBehavior: AIBehaviorContract | undefined }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  if (!aiBehavior?.redacted_fields?.length) return null;
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card>
+        <CardHeader className="pb-3">
+          <CollapsibleTrigger className="flex items-center justify-between w-full" data-testid="button-redactions-toggle">
+            <div className="flex items-center gap-2">
+              <Edit3 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Redacted Fields</CardTitle>
+              <Badge variant="secondary">{aiBehavior.redacted_fields.length}</Badge>
+            </div>
+            <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          </CollapsibleTrigger>
+          <CardDescription>Fields that have been modified or redacted</CardDescription>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              {aiBehavior.redacted_fields.map((field, index) => (
+                <div 
+                  key={index}
+                  className="flex items-start justify-between gap-2 rounded-lg border p-2 text-sm"
+                  data-testid={`redacted-field-${index}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <code className="text-xs bg-muted px-1 rounded">{field.field_path}</code>
+                    <p className="text-xs text-muted-foreground mt-1">{field.reason}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {format(new Date(field.redacted_at), "MMM d, HH:mm")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
 }
 
 function QualityScoreCard({ qualityScore }: { qualityScore: ContextQualityScore | undefined }) {
@@ -170,6 +294,7 @@ export function GovernanceSection() {
   const form = useFormContext<InsertConfiguration>();
   const cmoSafe = form.watch("governance.cmo_safe");
   const qualityScore = form.watch("governance.quality_score");
+  const aiBehavior = form.watch("governance.ai_behavior");
 
   return (
     <div className="space-y-6">
@@ -185,7 +310,12 @@ export function GovernanceSection() {
         </div>
       </div>
 
-      <QualityScoreCard qualityScore={qualityScore} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <QualityScoreCard qualityScore={qualityScore} />
+        <RegenerationTrackerCard aiBehavior={aiBehavior} />
+      </div>
+      
+      <RedactedFieldsCard aiBehavior={aiBehavior} />
 
       <Card>
         <CardHeader>

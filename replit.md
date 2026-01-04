@@ -128,3 +128,5 @@ The frontend features:
 - Added Context Validation Council: automated validator with weighted scoring and approval workflow
 - Enhanced AI competitor generation: now includes "why" reasoning for each suggested competitor
 - Keyword Gap Lite improvements: filters applied badge, context version tracking, borderline bucket for human review
+- Phase 4 Remediation (Summary Cards & Navigation): Added ChannelSummaryCard and StrategicSummaryCard to header with tooltips showing channel mix, SEO level, risk tolerance, goal type, and active constraints
+- Sidebar reorganization: Grouped 8 sections into 4 semantic categories (Identity, Market, Strategy, Guardrails) with reusable SectionMenuItems component
