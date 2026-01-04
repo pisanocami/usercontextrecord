@@ -131,3 +131,18 @@ The frontend features:
 - Phase 4 Remediation (Summary Cards & Navigation): Added ChannelSummaryCard and StrategicSummaryCard to header with tooltips showing channel mix, SEO level, risk tolerance, goal type, and active constraints
 - Sidebar reorganization: Grouped 8 sections into 4 semantic categories (Identity, Market, Strategy, Guardrails) with reusable SectionMenuItems component
 - Simplified context creation: Only domain and primary_category are required fields. All other fields (brand name, industry, competitors, categories) are optional and can be AI-generated from domain + category. Configuration name auto-generated from domain.
+- **Phase 2 (Context Locking)**: State machine workflow DRAFT_AI → AI_READY → AI_ANALYSIS_RUN → HUMAN_CONFIRMED → LOCKED with validation gates. ContextReviewPanel UI for section-by-section approval. PATCH /api/configurations/:id/status endpoint.
+- **Phase 3 (Validation Gate)**: Comprehensive validation module (shared/validation.ts) with section-level validation, integrity checksum, approval gates. GET /api/configurations/:id/validate endpoint returns detailed validation results.
+
+### 10-Phase Growth Signal Architecture
+
+1. **Context Creation** (Complete): Domain + primary_category required, auto-generation for other fields
+2. **Context Locking** (Complete): State machine with validation gates, section approvals
+3. **Validation Gate** (Complete): Per-section validation, integrity hash, approval workflow
+4. **Pre-Filter Layer** (Planned): Pre-API filtering against Negative Scope
+5. **External APIs** (Planned): Ahrefs, Bright Data, Google Trends integration
+6. **AI Councils** (Planned): Growth, SEO, Performance, Strategic, GTM councils
+7. **Post-Validation** (Planned): Output scanning for excluded terms
+8. **Decision Engine** (Planned): PREPARE/RAMP/EXPLOIT/HOLD/AVOID classifier
+9. **Output Generation** (Planned): Insights, recommendations, exports
+10. **Frontend Display** (Planned): Dashboard, filters, actions, feedback loop

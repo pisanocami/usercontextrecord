@@ -10,6 +10,7 @@ import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
 import { validateContext, type ContextValidationResult } from "./context-validator";
+import { validateConfiguration as validateConfigurationFull, type FullValidationResult } from "@shared/validation";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -835,6 +836,42 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating context status:", error);
       res.status(500).json({ error: "Failed to update context status" });
+    }
+  });
+
+  // Full validation endpoint - returns detailed section-by-section validation
+  app.get("/api/configurations/:id/validate", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const existingConfig = await storage.getConfigurationById(id, userId);
+      if (!existingConfig) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      
+      const validationResult = validateConfigurationFull({
+        brand: existingConfig.brand,
+        category_definition: existingConfig.category_definition,
+        competitors: existingConfig.competitors,
+        demand_definition: existingConfig.demand_definition,
+        strategic_intent: existingConfig.strategic_intent,
+        channel_context: existingConfig.channel_context,
+        negative_scope: existingConfig.negative_scope,
+        governance: existingConfig.governance,
+      });
+      
+      res.json({
+        configuration_id: id,
+        current_status: existingConfig.governance?.context_status || "DRAFT_AI",
+        validation: validationResult,
+      });
+    } catch (error) {
+      console.error("Error validating configuration:", error);
+      res.status(500).json({ error: "Failed to validate configuration" });
     }
   });
 
