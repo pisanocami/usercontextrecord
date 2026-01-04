@@ -35,6 +35,7 @@ export interface SectionStatus {
 
 export interface UCRSnapshot {
   id: number;
+  brandId: number | null;
   tenantId: number | null;
   brand: Configuration["brand"];
   category_definition: Configuration["category_definition"];
@@ -270,11 +271,12 @@ function generateSnapshotHash(config: Configuration): string {
   return Buffer.from(canonicalJson).toString('base64').slice(0, 32);
 }
 
-export function createUCRSnapshot(config: Configuration & { tenantId?: number | null }): UCRSnapshot {
+export function createUCRSnapshot(config: Configuration & { tenantId?: number | null; brandId?: number | null }): UCRSnapshot {
   const validation = computeUCRStatus(config);
   
   return {
     id: config.id,
+    brandId: (config as any).brandId ?? null,
     tenantId: (config as any).tenantId ?? null,
     brand: config.brand,
     category_definition: config.category_definition,
@@ -325,6 +327,7 @@ export function createUCRSnapshotFromContext(ctx: ContextRecord): UCRSnapshot {
   
   return {
     id: ctx.id,
+    brandId: ctx.brandId ?? null,
     tenantId: ctx.tenantId ?? null,
     brand: configLike.brand,
     category_definition: configLike.category_definition,

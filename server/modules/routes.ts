@@ -69,26 +69,30 @@ router.post('/modules/:moduleId/execute', requireValidUCR(), async (req: Request
 
     const userId = (req as any).user?.id || "anonymous-user";
     const contextId = ucr.id;
-    const brandId = req.body.brandId || 1;
+    const brandId = ucr.brandId;
 
-    try {
-      await storage.createExecReport({
-        contextId,
-        brandId,
-        tenantId: ucr.tenantId,
-        userId,
-        moduleId,
-        moduleName: executor.definition.name,
-        status: "completed",
-        confidence: output.confidence || 0,
-        hasData: output.hasData || false,
-        insights: playbookResult.insights || [],
-        recommendations: playbookResult.recommendations || [],
-        rawOutput: output,
-        ucrSnapshotHash: ucr.snapshotHash,
-      });
-    } catch (saveError) {
-      console.warn(`Failed to save exec report for ${moduleId}:`, saveError);
+    if (!brandId) {
+      console.warn(`Cannot save exec report for ${moduleId}: missing brandId in UCR`);
+    } else {
+      try {
+        await storage.createExecReport({
+          contextId,
+          brandId,
+          tenantId: ucr.tenantId,
+          userId,
+          moduleId,
+          moduleName: executor.definition.name,
+          status: "completed",
+          confidence: output.confidence || 0,
+          hasData: output.hasData || false,
+          insights: playbookResult.insights || [],
+          recommendations: playbookResult.recommendations || [],
+          rawOutput: output,
+          ucrSnapshotHash: ucr.snapshotHash,
+        });
+      } catch (saveError) {
+        console.warn(`Failed to save exec report for ${moduleId}:`, saveError);
+      }
     }
 
     res.json({ result: finalOutput });
@@ -167,29 +171,33 @@ router.post('/modules/:moduleId/execute-with-council', requireValidUCR(), async 
 
     const userId = (req as any).user?.id || "anonymous-user";
     const contextId = ucr.id;
-    const brandId = req.body.brandId || 1;
+    const brandId = ucr.brandId;
 
-    try {
-      await storage.createExecReport({
-        contextId,
-        brandId,
-        tenantId: ucr.tenantId,
-        userId,
-        moduleId,
-        moduleName: executor.definition.name,
-        status: "completed",
-        confidence: output.confidence || 0,
-        hasData: output.hasData || false,
-        insights: (enforcedSynthesis as any).insights || [],
-        recommendations: (enforcedSynthesis as any).recommendations || [],
-        rawOutput: output,
-        councilPerspectives: Object.fromEntries(perspectives),
-        synthesis: enforcedSynthesis,
-        guardrailStatus: guardrailEnforcement || null,
-        ucrSnapshotHash: ucr.snapshotHash,
-      });
-    } catch (saveError) {
-      console.warn(`Failed to save exec report for ${moduleId}:`, saveError);
+    if (!brandId) {
+      console.warn(`Cannot save exec report for ${moduleId}: missing brandId in UCR`);
+    } else {
+      try {
+        await storage.createExecReport({
+          contextId,
+          brandId,
+          tenantId: ucr.tenantId,
+          userId,
+          moduleId,
+          moduleName: executor.definition.name,
+          status: "completed",
+          confidence: output.confidence || 0,
+          hasData: output.hasData || false,
+          insights: (enforcedSynthesis as any).insights || [],
+          recommendations: (enforcedSynthesis as any).recommendations || [],
+          rawOutput: output,
+          councilPerspectives: Object.fromEntries(perspectives),
+          synthesis: enforcedSynthesis,
+          guardrailStatus: guardrailEnforcement || null,
+          ucrSnapshotHash: ucr.snapshotHash,
+        });
+      } catch (saveError) {
+        console.warn(`Failed to save exec report for ${moduleId}:`, saveError);
+      }
     }
 
     res.json({
