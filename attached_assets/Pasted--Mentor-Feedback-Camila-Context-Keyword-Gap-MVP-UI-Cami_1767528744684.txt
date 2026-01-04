@@ -1,0 +1,97 @@
+# Mentor Feedback (Camila → Context + Keyword Gap MVP + UI)
+
+Camila — primero: **no lo estás haciendo “tan mal”**.  
+Estás construyendo cosas complejas (arquitectura + gobernanza + filtros + outputs ejecutivos) bajo presión y con muchas piezas nuevas a la vez.
+
+Lo que estás viviendo es **normal** en productos AI-first:  
+> el MVP no falla porque “el código esté mal”, falla porque *la definición del problema y el fence* todavía no están correctamente aplicados **en la salida**.
+
+A continuación te dejo feedback como mentor, **sin suavizar**, pero para ayudarte a corregir rápido.
+
+---
+
+## 1) Por qué está saliendo tan mal el Keyword Gap (la raíz real)
+
+Tu problema NO es el set-diff.  
+Tu problema es que **estás pidiendo keywords al mundo antes de fijar el universo permitido.**
+
+Hoy el sistema hace:
+
+1) Trae keywords por dominio (competidores)  
+2) Hace gap  
+3) Filtra por negative scope (substring)  
+4) Presenta “High Priority”
+
+Eso *parece correcto*, pero en AI / SEO **es fatal** porque:
+
+### ❌ Problema A: No existe "Semantic Fence" real antes del fetch  
+Si tus competidores son enormes (Amazon, USPS, XPO), sus keywords incluyen TODO:
+- careers, tracking, customer service, stamps, logistics, etc.
+
+Y tu filtro por substring no va a cortar lo semántico ni lo indirecto.
+
+**Resultado:**  
+Tu reporte se convierte en un dump de “lo que rankea el competidor”, no en oportunidades.
+
+---
+
+### ❌ Problema B: Competitors wrong / mismatched  
+Estás usando “competitors” que no son del mismo tipo o tamaño (ej. UPS vs OOFOs).
+
+Entonces el output es inevitablemente basura: la brecha existe, sí… pero no es estratégica.
+
+---
+
+### ❌ Problema C: “High Priority” se está asignando por heurística simplona  
+Ahora mismo “High Priority” está marcado por regla:
+> Competitor ranks top 10, brand missing → High Priority
+
+Eso es **inaceptable** para un CMO.
+
+Porque un keyword gap sin:
+- intención
+- categoría
+- in-scope
+- fit del negocio
+- cluster value
+
+…no es “High Priority”.
+
+Es *“things we don’t rank for”*.
+
+---
+
+### ❌ Problema D: El output está ordenado alfabéticamente  
+Eso es un síntoma grave:  
+significa que tu engine de scoring no está dirigiendo la experiencia.
+
+En un producto de oportunidades, el orden es:  
+> **la verdad del sistema**.
+
+Orden alfabético comunica:  
+> “esto no fue pensado”.
+
+---
+
+## 2) Qué tenés que cambiar YA (sin romper tu arquitectura)
+
+Esto es lo que yo haría para volverlo **CMO-safe** con mínimo cambio:
+
+---
+
+### ✅ Fix 1 — Introducir un “In-Scope Classifier” obligatorio
+Antes de guardar cualquier keyword como oportunidad:
+
+**Cada keyword debe tener:**
+- `scope_status`: in_scope / borderline / out_of_scope
+- `scope_reason`: 1 línea (por qué)
+- `matched_fence_concept`: qué concepto del fence lo permitió
+
+Ejemplo:
+
+```json
+{
+  "keyword": "recovery sandals",
+  "scope_status": "in_scope",
+  "matched_fence_concept": "Recovery Footwear"
+}

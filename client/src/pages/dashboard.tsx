@@ -4,20 +4,10 @@ import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, RefreshCw, BarChart3, PieChart, Activity, FileText, ExternalLink } from 'lucide-react';
+import { Loader2, TrendingUp, AlertTriangle, CheckCircle, RefreshCw, BarChart3, Activity, FileText, ArrowRight, Zap } from 'lucide-react';
 import { ConfidenceBar } from '@/components/ui/confidence-bar';
-import { FreshnessIndicator } from '@/components/ui/freshness-indicator';
-import { InsightBlock } from '@/components/ui/insight-block';
-import { RecommendationCard } from '@/components/ui/recommendation-card';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-
-interface FreshnessInfo {
-  status: 'fresh' | 'moderate' | 'stale' | 'expired';
-  ageDays: number;
-  warning?: string;
-}
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ModuleResult {
   moduleId: string;
@@ -27,26 +17,19 @@ interface ModuleResult {
   insights: any[];
   recommendations: any[];
   chartsData: any[];
-  freshnessStatus: FreshnessInfo;
-  errors?: string[];
-}
-
-interface DashboardData {
-  modules: ModuleResult[];
-  summary: {
-    totalModules: number;
-    healthyModules: number;
-    avgConfidence: number;
-    topInsights: any[];
-    priorityRecommendations: any[];
+  freshnessStatus: {
+    status: 'fresh' | 'moderate' | 'stale' | 'expired';
+    ageDays: number;
+    warning?: string;
   };
+  errors?: string[];
 }
 
 const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [executedResults, setExecutedResults] = useState<Record<string, any>>({});
 
   const { data: modulesData, isLoading: modulesLoading } = useQuery<{ modules: any[] }>({
     queryKey: ['/api/fon/modules']
@@ -74,8 +57,6 @@ export default function Dashboard() {
     }
   });
 
-  const [executedResults, setExecutedResults] = useState<Record<string, any>>({});
-
   const executeModule = async (moduleId: string) => {
     try {
       const response = await executeMutation.mutateAsync(moduleId);
@@ -92,32 +73,20 @@ export default function Dashboard() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'fresh': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'moderate': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case 'stale': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-      default: return <AlertTriangle className="h-4 w-4 text-red-500" />;
-    }
-  };
-
+  const modules = modulesData?.modules || [];
+  
   const allInsights = Object.values(executedResults).flatMap((r: any) => r?.insights || []);
   const allRecommendations = Object.values(executedResults).flatMap((r: any) => r?.recommendations || []);
   const highPriorityRecs = allRecommendations.filter((r: any) => r.priority === 'high');
-
-  const modules = modulesData?.modules || [];
+  
+  const avgConfidence = Object.values(executedResults).length > 0
+    ? Object.values(executedResults).reduce((sum: number, r: any) => sum + (r?.confidence || 0), 0) / Object.values(executedResults).length
+    : 0;
 
   const moduleHealthData = modules.map((mod: any) => ({
     name: mod.name.split(' ').slice(0, 2).join(' '),
     confidence: executedResults[mod.id]?.confidence ? Math.round(executedResults[mod.id].confidence * 100) : 0
   })) || [];
-
-  const categoryData = [
-    { name: 'Demand', value: 35 },
-    { name: 'Visibility', value: 25 },
-    { name: 'Competitive', value: 20 },
-    { name: 'Performance', value: 20 }
-  ];
 
   if (modulesLoading) {
     return (
@@ -127,343 +96,223 @@ export default function Dashboard() {
     );
   }
 
+  const hasExecutedModules = Object.keys(executedResults).length > 0;
+
   return (
-    <div className="p-6 space-y-6" data-testid="dashboard-page">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Executive Intelligence Dashboard</h1>
-          <p className="text-muted-foreground">Real-time brand intelligence across all modules</p>
+    <div className="p-8 space-y-8 max-w-7xl mx-auto" data-testid="dashboard-page">
+      <div className="flex items-start justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-dashboard-title">
+            Executive Intelligence
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Strategic brand intelligence at a glance
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={executeAllModules} disabled={executeMutation.isPending} data-testid="button-execute-all">
-            {executeMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Run All Modules
-          </Button>
+        <div className="flex items-center gap-3">
           <Button 
-            variant="outline" 
-            onClick={navigateToMasterReport}
-            disabled={Object.keys(executedResults).length === 0}
-            data-testid="button-master-report"
+            size="lg"
+            onClick={executeAllModules} 
+            disabled={executeMutation.isPending} 
+            data-testid="button-execute-all"
           >
-            <FileText className="h-4 w-4 mr-2" />
-            Master Report
+            {executeMutation.isPending ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <Zap className="h-5 w-5 mr-2" />
+            )}
+            Generate Intelligence
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card data-testid="card-total-modules">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Modules</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-modules-count">{modules.length}</div>
-            <p className="text-xs text-muted-foreground">Intelligence modules available</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="relative overflow-visible" data-testid="card-confidence-score">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-muted-foreground">Overall Confidence</span>
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-5xl font-bold tracking-tight" data-testid="text-confidence-score">
+              {hasExecutedModules ? `${Math.round(avgConfidence * 100)}%` : '--'}
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              {hasExecutedModules ? 'Across all modules' : 'Run modules to calculate'}
+            </p>
           </CardContent>
         </Card>
 
-        <Card data-testid="card-executed-modules">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Executed</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-executed-count">{Object.keys(executedResults).length}</div>
-            <p className="text-xs text-muted-foreground">Modules with fresh data</p>
+        <Card data-testid="card-modules-analyzed">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-muted-foreground">Modules Analyzed</span>
+              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-5xl font-bold tracking-tight" data-testid="text-modules-analyzed">
+              {Object.keys(executedResults).length}<span className="text-2xl text-muted-foreground">/{modules.length}</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">Intelligence modules</p>
           </CardContent>
         </Card>
 
-        <Card data-testid="card-insights-count">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Insights</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-insights-count">{allInsights.length}</div>
-            <p className="text-xs text-muted-foreground">Strategic insights generated</p>
+        <Card data-testid="card-insights-generated">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-muted-foreground">Insights Generated</span>
+              <Activity className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-5xl font-bold tracking-tight" data-testid="text-insights-generated">
+              {allInsights.length}
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">Strategic findings</p>
           </CardContent>
         </Card>
 
-        <Card data-testid="card-recommendations-count">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Priority Actions</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-priority-actions-count">{highPriorityRecs.length}</div>
-            <p className="text-xs text-muted-foreground">High-priority recommendations</p>
+        <Card data-testid="card-priority-actions">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-muted-foreground">Priority Actions</span>
+              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-5xl font-bold tracking-tight" data-testid="text-priority-actions">
+              {highPriorityRecs.length}
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">Require attention</p>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList data-testid="tabs-dashboard">
-          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="insights" data-testid="tab-insights">Insights</TabsTrigger>
-          <TabsTrigger value="recommendations" data-testid="tab-recommendations">Recommendations</TabsTrigger>
-          <TabsTrigger value="charts" data-testid="tab-charts">Visualizations</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card data-testid="card-module-health">
-              <CardHeader>
-                <CardTitle>Module Health</CardTitle>
-                <CardDescription>Confidence scores across all intelligence modules</CardDescription>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={moduleHealthData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis type="number" domain={[0, 100]} />
-                    <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--background))', 
-                        borderColor: 'hsl(var(--border))',
-                        borderRadius: '6px'
-                      }} 
-                    />
-                    <Bar dataKey="confidence" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card data-testid="card-category-distribution">
-              <CardHeader>
-                <CardTitle>Intelligence Categories</CardTitle>
-                <CardDescription>Distribution of intelligence coverage</CardDescription>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}%`}
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card data-testid="card-modules-status">
-            <CardHeader>
-              <CardTitle>Module Status</CardTitle>
-              <CardDescription>Execution status and freshness of all modules</CardDescription>
-            </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {modules.map((mod: any) => {
-                const resultData = executedResults[mod.id];
-                return (
-                  <div 
-                    key={mod.id} 
-                    className="flex items-center justify-between gap-4 p-3 rounded-md border flex-wrap"
-                    data-testid={`module-status-${mod.id}`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {resultData ? getStatusIcon(resultData.freshnessStatus?.status || 'fresh') : <div className="h-4 w-4" />}
-                      <div className="min-w-0">
-                        <button 
-                          onClick={() => navigateToModule(mod.id)}
-                          className="font-medium truncate text-left hover:underline hover:text-primary transition-colors"
-                          data-testid={`link-module-${mod.id}`}
-                        >
-                          {mod.name}
-                        </button>
-                        <p className="text-sm text-muted-foreground truncate">{mod.category}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      {resultData ? (
-                        <>
-                          <ConfidenceBar score={resultData.confidence} size="sm" />
-                          <Badge variant={resultData.hasData ? 'default' : 'secondary'}>
-                            {resultData.hasData ? 'Has Data' : 'No Data'}
-                          </Badge>
-                        </>
-                      ) : (
-                        <Badge variant="outline">Not Executed</Badge>
-                      )}
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => executeModule(mod.id)}
-                        disabled={executeMutation.isPending}
-                        data-testid={`button-execute-${mod.id}`}
-                      >
-                        {executeMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Run'}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+      {hasExecutedModules && (
+        <Card className="border-primary/20 bg-primary/5" data-testid="card-master-report-cta">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Master Intelligence Report Ready</h3>
+                  <p className="text-muted-foreground">
+                    View consolidated analysis with {allInsights.length} insights and {allRecommendations.length} recommendations
+                  </p>
+                </div>
+              </div>
+              <Button size="lg" onClick={navigateToMasterReport} data-testid="button-view-master-report">
+                View Report
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
             </div>
           </CardContent>
-          </Card>
-        </TabsContent>
+        </Card>
+      )}
 
-        <TabsContent value="insights" className="space-y-4">
-          <Card data-testid="card-all-insights">
-            <CardHeader>
-              <CardTitle>Strategic Insights</CardTitle>
-              <CardDescription>Key findings from all intelligence modules</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {allInsights.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8" data-testid="text-no-insights">
-                  Run modules to generate insights
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {allInsights.map((insight, idx) => (
-                    <InsightBlock key={idx} insight={insight} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2" data-testid="card-module-confidence">
+          <CardHeader>
+            <CardTitle className="text-xl">Module Confidence</CardTitle>
+            <CardDescription>Intelligence quality across analysis modules</CardDescription>
+          </CardHeader>
+          <CardContent className="h-80">
+            {hasExecutedModules ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={moduleHealthData} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value}%`, 'Confidence']}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))', 
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '8px'
+                    }} 
+                  />
+                  <Bar dataKey="confidence" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <BarChart3 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">Run modules to see confidence scores</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <TabsContent value="recommendations" className="space-y-4">
-          <Card data-testid="card-all-recommendations">
-            <CardHeader>
-              <CardTitle>Strategic Recommendations</CardTitle>
-              <CardDescription>Prioritized actions across all modules</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {allRecommendations.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8" data-testid="text-no-recommendations">
-                  Run modules to generate recommendations
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {allRecommendations.map((rec, idx) => (
-                    <RecommendationCard key={idx} recommendation={rec} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="charts" className="space-y-4">
-          {Object.entries(executedResults).map(([moduleId, resultData]: [string, any]) => {
-            if (!resultData?.chartsData?.length) return null;
-            const modInfo = modulesData?.modules?.find((m: any) => m.id === moduleId);
-            
-            return (
-              <Card key={moduleId} data-testid={`card-charts-${moduleId}`}>
-                <CardHeader>
-                  <CardTitle>{modInfo?.name || moduleId} Visualizations</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {resultData.chartsData.map((chart: any, idx: number) => (
-                      <div key={idx} className="h-64">
-                        <h4 className="text-sm font-medium mb-2">{chart.title}</h4>
-                        <ResponsiveContainer width="100%" height="100%">
-                          {chart.type === 'bar' ? (
-                            <BarChart data={Array.isArray(chart.data) ? chart.data : []}>
-                              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                              <YAxis />
-                              <Tooltip 
-                                contentStyle={{ 
-                                  backgroundColor: 'hsl(var(--background))', 
-                                  borderColor: 'hsl(var(--border))' 
-                                }} 
-                              />
-                              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          ) : chart.type === 'line' ? (
-                            <LineChart data={Array.isArray(chart.data) ? chart.data : []}>
-                              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                              <YAxis />
-                              <Tooltip 
-                                contentStyle={{ 
-                                  backgroundColor: 'hsl(var(--background))', 
-                                  borderColor: 'hsl(var(--border))' 
-                                }} 
-                              />
-                              <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} />
-                              <Legend />
-                            </LineChart>
-                          ) : chart.type === 'pie' ? (
-                            <RechartsPieChart>
-                              <Pie
-                                data={Array.isArray(chart.data) ? chart.data : []}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                dataKey="value"
-                                label={({ name }) => name}
-                              >
-                                {(Array.isArray(chart.data) ? chart.data : []).map((entry: any, index: number) => (
-                                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </RechartsPieChart>
-                          ) : chart.type === 'radar' && Array.isArray(chart.data) && chart.data.length > 0 ? (
-                            <RadarChart 
-                              cx="50%" 
-                              cy="50%" 
-                              outerRadius="80%" 
-                              data={Array.isArray(chart.data[0]?.values) ? chart.data[0].values.map((v: number, i: number) => ({
-                                subject: ['Brand', 'Product', 'Price', 'Service', 'Innovation'][i] || `Dim ${i+1}`,
-                                A: v,
-                                B: Array.isArray(chart.data[1]?.values) ? chart.data[1].values[i] || 0 : 0
-                              })) : []}
-                            >
-                              <PolarGrid />
-                              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
-                              <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                              <Radar name={chart.data[0]?.name} dataKey="A" stroke="hsl(var(--chart-1))" fill="hsl(var(--chart-1))" fillOpacity={0.3} />
-                              {chart.data[1] && (
-                                <Radar name={chart.data[1]?.name} dataKey="B" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.3} />
-                              )}
-                              <Legend />
-                            </RadarChart>
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground">
-                              Chart type not supported
-                            </div>
-                          )}
-                        </ResponsiveContainer>
+        <Card data-testid="card-quick-actions">
+          <CardHeader>
+            <CardTitle className="text-xl">Quick Actions</CardTitle>
+            <CardDescription>Most critical recommendations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {highPriorityRecs.length > 0 ? (
+              <div className="space-y-4">
+                {highPriorityRecs.slice(0, 3).map((rec, idx) => (
+                  <div key={idx} className="p-4 rounded-lg border border-destructive/20 bg-destructive/5">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm line-clamp-2">{rec.action}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{rec.effort} effort</p>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-          {Object.keys(executedResults).length === 0 && (
-            <Card>
-              <CardContent className="py-12">
-                <p className="text-muted-foreground text-center" data-testid="text-no-charts">
-                  Run modules to generate visualizations
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-48 text-center">
+                <CheckCircle className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">No priority actions</p>
+                <p className="text-sm text-muted-foreground">Run modules to identify actions</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card data-testid="card-modules-list">
+        <CardHeader>
+          <CardTitle className="text-xl">Intelligence Modules</CardTitle>
+          <CardDescription>Click any module to view detailed analysis</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modules.map((mod: any) => {
+              const resultData = executedResults[mod.id];
+              const isExecuted = !!resultData;
+              
+              return (
+                <button
+                  key={mod.id}
+                  onClick={() => navigateToModule(mod.id)}
+                  className="group text-left p-4 rounded-lg border transition-all hover:border-primary/50 hover:bg-muted/50"
+                  data-testid={`module-card-${mod.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <h4 className="font-semibold text-sm group-hover:text-primary transition-colors line-clamp-1">
+                      {mod.name}
+                    </h4>
+                    {isExecuted ? (
+                      <Badge variant="default" className="shrink-0">
+                        {Math.round((resultData.confidence || 0) * 100)}%
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0">Pending</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                    {mod.description}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="text-xs">{mod.category}</Badge>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
