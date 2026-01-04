@@ -75,14 +75,10 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
 
   const isEditMode = editId !== null;
 
+  // Only fetch existing config when editing, NOT when creating new
   const { data: existingConfig, isLoading: isLoadingExisting } = useQuery<Configuration>({
     queryKey: ["/api/configurations", editId],
     enabled: isEditMode,
-  });
-
-  const { data: configuration, isLoading } = useQuery<Configuration>({
-    queryKey: ["/api/configuration"],
-    enabled: !isEditMode,
   });
 
   const form = useForm<InsertConfiguration>({
@@ -94,41 +90,41 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
   const isDirty = form.formState.isDirty;
   const cmoSafe = form.watch("governance.cmo_safe");
 
+  // Only load existing config data when editing - new contexts start with defaultConfiguration
   useEffect(() => {
-    const configToLoad = isEditMode ? existingConfig : configuration;
-    if (configToLoad) {
+    if (isEditMode && existingConfig) {
       form.reset({
-        name: configToLoad.name,
-        brand: { ...defaultConfiguration.brand, ...configToLoad.brand },
-        category_definition: { ...defaultConfiguration.category_definition, ...configToLoad.category_definition },
-        competitors: { ...defaultConfiguration.competitors, ...configToLoad.competitors },
-        demand_definition: { ...defaultConfiguration.demand_definition, ...configToLoad.demand_definition },
+        name: existingConfig.name,
+        brand: { ...defaultConfiguration.brand, ...existingConfig.brand },
+        category_definition: { ...defaultConfiguration.category_definition, ...existingConfig.category_definition },
+        competitors: { ...defaultConfiguration.competitors, ...existingConfig.competitors },
+        demand_definition: { ...defaultConfiguration.demand_definition, ...existingConfig.demand_definition },
         strategic_intent: { 
           ...defaultConfiguration.strategic_intent, 
-          ...configToLoad.strategic_intent,
+          ...existingConfig.strategic_intent,
           constraint_flags: {
             ...defaultConfiguration.strategic_intent.constraint_flags,
-            ...(configToLoad.strategic_intent?.constraint_flags || {}),
+            ...(existingConfig.strategic_intent?.constraint_flags || {}),
           },
         },
-        channel_context: { ...defaultConfiguration.channel_context, ...configToLoad.channel_context },
-        negative_scope: { ...defaultConfiguration.negative_scope, ...configToLoad.negative_scope },
+        channel_context: { ...defaultConfiguration.channel_context, ...existingConfig.channel_context },
+        negative_scope: { ...defaultConfiguration.negative_scope, ...existingConfig.negative_scope },
         governance: { 
           ...defaultConfiguration.governance, 
-          ...configToLoad.governance,
+          ...existingConfig.governance,
           quality_score: {
             ...defaultConfiguration.governance.quality_score,
-            ...(configToLoad.governance?.quality_score || {}),
+            ...(existingConfig.governance?.quality_score || {}),
           },
           ai_behavior: {
             ...defaultConfiguration.governance.ai_behavior,
-            ...(configToLoad.governance?.ai_behavior || {}),
+            ...(existingConfig.governance?.ai_behavior || {}),
           },
         },
       });
-      setLastSaved(new Date(configToLoad.updated_at));
+      setLastSaved(new Date(existingConfig.updated_at));
     }
-  }, [configuration, existingConfig, form, isEditMode]);
+  }, [existingConfig, form, isEditMode]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -265,7 +261,7 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
 
   const ActiveSection = sectionComponents[activeSection];
 
-  if (isLoading || isLoadingExisting) {
+  if (isEditMode && isLoadingExisting) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
