@@ -339,12 +339,12 @@ export default function KeywordGapReport() {
                   <span className="font-medium">Approved Competitors:</span>{" "}
                   {config.competitors?.competitors?.filter(c => c.status === "approved").length || 0}
                 </p>
-                <p className="text-sm">
-                  <span className="font-medium">Context Status:</span>{" "}
-                  <Badge variant="outline" className="ml-1">
+                <div className="text-sm flex items-center gap-1">
+                  <span className="font-medium">Context Status:</span>
+                  <Badge variant="outline">
                     {config.governance?.context_status || "DRAFT_AI"}
                   </Badge>
-                </p>
+                </div>
               </div>
 
               {visibilityMutation.error && (

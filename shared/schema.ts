@@ -172,16 +172,23 @@ export const demandDefinitionSchema = z.object({
   }),
 });
 
+// Helper to normalize enum values to lowercase
+const lowercaseEnum = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.preprocess(
+    (val) => (typeof val === "string" ? val.toLowerCase() : val),
+    z.enum(values)
+  );
+
 // Strategic Intent Schema - Phase 3 enhanced
 export const strategicIntentSchema = z.object({
   growth_priority: z.string().default(""),
-  risk_tolerance: z.enum(["low", "medium", "high"]),
+  risk_tolerance: lowercaseEnum(["low", "medium", "high"] as const),
   primary_goal: z.string().default(""),
   secondary_goals: z.array(z.string()).default([]),
   avoid: z.array(z.string()).default([]),
   // Phase 3: Enhanced strategic fields
-  goal_type: z.enum(["roi", "volume", "authority", "awareness", "retention"]).default("roi"),
-  time_horizon: z.enum(["short", "medium", "long"]).default("medium"), // short=0-3mo, medium=3-12mo, long=12mo+
+  goal_type: lowercaseEnum(["roi", "volume", "authority", "awareness", "retention"] as const).default("roi"),
+  time_horizon: lowercaseEnum(["short", "medium", "long"] as const).default("medium"), // short=0-3mo, medium=3-12mo, long=12mo+
   constraint_flags: z.object({
     budget_constrained: z.boolean().default(false),
     resource_limited: z.boolean().default(false),
@@ -198,15 +205,15 @@ export const strategicIntentSchema = z.object({
 // Channel Context Schema
 export const channelContextSchema = z.object({
   paid_media_active: z.boolean(),
-  seo_investment_level: z.enum(["low", "medium", "high"]),
-  marketplace_dependence: z.enum(["low", "medium", "high"]),
+  seo_investment_level: lowercaseEnum(["low", "medium", "high"] as const),
+  marketplace_dependence: lowercaseEnum(["low", "medium", "high"] as const),
 });
 
 // Phase 3: Enhanced exclusion entry with match type and TTL
 export const exclusionEntrySchema = z.object({
   value: z.string(),
-  match_type: z.enum(["exact", "semantic"]).default("exact"),
-  semantic_sensitivity: z.enum(["low", "medium", "high"]).default("medium"), // Only for semantic match
+  match_type: lowercaseEnum(["exact", "semantic"] as const).default("exact"),
+  semantic_sensitivity: lowercaseEnum(["low", "medium", "high"] as const).default("medium"), // Only for semantic match
   expires_at: z.string().optional(), // ISO date for TTL, undefined = permanent
   added_by: z.enum(["ai", "human"]).default("human"),
   added_at: z.string().default(""),
