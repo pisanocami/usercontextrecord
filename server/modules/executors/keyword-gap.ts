@@ -44,8 +44,8 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
 
     try {
       const brandKeywords = await this.fetchDomainKeywords(domain);
-      const competitorKeywords = await this.fetchCompetitorKeywords(competitors);
-      const gapAnalysis = this.calculateGap(brandKeywords, competitorKeywords);
+      const competitorKeywordsMap = await this.fetchCompetitorKeywords(competitors);
+      const gapAnalysis = this.calculateGap(brandKeywords, competitorKeywordsMap);
       const insights = this.generateInsights(gapAnalysis);
       const recommendations = this.generateRecommendations(gapAnalysis);
 
@@ -64,7 +64,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
         dataTimestamp,
         rawData: {
           brandKeywords,
-          competitorKeywords,
+          competitorKeywords: Object.fromEntries(competitorKeywordsMap),
           gapAnalysis
         },
         insights,
@@ -165,7 +165,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
     const brandKeywordSet = new Set(brandKeywords.map(k => k.keyword.toLowerCase()));
     const allCompetitorKeywords: KeywordData[] = [];
     
-    for (const keywords of competitorKeywords.values()) {
+    for (const keywords of Array.from(competitorKeywords.values())) {
       for (const kw of keywords) {
         if (!brandKeywordSet.has(kw.keyword.toLowerCase())) {
           allCompetitorKeywords.push(kw);

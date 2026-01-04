@@ -57,6 +57,7 @@ interface ModuleResult {
     withAccessCta?: string;
   }>;
   freshnessStatus: FreshnessInfo;
+  rawData?: any;
   errors?: string[];
 }
 
@@ -208,7 +209,6 @@ export default function ModulesPage() {
                       />
                     </div>
 
-                    <Tabs defaultValue="insights">
                       <TabsList>
                         <TabsTrigger value="insights" data-testid="tab-insights">
                           Insights ({moduleResult.insights.length})
@@ -216,6 +216,11 @@ export default function ModulesPage() {
                         <TabsTrigger value="recommendations" data-testid="tab-recommendations">
                           Recommendations ({moduleResult.recommendations.length})
                         </TabsTrigger>
+                        {moduleResult.rawData && (
+                          <TabsTrigger value="results" data-testid="tab-results">
+                            Detailed Results
+                          </TabsTrigger>
+                        )}
                       </TabsList>
                       
                       <TabsContent value="insights" className="space-y-4 mt-4">
@@ -239,6 +244,119 @@ export default function ModulesPage() {
                           <p className="text-muted-foreground text-center py-8">
                             No recommendations generated
                           </p>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="results" className="space-y-4 mt-4">
+                        {selectedModule === 'market-demand' && moduleResult.rawData.trends && (
+                          <div className="space-y-6">
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-sm">Demand Trends</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                  {moduleResult.rawData.trends.slice(0, 12).map((item: any, i: number) => (
+                                    <div key={i} className="p-3 border rounded-md">
+                                      <p className="text-xs text-muted-foreground">{item.date}</p>
+                                      <p className="text-sm font-bold">{item.value}</p>
+                                      <p className="text-[10px] truncate">{item.keyword}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                            
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-sm">Seasonality Details</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span>Peak Months:</span>
+                                    <span className="font-medium">{moduleResult.rawData.seasonality.peakMonths.join(', ')}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span>Low Months:</span>
+                                    <span className="font-medium">{moduleResult.rawData.seasonality.lowMonths.join(', ')}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span>YoY Trend:</span>
+                                    <Badge variant={moduleResult.rawData.seasonality.yoyTrend > 0 ? 'default' : 'destructive'}>
+                                      {moduleResult.rawData.seasonality.yoyTrend}%
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        )}
+
+                        {selectedModule === 'keyword-gap' && moduleResult.rawData.gapAnalysis && (
+                          <div className="space-y-6">
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-sm">Top Gap Keywords</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b">
+                                        <th className="text-left pb-2">Keyword</th>
+                                        <th className="text-right pb-2">Volume</th>
+                                        <th className="text-right pb-2">Difficulty</th>
+                                        <th className="text-left pb-2 pl-4">Intent</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {moduleResult.rawData.gapAnalysis.topGapKeywords.map((kw: any, i: number) => (
+                                        <tr key={i} className="border-b last:border-0">
+                                          <td className="py-2">{kw.keyword}</td>
+                                          <td className="py-2 text-right">{kw.volume.toLocaleString()}</td>
+                                          <td className="py-2 text-right">{kw.difficulty}</td>
+                                          <td className="py-2 pl-4">
+                                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                              {kw.intent}
+                                            </Badge>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <Card>
+                                <CardHeader>
+                                  <CardTitle className="text-sm">Opportunity Summary</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span>Total Gap Keywords:</span>
+                                    <span className="font-bold">{moduleResult.rawData.gapAnalysis.totalGapKeywords}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span>Total Monthly Volume:</span>
+                                    <span className="font-bold">{moduleResult.rawData.gapAnalysis.totalGapVolume.toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span>Avg Difficulty:</span>
+                                    <span className="font-bold">{moduleResult.rawData.gapAnalysis.avgDifficulty}%</span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {!['market-demand', 'keyword-gap'].includes(selectedModule || '') && (
+                          <div className="p-8 text-center bg-muted/30 rounded-lg border-2 border-dashed">
+                            <p className="text-muted-foreground">Detailed data view for this module is coming soon.</p>
+                          </div>
                         )}
                       </TabsContent>
                     </Tabs>
