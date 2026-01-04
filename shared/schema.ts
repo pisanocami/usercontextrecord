@@ -1,6 +1,10 @@
 import { z } from "zod";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, real, index } from "drizzle-orm/pg-core";
+=======
+import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, index } from "drizzle-orm/pg-core";
+>>>>>>> Stashed changes
 =======
 import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, index } from "drizzle-orm/pg-core";
 >>>>>>> Stashed changes

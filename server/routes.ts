@@ -1227,6 +1227,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
   });
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   // ============================================================================
   // BRANDS API
   // ============================================================================
@@ -1416,6 +1417,8 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
       console.error("Error generating master report:", error);
       res.status(500).json({ error: "Failed to generate master report" });
 =======
+=======
+>>>>>>> Stashed changes
   // ============================================
   // ExecReports & MasterReports API Routes
   // ============================================
@@ -1522,6 +1525,9 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     } catch (error: any) {
       console.error("Error fetching master report:", error);
       res.status(500).json({ error: error.message || "Failed to fetch master report" });
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     }
   });

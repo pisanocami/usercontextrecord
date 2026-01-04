@@ -1,6 +1,10 @@
 import { db } from "./db";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { configurations, bulkJobs, configurationVersions, auditLogs, brands, contexts, execReports } from "@shared/schema";
+=======
+import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
+>>>>>>> Stashed changes
 =======
 import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
 >>>>>>> Stashed changes
@@ -19,12 +23,17 @@ import type {
   BulkBrandInput,
   ConfigurationVersion,
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   BrandRecord,
   InsertBrand,
   ContextRecord,
   InsertContext,
   ExecReportRecord,
   InsertExecReport,
+=======
+  DbExecReport,
+  DbMasterReport,
+>>>>>>> Stashed changes
 =======
   DbExecReport,
   DbMasterReport,
@@ -768,6 +777,7 @@ export class DatabaseStorage implements IStorage {
   }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   // ============================================================================
   // BRANDS CRUD
   // ============================================================================
@@ -954,6 +964,8 @@ export class DatabaseStorage implements IStorage {
     
     return { context: ctx, brand, reports };
 =======
+=======
+>>>>>>> Stashed changes
   // ============================================
   // ExecReports CRUD Methods
   // ============================================
@@ -1200,6 +1212,9 @@ export class DatabaseStorage implements IStorage {
       dataFreshness: report.dataFreshness as DbMasterReport['dataFreshness'],
       created_at: report.created_at,
     };
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   }
 }
