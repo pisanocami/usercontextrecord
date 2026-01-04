@@ -8,7 +8,9 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantSelector } from "@/components/tenant-selector";
+import { BrandSelector } from "@/components/brand-selector";
 import { TenantProvider, useTenant } from "@/hooks/use-tenant";
+import { BrandProvider } from "@/hooks/use-brand";
 import { ConfigurationPage } from "@/pages/configuration";
 import BulkGeneration from "@/pages/bulk-generation";
 import ConfigurationsList from "@/pages/configurations-list";
@@ -89,6 +91,7 @@ function ConfigurationLayout() {
             <div className="flex items-center gap-2">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <TenantSelector />
+              <BrandSelector />
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -401,6 +404,7 @@ function DashboardLayout() {
             <div className="flex items-center gap-2">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <TenantSelector />
+              <BrandSelector />
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -466,6 +470,7 @@ function ModulesLayout() {
             <div className="flex items-center gap-2">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <TenantSelector />
+              <BrandSelector />
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -574,6 +579,11 @@ function Router() {
       <Route path="/tenants" component={TenantSelect} />
       <Route path="/">
         <RequireTenant>
+          <ConfigurationLayout />
+        </RequireTenant>
+      </Route>
+      <Route path="/brands">
+        <RequireTenant>
           <ConfigurationsListLayout />
         </RequireTenant>
       </Route>
@@ -632,8 +642,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <TenantProvider>
-          <Toaster />
-          <Router />
+          <BrandProvider>
+            <Toaster />
+            <Router />
+          </BrandProvider>
         </TenantProvider>
       </TooltipProvider>
     </QueryClientProvider>

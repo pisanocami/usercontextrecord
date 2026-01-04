@@ -209,14 +209,14 @@ export default function Dashboard() {
           <CardContent className="flex items-center gap-4 py-3">
             <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
             <div className="flex-1">
-              <p className="text-sm">
-                <span className="font-medium">Active Context:</span>{" "}
-                <Badge variant="outline" className="ml-1">{contextStatus.brandName}</Badge>
-                <span className="mx-2 text-muted-foreground">|</span>
+              <div className="text-sm flex items-center gap-1 flex-wrap">
+                <span className="font-medium">Active Context:</span>
+                <Badge variant="outline">{contextStatus.brandName}</Badge>
+                <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{contextStatus.domain}</span>
-                <span className="mx-2 text-muted-foreground">|</span>
+                <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">{contextStatus.competitors.length} competitors</span>
-              </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {activeConfig?.governance?.cmo_safe && (

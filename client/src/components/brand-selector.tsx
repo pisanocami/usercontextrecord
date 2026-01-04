@@ -75,7 +75,7 @@ export function BrandSelector() {
             <div className="flex items-center gap-2 truncate">
               <Building2 className="h-4 w-4 shrink-0" />
               <span className="truncate">
-                {activeBrand?.brand_context?.brand_name || "Seleccionar marca"}
+                {activeBrand?.brand?.name || activeBrand?.name || "Seleccionar marca"}
               </span>
             </div>
             <ChevronDown className="h-4 w-4 shrink-0" />
@@ -97,7 +97,7 @@ export function BrandSelector() {
                 className="flex items-center justify-between gap-2"
                 data-testid={`brand-option-${brand.id}`}
               >
-                <span className="truncate">{brand.brand_context?.brand_name || `Marca ${brand.id}`}</span>
+                <span className="truncate">{brand.brand?.name || brand.name || `Marca ${brand.id}`}</span>
                 {brand.id === activeBrand?.id && (
                   <Badge variant="secondary" className="shrink-0">Activa</Badge>
                 )}

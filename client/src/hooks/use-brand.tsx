@@ -43,22 +43,22 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const { currentTenant } = useTenant();
   const [activeBrandId, setActiveBrandIdState] = useState<number | null>(null);
 
-  const { data: brandsData, isLoading, refetch } = useQuery<{ configurations: Configuration[] }>({
+  const { data: brandsData, isLoading, refetch } = useQuery<Configuration[]>({
     queryKey: ["/api/configurations"],
     enabled: !!currentTenant,
   });
 
-  const brands = brandsData?.configurations || [];
+  const brands = Array.isArray(brandsData) ? brandsData : [];
 
   useEffect(() => {
     if (currentTenant && brands.length > 0 && activeBrandId === null) {
-      const storedId = getStoredBrandId(currentTenant.id);
+      const storedId = getStoredBrandId(String(currentTenant.id));
       const exists = brands.some(b => b.id === storedId);
       if (storedId && exists) {
         setActiveBrandIdState(storedId);
       } else if (brands.length > 0) {
         setActiveBrandIdState(brands[0].id);
-        setStoredBrandId(currentTenant.id, brands[0].id);
+        setStoredBrandId(String(currentTenant.id), brands[0].id);
       }
     }
   }, [currentTenant, brands, activeBrandId]);
@@ -72,7 +72,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const setActiveBrand = useCallback((brandId: number | null) => {
     setActiveBrandIdState(brandId);
     if (currentTenant) {
-      setStoredBrandId(currentTenant.id, brandId);
+      setStoredBrandId(String(currentTenant.id), brandId);
     }
     queryClient.invalidateQueries({ queryKey: ["/api/configuration"] });
   }, [currentTenant]);
