@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, real, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Re-export auth, chat and tenant models
@@ -7,7 +7,105 @@ export * from "./models/auth";
 export * from "./models/chat";
 export * from "./models/tenant";
 
-// Configurations table for persistent storage
+// ============================================================================
+// BRANDS TABLE - Normalized brand identity data
+// ============================================================================
+export const brands = pgTable("brands", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  domain: varchar("domain", { length: 255 }).notNull(),
+  name: text("name").notNull(),
+  industry: text("industry"),
+  businessModel: varchar("business_model", { length: 50 }),
+  primaryGeography: jsonb("primary_geography").default([]),
+  revenueBand: text("revenue_band"),
+  targetMarket: text("target_market"),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_brands_user").on(table.userId),
+  index("idx_brands_domain").on(table.domain),
+]);
+
+// ============================================================================
+// CONTEXTS TABLE - UCR (User Context Record) with 8 canonical sections
+// One context per brand (brand_id is FK)
+// ============================================================================
+export const contexts = pgTable("contexts", {
+  id: serial("id").primaryKey(),
+  brandId: integer("brand_id").notNull(),
+  tenantId: integer("tenant_id"),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull().default("Default Context"),
+  // Section A: Brand (reference to brands table, but also JSONB for backward compat)
+  brand: jsonb("brand").notNull().default({}),
+  // Section B: Category Definition
+  category_definition: jsonb("category_definition").notNull().default({}),
+  // Section C: Competitors
+  competitors: jsonb("competitors").notNull().default({}),
+  // Section D: Demand Definition
+  demand_definition: jsonb("demand_definition").notNull().default({}),
+  // Section E: Strategic Intent
+  strategic_intent: jsonb("strategic_intent").notNull().default({}),
+  // Section F: Channel Context
+  channel_context: jsonb("channel_context").notNull().default({}),
+  // Section G: Negative Scope (guardrails)
+  negative_scope: jsonb("negative_scope").notNull().default({}),
+  // Section H: Governance
+  governance: jsonb("governance").notNull().default({}),
+  // UCR metadata
+  snapshotHash: varchar("snapshot_hash", { length: 64 }),
+  isVerified: boolean("is_verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: varchar("verified_by"),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_contexts_brand").on(table.brandId),
+  index("idx_contexts_user").on(table.userId),
+  index("idx_contexts_tenant").on(table.tenantId),
+]);
+
+// ============================================================================
+// EXEC_REPORTS TABLE - Module execution results
+// Each module execution creates one exec_report linked to a context
+// ============================================================================
+export const execReports = pgTable("exec_reports", {
+  id: serial("id").primaryKey(),
+  contextId: integer("context_id").notNull(),
+  brandId: integer("brand_id").notNull(),
+  tenantId: integer("tenant_id"),
+  userId: varchar("user_id").notNull(),
+  moduleId: varchar("module_id", { length: 100 }).notNull(),
+  moduleName: text("module_name").notNull(),
+  // Execution metadata
+  status: varchar("status", { length: 50 }).notNull().default("pending"),
+  confidence: real("confidence").default(0),
+  hasData: boolean("has_data").default(false),
+  // Results
+  insights: jsonb("insights").default([]),
+  recommendations: jsonb("recommendations").default([]),
+  rawOutput: jsonb("raw_output").default({}),
+  // Council reasoning (if executed with council)
+  councilPerspectives: jsonb("council_perspectives"),
+  synthesis: jsonb("synthesis"),
+  // Guardrails
+  guardrailStatus: jsonb("guardrail_status"),
+  // UCR snapshot at execution time
+  ucrSnapshotHash: varchar("ucr_snapshot_hash", { length: 64 }),
+  // Timestamps
+  executedAt: timestamp("executed_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  expiresAt: timestamp("expires_at"),
+}, (table) => [
+  index("idx_exec_reports_context").on(table.contextId),
+  index("idx_exec_reports_brand").on(table.brandId),
+  index("idx_exec_reports_module").on(table.moduleId),
+  index("idx_exec_reports_user").on(table.userId),
+]);
+
+// ============================================================================
+// LEGACY: Configurations table (kept for backward compatibility during migration)
+// ============================================================================
 export const configurations = pgTable("configurations", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id"),
@@ -568,3 +666,38 @@ export const defaultConfiguration: InsertConfiguration = {
     },
   },
 };
+
+// ============================================================================
+// BRANDS TYPES
+// ============================================================================
+export type BrandRecord = typeof brands.$inferSelect;
+export type InsertBrand = typeof brands.$inferInsert;
+
+// ============================================================================
+// CONTEXTS TYPES (UCR)
+// ============================================================================
+export type ContextRecord = typeof contexts.$inferSelect;
+export type InsertContext = typeof contexts.$inferInsert;
+
+// ============================================================================
+// EXEC_REPORTS TYPES
+// ============================================================================
+export type ExecReportRecord = typeof execReports.$inferSelect;
+export type InsertExecReport = typeof execReports.$inferInsert;
+
+// Exec report status enum
+export const execReportStatuses = ["pending", "running", "completed", "failed", "expired"] as const;
+export type ExecReportStatus = typeof execReportStatuses[number];
+
+// Master report is the aggregation of all exec_reports for a context
+export interface MasterReport {
+  contextId: number;
+  brandId: number;
+  context: ContextRecord;
+  brand: BrandRecord;
+  execReports: ExecReportRecord[];
+  aggregatedInsights: any[];
+  aggregatedRecommendations: any[];
+  overallConfidence: number;
+  generatedAt: string;
+}
