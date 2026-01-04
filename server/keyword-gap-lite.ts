@@ -239,7 +239,9 @@ export function fenceCheck(
 
 export function evaluateKeyword(
   keyword: string,
-  config: Configuration
+  config: Configuration,
+  inScopeConcepts: string[],
+  demandThemes: string[]
 ): { status: GuardrailStatus; statusIcon: string; reason: string } {
   const normalizedKw = normalizeKeyword(keyword);
 
@@ -253,6 +255,12 @@ export function evaluateKeyword(
     return { status: "block", statusIcon: "⛔", reason: "Intent Block: Navigation/Support" };
   }
 
+  // Semantic Fence Classifier
+  const scope = classifyKeywordScope(keyword, inScopeConcepts, demandThemes);
+  if (scope.scope_status === "out_of_scope") {
+    return { status: "block", statusIcon: "⛔", reason: "Category Fence: Out of Scope" };
+  }
+
   const exclusions = {
     excludedCategories: config.negative_scope?.excluded_categories || [],
     excludedKeywords: config.negative_scope?.excluded_keywords || [],
@@ -264,18 +272,6 @@ export function evaluateKeyword(
   if (exclusionResult.blocked) {
     return { status: "block", statusIcon: "⛔", reason: exclusionResult.reason };
   }
-  
-  const inScopeConcepts = [
-    ...(config.category_definition?.included || []),
-    config.category_definition?.primary_category || "",
-    ...(config.category_definition?.approved_categories || []),
-  ].filter(Boolean);
-  
-  const demandThemes = [
-    ...(config.demand_definition?.brand_keywords?.seed_terms || []),
-    ...(config.demand_definition?.non_brand_keywords?.category_terms || []),
-    ...(config.demand_definition?.non_brand_keywords?.problem_terms || []),
-  ];
   
   const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes);
   
@@ -431,14 +427,14 @@ export async function computeKeywordGap(
   ];
 
   allCompetitorKeywords.forEach((competitors, keyword) => {
-    const evaluation = evaluateKeyword(keyword, config);
+    const evaluation = evaluateKeyword(keyword, config, inScopeConcepts, demandThemes);
     const theme = assignTheme(keyword, config);
     const scope = classifyKeywordScope(keyword, inScopeConcepts, demandThemes);
     
     // Calculate Score (Fix 4)
     const intentWeight = getIntentWeight(keyword);
     // Severity: more competitors rank for it, higher the gap
-    const gapSeverity = competitors.length / directCompetitors.length;
+    const gapSeverity = competitors.length / (directCompetitors.length || 1);
     // Fit: in_scope = 1.0, borderline = 0.5, out_of_scope = 0.1
     const brandFit = scope.scope_status === "in_scope" ? 1.0 : (scope.scope_status === "borderline" ? 0.5 : 0.1);
     
