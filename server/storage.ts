@@ -1402,13 +1402,13 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime());
   }
 
-  async getLatestMasterReport(configurationId: number): Promise<DbMasterReport | null> {
+  async getLatestMasterReport(configurationId: number): Promise<DbMasterReport | undefined> {
     const reports = await this.getMasterReportsByConfiguration(configurationId);
-    return reports[0] || null;
+    return reports[0] || undefined;
   }
 
-  async getMasterReportById(id: string): Promise<DbMasterReport | null> {
-    return this.masterReports.get(id) || null;
+  async getMasterReportById(id: string): Promise<DbMasterReport | undefined> {
+    return this.masterReports.get(id) || undefined;
   }
 
   // ============================================
