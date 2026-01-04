@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { z } from "zod";
-import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports, brands, contexts } from "@shared/schema";
+import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports, brands, contexts } from "../shared/schema";
 import { eq, and, desc, max, isNull } from "drizzle-orm";
 import type {
   Brand,
@@ -21,10 +21,12 @@ import type {
   InsertContext,
   ExecReportRecord,
   InsertMasterReport,
-} from "@shared/schema";
+  DbExecReport,
+  DbMasterReport,
+} from "../shared/schema";
 
 // Re-export database types for use in other modules
-export type { DbExecReport, DbMasterReport } from "@shared/schema";
+export type { DbExecReport, DbMasterReport } from "../shared/schema";
 
 // Schema validation for report data
 const moduleOutputSchema = z.object({

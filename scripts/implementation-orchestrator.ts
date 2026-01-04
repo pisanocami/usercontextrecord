@@ -806,31 +806,31 @@ class ImplementationOrchestrator {
   private async rolloutToTeam(): Promise<void> {
     console.log('👥 Rolling out to internal team...');
     // Enable for team members
-    await new Promise(resolve => setTimeout(resolve, 14400000)); // 4 hours
+    await new Promise(resolve => setTimeout(resolve, 5000)); // 5 seconds for dev
   }
 
   private async rolloutTo5Percent(): Promise<void> {
     console.log('📈 Rolling out to 5% of users...');
     // Enable for 5% of users
-    await new Promise(resolve => setTimeout(resolve, 28800000)); // 8 hours
+    await new Promise(resolve => setTimeout(resolve, 8000)); // 8 seconds for dev
   }
 
   private async rolloutTo25Percent(): Promise<void> {
     console.log('📊 Rolling out to 25% of users...');
     // Enable for 25% of users
-    await new Promise(resolve => setTimeout(resolve, 43200000)); // 12 hours
+    await new Promise(resolve => setTimeout(resolve, 12000)); // 12 seconds for dev
   }
 
   private async fullRollout(): Promise<void> {
     console.log('🎉 Full rollout to all users...');
     // Enable for all users
-    await new Promise(resolve => setTimeout(resolve, 86400000)); // 24 hours
+    await new Promise(resolve => setTimeout(resolve, 15000)); // 15 seconds for dev
   }
 
   private async monitorProduction(): Promise<void> {
     console.log('👀 Monitoring production...');
     // Monitor system health
-    await new Promise(resolve => setTimeout(resolve, 172800000)); // 48 hours
+    await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds for dev
   }
 
   private async backupOldTables(): Promise<void> {
