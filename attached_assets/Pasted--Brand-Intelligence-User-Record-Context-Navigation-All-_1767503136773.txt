@@ -1,0 +1,300 @@
+
+Brand Intelligence
+User Record Context
+Navigation
+
+All Contexts
+
+New Context
+Tools
+
+Bulk Generation
+Context Sections
+
+Brand Context
+
+Category Definition
+
+Competitive Set
+
+Demand Definition
+
+Strategic Intent
+
+Channel Context
+
+Negative Scope
+
+Governance
+Not Validated
+Toggle Sidebar
+
+
+Honeywell International
+Needs Review
+honeywell.com
+87%
+(High Confidence)
+Approve & Lock
+Configurations
+Honeywell International
+Quick Start with AI
+Generate a random Fortune 500 brand with real company data
+
+Generate Fortune 500
+Ready to Lock
+4/4 complete
+Brand name set
+Competitors approved
+Seed terms defined
+Exclusions defined
+Confidence ≥ 80%
+What We Are
+Complete
+Brand identity and market position
+
+
+Brand Name
+Honeywell International
+Domain
+honeywell.com
+Industry
+Diversified Technology & Manufacturing
+Business Model
+B2B
+Target Market
+Global enterprises, governments, and original equipment manufacturers (OEMs) across aerospace, building automation, industrial process control, and advanced materials sectors seeking integrated solutions for safety, efficiency, and sustainability.
+Revenue Band
+$30B - $40B
+Primary Geography
+US
+EU
+APAC
+LATAM
+Fence (Non-Negotiables)
+15 exclusions
+15 items excluded from all AI analysis
+
+Hard pre-filter: Items listed here are rejected before any analysis. Keyword expansion, competitor suggestions, SERP scraping - nothing can override these boundaries.
+
+Excluded Categories
+3
+Consumer Electronics
+
+Basic Commodities Trading
+
+Retail Home Improvement Supplies
+
+Add category...
+
+Excluded Keywords
+3
+DIY smart home
+
+cheap industrial parts
+
+consumer thermostat reviews
+
+Add keyword...
+
+Excluded Use Cases
+3
+Small business IT support
+
+individual vehicle maintenance
+
+personal home security systems (non-commercial)
+
+Add use case...
+
+Excluded Competitors
+0
+Add competitor...
+
+Enforcement Rules
+Hard Exclusion
+
+AI Suggestions
+
+Require Override
+
+Competitor Set
+6 approved
+6 approved, 0 pending review
+
+
+Tier and approve each competitor. Size mismatches are flagged for review.
+
+Add
+Direct (4)
+
+Siemens AG
+Direct
+Approved
+AI
+Similarity
+70%
+SERP
+50%
+Size
+60%
+siemens.com
+$70B - $80B
+Direct competitor in industrial automation, smart infrastructure, building technologies, and digital industrial software.
+
+
+General Electric (GE Aerospace, GE Vernova)
+Direct
+Approved
+AI
+Similarity
+70%
+SERP
+50%
+Size
+60%
+ge.com
+$60B - $70B
+Key competitor in aerospace propulsion, power generation, and various industrial solutions, particularly in the aerospace segment.
+
+
+Johnson Controls International
+Direct
+Approved
+AI
+Similarity
+70%
+SERP
+50%
+Size
+60%
+johnsoncontrols.com
+$25B - $30B
+Primary competitor in building technologies, HVAC systems, fire & security, and building management solutions.
+
+
+Raytheon Technologies (RTX)
+Direct
+Approved
+AI
+Similarity
+70%
+SERP
+50%
+Size
+60%
+rtx.com
+$60B - $70B
+Major competitor in the aerospace and defense sector, offering similar avionics, aircraft systems, and air traffic management solutions.
+
+Adjacent (2)
+
+Emerson Electric Co.
+Adjacent
+Approved
+AI
+Similarity
+70%
+SERP
+50%
+Size
+60%
+emerson.com
+$15B - $20B
+Competitor in process automation, industrial software, and some commercial/residential solutions, particularly within Honeywell's Performance Materials and Technologies segment.
+
+
+3M Company
+Adjacent
+Approved
+AI
+Similarity
+70%
+SERP
+50%
+Size
+60%
+3m.com
+$30B - $35B
+Broader industrial competitor, overlaps in safety and personal protective equipment, advanced materials, and some industrial solutions.
+
+Demand Definition
+Configured
+5 brand terms, 13 non-brand terms
+
+
+Brand Keywords
+Generate with AI
+Seed terms for brand-related keyword expansion
+
+Seed Terms
+5
+Honeywell
+Honeywell Aerospace
+Honeywell Building Technologies
+Honeywell Forge
+Honeywell Solstice
+Add term...
+
+Non-Brand Keywords
+Category Terms
+7
+industrial automation solutions
+building management systems
+aerospace avionics
+process control systems
+specialty chemicals
+personal protective equipment
+connected industrial IoT
+Add category...
+
+Problem Terms
+6
+industrial cybersecurity solutions
+energy efficiency for buildings
+sustainable aviation fuel technologies
+supply chain optimization software
+operational technology (OT) security
+advanced materials for manufacturing
+Add problem...
+
+Channel Context
+Paid active
+Marketing investment levels
+
+Configure your marketing channel investment levels to help AI understand your strategy context.
+
+Paid Media
+Active
+
+SEO Investment
+
+High
+Marketplace Dependence
+
+Low
+Current settings:
+Paid: Active
+SEO: high
+Marketplace: low
+Governance & Metadata
+Not CMO Safe
+Overall Score
+87% (high)
+Last Updated
+Jan 3, 2026 21:30
+Regenerations
+0 / 1
+Auto-approve Threshold
+80%
+Quality Breakdown:
+Completeness
+100%
+Competitor Conf.
+100%
+Negative Strength
+100%
+Evidence Coverage
+33%
+Last saved 1:18:36
+Save Context
