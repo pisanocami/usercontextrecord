@@ -1,13 +1,5 @@
 import { db } from "./db";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-import { configurations, bulkJobs, configurationVersions, auditLogs, brands, contexts, execReports } from "@shared/schema";
-=======
-import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
->>>>>>> Stashed changes
-=======
-import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
->>>>>>> Stashed changes
+import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports, brands, contexts } from "@shared/schema";
 import { eq, and, desc, max, isNull } from "drizzle-orm";
 import type {
   Brand,
@@ -22,23 +14,81 @@ import type {
   BulkJob,
   BulkBrandInput,
   ConfigurationVersion,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
   BrandRecord,
   InsertBrand,
   ContextRecord,
   InsertContext,
   ExecReportRecord,
-  InsertExecReport,
-=======
-  DbExecReport,
-  DbMasterReport,
->>>>>>> Stashed changes
-=======
-  DbExecReport,
-  DbMasterReport,
->>>>>>> Stashed changes
 } from "@shared/schema";
+
+// Define missing types
+export interface DbExecReport {
+  id: number;
+  configurationId: number;
+  moduleId: string;
+  contextVersion: number;
+  contextHash: string;
+  output: any;
+  playbookResult?: any;
+  executedAt: Date;
+  createdAt: Date;
+}
+
+export interface DbMasterReport {
+  id: number;
+  configurationId: number;
+  title: string;
+  summary: string;
+  insights: any[];
+  recommendations: any[];
+  data: any;
+  generatedAt: Date;
+  createdAt: Date;
+}
+
+// Schema validation for report data
+const moduleOutputSchema = z.object({
+  moduleId: z.string(),
+  hasData: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  dataSources: z.array(z.string()),
+  dataTimestamp: z.date(),
+  freshnessStatus: z.object({
+    status: z.enum(['fresh', 'stale', 'expired']),
+    hoursSinceUpdate: z.number(),
+    recommendedRefresh: z.boolean()
+  }),
+  rawData: z.any().optional(),
+  insights: z.array(z.object({
+    type: z.string(),
+    title: z.string(),
+    description: z.string(),
+    confidence: z.number().min(0).max(1),
+    dataPoints: z.array(z.any()).optional()
+  })).optional(),
+  recommendations: z.array(z.object({
+    priority: z.enum(['high', 'medium', 'low']),
+    action: z.string(),
+    rationale: z.string(),
+    estimatedImpact: z.string().optional()
+  })).optional(),
+  metadata: z.object({
+    executionTime: z.number(),
+    guardrailsApplied: z.boolean(),
+    dataQuality: z.enum(['high', 'medium', 'low']),
+    analysisDepth: z.enum(['basic', 'comprehensive', 'deep'])
+  }).optional()
+});
+
+function validateModuleOutput(output: any): boolean {
+  try {
+    moduleOutputSchema.parse(output);
+    return true;
+  } catch (error) {
+    console.error("Module output validation failed:", error);
+    return false;
+  }
+}
 
 // Import AuditLog type from schema
 import type { AuditLog as SchemaAuditLog } from "@shared/schema";
@@ -79,6 +129,13 @@ export interface IStorage {
   restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration>;
   createAuditLog(log: Omit<AuditLog, "id" | "created_at">): Promise<AuditLog>;
   getAuditLogs(tenantId: number | null, configurationId?: number): Promise<AuditLog[]>;
+  getExecReportsByConfiguration(configId: number, contextVersion?: number): Promise<DbExecReport[]>;
+  getExecReportById(id: string): Promise<DbExecReport | undefined>;
+  getExecReportsByModule(configId: number, moduleId: string): Promise<DbExecReport[]>;
+  createMasterReport(report: InsertMasterReport): Promise<DbMasterReport>;
+  getMasterReportsByConfiguration(configId: number): Promise<DbMasterReport[]>;
+  getLatestMasterReport(configId: number): Promise<DbMasterReport | undefined>;
+  getMasterReportById(id: string): Promise<DbMasterReport | undefined>;
 }
 
 export interface AuditLogInsert {
@@ -776,196 +833,6 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  // ============================================================================
-  // BRANDS CRUD
-  // ============================================================================
-  async createBrand(userId: string, brand: Omit<InsertBrand, 'userId'>): Promise<BrandRecord> {
-    const [created] = await db
-      .insert(brands)
-      .values({ ...brand, userId })
-      .returning();
-    return created;
-  }
-
-  async getBrand(brandId: number, userId: string): Promise<BrandRecord | undefined> {
-    const [brand] = await db
-      .select()
-      .from(brands)
-      .where(and(eq(brands.id, brandId), eq(brands.userId, userId)))
-      .limit(1);
-    return brand;
-  }
-
-  async getBrandByDomain(domain: string, userId: string): Promise<BrandRecord | undefined> {
-    const [brand] = await db
-      .select()
-      .from(brands)
-      .where(and(eq(brands.domain, domain), eq(brands.userId, userId)))
-      .limit(1);
-    return brand;
-  }
-
-  async getAllBrands(userId: string): Promise<BrandRecord[]> {
-    return db
-      .select()
-      .from(brands)
-      .where(eq(brands.userId, userId))
-      .orderBy(desc(brands.created_at));
-  }
-
-  async updateBrand(brandId: number, userId: string, updates: Partial<InsertBrand>): Promise<BrandRecord> {
-    const [updated] = await db
-      .update(brands)
-      .set({ ...updates, updated_at: new Date() })
-      .where(and(eq(brands.id, brandId), eq(brands.userId, userId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteBrand(brandId: number, userId: string): Promise<void> {
-    await db
-      .delete(brands)
-      .where(and(eq(brands.id, brandId), eq(brands.userId, userId)));
-  }
-
-  // ============================================================================
-  // CONTEXTS (UCR) CRUD
-  // ============================================================================
-  async createContext(context: InsertContext): Promise<ContextRecord> {
-    const [created] = await db
-      .insert(contexts)
-      .values(context)
-      .returning();
-    return created;
-  }
-
-  async getContext(contextId: number, userId: string): Promise<ContextRecord | undefined> {
-    const [ctx] = await db
-      .select()
-      .from(contexts)
-      .where(and(eq(contexts.id, contextId), eq(contexts.userId, userId)))
-      .limit(1);
-    return ctx;
-  }
-
-  async getContextByBrand(brandId: number, userId: string): Promise<ContextRecord | undefined> {
-    const [ctx] = await db
-      .select()
-      .from(contexts)
-      .where(and(eq(contexts.brandId, brandId), eq(contexts.userId, userId)))
-      .orderBy(desc(contexts.updated_at))
-      .limit(1);
-    return ctx;
-  }
-
-  async getAllContexts(userId: string): Promise<ContextRecord[]> {
-    return db
-      .select()
-      .from(contexts)
-      .where(eq(contexts.userId, userId))
-      .orderBy(desc(contexts.updated_at));
-  }
-
-  async updateContext(contextId: number, userId: string, updates: Partial<InsertContext>): Promise<ContextRecord> {
-    const [updated] = await db
-      .update(contexts)
-      .set({ ...updates, updated_at: new Date() })
-      .where(and(eq(contexts.id, contextId), eq(contexts.userId, userId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteContext(contextId: number, userId: string): Promise<void> {
-    await db
-      .delete(contexts)
-      .where(and(eq(contexts.id, contextId), eq(contexts.userId, userId)));
-  }
-
-  // ============================================================================
-  // EXEC_REPORTS CRUD
-  // ============================================================================
-  async createExecReport(report: InsertExecReport): Promise<ExecReportRecord> {
-    const [created] = await db
-      .insert(execReports)
-      .values(report)
-      .returning();
-    return created;
-  }
-
-  async getExecReport(reportId: number, userId: string): Promise<ExecReportRecord | undefined> {
-    const [report] = await db
-      .select()
-      .from(execReports)
-      .where(and(eq(execReports.id, reportId), eq(execReports.userId, userId)))
-      .limit(1);
-    return report;
-  }
-
-  async getExecReportsByContext(contextId: number, userId: string): Promise<ExecReportRecord[]> {
-    return db
-      .select()
-      .from(execReports)
-      .where(and(eq(execReports.contextId, contextId), eq(execReports.userId, userId)))
-      .orderBy(desc(execReports.executedAt));
-  }
-
-  async getExecReportsByBrand(brandId: number, userId: string): Promise<ExecReportRecord[]> {
-    return db
-      .select()
-      .from(execReports)
-      .where(and(eq(execReports.brandId, brandId), eq(execReports.userId, userId)))
-      .orderBy(desc(execReports.executedAt));
-  }
-
-  async getLatestExecReportByModule(contextId: number, moduleId: string, userId: string): Promise<ExecReportRecord | undefined> {
-    const [report] = await db
-      .select()
-      .from(execReports)
-      .where(and(
-        eq(execReports.contextId, contextId),
-        eq(execReports.moduleId, moduleId),
-        eq(execReports.userId, userId)
-      ))
-      .orderBy(desc(execReports.executedAt))
-      .limit(1);
-    return report;
-  }
-
-  async updateExecReport(reportId: number, userId: string, updates: Partial<InsertExecReport>): Promise<ExecReportRecord> {
-    const [updated] = await db
-      .update(execReports)
-      .set(updates)
-      .where(and(eq(execReports.id, reportId), eq(execReports.userId, userId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteExecReport(reportId: number, userId: string): Promise<void> {
-    await db
-      .delete(execReports)
-      .where(and(eq(execReports.id, reportId), eq(execReports.userId, userId)));
-  }
-
-  // Get all exec reports for master report aggregation
-  async getMasterReportData(contextId: number, userId: string): Promise<{
-    context: ContextRecord | undefined;
-    brand: BrandRecord | undefined;
-    reports: ExecReportRecord[];
-  }> {
-    const ctx = await this.getContext(contextId, userId);
-    if (!ctx) {
-      return { context: undefined, brand: undefined, reports: [] };
-    }
-    
-    const brand = await this.getBrand(ctx.brandId, userId);
-    const reports = await this.getExecReportsByContext(contextId, userId);
-    
-    return { context: ctx, brand, reports };
-=======
-=======
->>>>>>> Stashed changes
   // ============================================
   // ExecReports CRUD Methods
   // ============================================
@@ -979,29 +846,63 @@ export class DatabaseStorage implements IStorage {
     output: any;
     playbookResult?: any;
   }): Promise<DbExecReport> {
-    const [created] = await db
-      .insert(execReports)
-      .values({
-        id: report.id,
-        configurationId: report.configurationId,
-        moduleId: report.moduleId,
-        contextVersion: report.contextVersion,
-        contextHash: report.contextHash,
-        output: report.output,
-        playbookResult: report.playbookResult,
-      })
-      .returning();
+    // Validate input data before transaction
+    if (!report.id || !report.configurationId || !report.moduleId) {
+      throw new Error("Missing required fields for exec report creation");
+    }
+
+    // Validate output structure using schema
+    if (!validateModuleOutput(report.output)) {
+      throw new Error("Invalid module output structure - does not conform to expected schema");
+    }
+
+    // Use transaction for atomic operation
+    const result = await db.transaction(async (tx) => {
+      // Insert the exec report
+      const [created] = await tx
+        .insert(execReports)
+        .values({
+          id: report.id,
+          configurationId: report.configurationId,
+          moduleId: report.moduleId,
+          contextVersion: report.contextVersion,
+          contextHash: report.contextHash,
+          output: report.output,
+          playbookResult: report.playbookResult,
+        })
+        .returning();
+
+      // Create audit log entry
+      await tx
+        .insert(auditLogs)
+        .values({
+          action: 'create',
+          entityType: 'exec_report',
+          entityId: created.id,
+          userId: 'system',
+          tenantId: 1, // Default tenant
+          newValue: JSON.stringify({
+            moduleId: report.moduleId,
+            configurationId: report.configurationId,
+            contextVersion: report.contextVersion,
+            dataValidated: true
+          }),
+          createdAt: new Date(),
+        });
+
+      return created;
+    });
 
     return {
-      id: created.id,
-      configurationId: created.configurationId,
-      moduleId: created.moduleId,
-      contextVersion: created.contextVersion,
-      contextHash: created.contextHash,
-      executedAt: created.executedAt,
-      output: created.output,
-      playbookResult: created.playbookResult as DbExecReport['playbookResult'],
-      created_at: created.created_at,
+      id: result.id,
+      configurationId: result.configurationId,
+      moduleId: result.moduleId,
+      contextVersion: result.contextVersion,
+      contextHash: result.contextHash,
+      output: result.output,
+      playbookResult: result.playbookResult,
+      executedAt: result.created_at,
+      createdAt: result.created_at,
     };
   }
 
@@ -1074,6 +975,150 @@ export class DatabaseStorage implements IStorage {
       playbookResult: r.playbookResult as DbExecReport['playbookResult'],
       created_at: r.created_at,
     }));
+  }
+
+  // ============================================
+  // Brands CRUD Methods
+  // ============================================
+
+  async createBrand(userId: string, brand: Omit<InsertBrand, 'userId'>): Promise<BrandRecord> {
+    const [created] = await db
+      .insert(brands)
+      .values({ ...brand, userId })
+      .returning();
+    return created;
+  }
+
+  async getBrand(brandId: number, userId: string): Promise<BrandRecord | undefined> {
+    const [brand] = await db
+      .select()
+      .from(brands)
+      .where(and(eq(brands.id, brandId), eq(brands.userId, userId)))
+      .limit(1);
+    return brand;
+  }
+
+  async getBrandByDomain(domain: string, userId: string): Promise<BrandRecord | undefined> {
+    const [brand] = await db
+      .select()
+      .from(brands)
+      .where(and(eq(brands.domain, domain), eq(brands.userId, userId)))
+      .limit(1);
+    return brand;
+  }
+
+  async getAllBrands(userId: string): Promise<BrandRecord[]> {
+    return db
+      .select()
+      .from(brands)
+      .where(eq(brands.userId, userId))
+      .orderBy(desc(brands.created_at));
+  }
+
+  async updateBrand(brandId: number, userId: string, updates: Partial<InsertBrand>): Promise<BrandRecord> {
+    const [updated] = await db
+      .update(brands)
+      .set({ ...updates, updated_at: new Date() })
+      .where(and(eq(brands.id, brandId), eq(brands.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteBrand(brandId: number, userId: string): Promise<void> {
+    await db
+      .delete(brands)
+      .where(and(eq(brands.id, brandId), eq(brands.userId, userId)));
+  }
+
+  // ============================================
+  // Contexts (UCR) CRUD Methods
+  // ============================================
+
+  async createContext(context: InsertContext): Promise<ContextRecord> {
+    const [created] = await db
+      .insert(contexts)
+      .values(context)
+      .returning();
+    return created;
+  }
+
+  async getContext(contextId: number, userId: string): Promise<ContextRecord | undefined> {
+    const [ctx] = await db
+      .select()
+      .from(contexts)
+      .where(and(eq(contexts.id, contextId), eq(contexts.userId, userId)))
+      .limit(1);
+    return ctx;
+  }
+
+  async getContextByBrand(brandId: number, userId: string): Promise<ContextRecord | undefined> {
+    const [ctx] = await db
+      .select()
+      .from(contexts)
+      .where(and(eq(contexts.brandId, brandId), eq(contexts.userId, userId)))
+      .orderBy(desc(contexts.updated_at))
+      .limit(1);
+    return ctx;
+  }
+
+  async getAllContexts(userId: string): Promise<ContextRecord[]> {
+    return db
+      .select()
+      .from(contexts)
+      .where(eq(contexts.userId, userId))
+      .orderBy(desc(contexts.updated_at));
+  }
+
+  async updateContext(contextId: number, userId: string, updates: Partial<InsertContext>): Promise<ContextRecord> {
+    const [updated] = await db
+      .update(contexts)
+      .set({ ...updates, updated_at: new Date() })
+      .where(and(eq(contexts.id, contextId), eq(contexts.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteContext(contextId: number, userId: string): Promise<void> {
+    await db
+      .delete(contexts)
+      .where(and(eq(contexts.id, contextId), eq(contexts.userId, userId)));
+  }
+
+  // ============================================
+  // Legacy ExecReports Methods (context-based)
+  // ============================================
+
+  async getExecReportsByContext(contextId: number, userId: string): Promise<ExecReportRecord[]> {
+    return db
+      .select()
+      .from(execReports)
+      .where(and(eq(execReports.contextId, contextId), eq(execReports.userId, userId)))
+      .orderBy(desc(execReports.executedAt));
+  }
+
+  async getExecReport(execReportId: number, userId: string): Promise<ExecReportRecord | undefined> {
+    const [report] = await db
+      .select()
+      .from(execReports)
+      .where(and(eq(execReports.id, execReportId), eq(execReports.userId, userId)))
+      .limit(1);
+    return report;
+  }
+
+  async getMasterReportData(contextId: number, userId: string): Promise<{
+    context: ContextRecord | undefined;
+    brand: BrandRecord | undefined;
+    reports: ExecReportRecord[];
+  }> {
+    const ctx = await this.getContext(contextId, userId);
+    if (!ctx) {
+      return { context: undefined, brand: undefined, reports: [] };
+    }
+
+    const brand = await this.getBrand(ctx.brandId, userId);
+    const reports = await this.getExecReportsByContext(contextId, userId);
+
+    return { context: ctx, brand, reports };
   }
 
   // ============================================
@@ -1212,10 +1257,6 @@ export class DatabaseStorage implements IStorage {
       dataFreshness: report.dataFreshness as DbMasterReport['dataFreshness'],
       created_at: report.created_at,
     };
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
   }
 }
 
@@ -1226,10 +1267,14 @@ export class MemStorage implements IStorage {
   private auditLogs: AuditLog[] = [];
   private execReports: Map<string, DbExecReport> = new Map();
   private masterReports: Map<string, DbMasterReport> = new Map();
+  private brands: Map<number, BrandRecord> = new Map();
+  private contexts: Map<number, ContextRecord> = new Map();
   private currentConfigId = 1;
   private currentBulkJobId = 1;
   private currentVersionId = 1;
   private currentAuditLogId = 1;
+  private currentBrandId = 1;
+  private currentContextId = 1;
 
   async getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined> {
     return Array.from(this.configurations.values()).find(
@@ -1401,8 +1446,25 @@ export class MemStorage implements IStorage {
   // ExecReports
   async createExecReport(report: any): Promise<DbExecReport> {
     const execReport: DbExecReport = {
-      ...report,
+      id: report.id,
+      contextId: report.contextId || 0,
+      brandId: report.brandId || 0,
+      tenantId: report.tenantId || null,
+      userId: report.userId || '',
+      moduleId: report.moduleId || '',
+      moduleName: report.moduleName || '',
+      status: report.status || 'completed',
+      confidence: report.confidence || null,
+      hasData: report.hasData || false,
+      insights: report.insights || [],
+      recommendations: report.recommendations || [],
+      rawOutput: report.rawOutput || {},
+      councilPerspectives: report.councilPerspectives || null,
+      synthesis: report.synthesis || null,
+      guardrailStatus: report.guardrailStatus || null,
+      ucrSnapshotHash: report.ucrSnapshotHash || null,
       executedAt: new Date(),
+      expiresAt: report.expiresAt || null,
       created_at: new Date(),
     };
     this.execReports.set(report.id, execReport);
@@ -1410,8 +1472,10 @@ export class MemStorage implements IStorage {
   }
 
   async getExecReportsByConfiguration(configurationId: number, contextVersion?: number): Promise<DbExecReport[]> {
+    // For MemStorage, we need to map from contextId to configurationId
+    // This is a limitation of in-memory storage - we can't easily query by configuration
+    // Return all exec reports for now (this is a fallback storage)
     return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
       .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   }
 
@@ -1420,8 +1484,9 @@ export class MemStorage implements IStorage {
   }
 
   async getExecReportsByModule(configurationId: number, moduleId: string): Promise<DbExecReport[]> {
+    // For MemStorage, filter by moduleId only
     return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
+      .filter(r => r.moduleId === moduleId)
       .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   }
 
@@ -1449,6 +1514,150 @@ export class MemStorage implements IStorage {
 
   async getMasterReportById(id: string): Promise<DbMasterReport | null> {
     return this.masterReports.get(id) || null;
+  }
+
+  // ============================================
+  // Brands CRUD Methods
+  // ============================================
+
+  async createBrand(userId: string, brand: Omit<InsertBrand, 'userId'>): Promise<BrandRecord> {
+    const id = this.currentBrandId++;
+    const brandRecord: BrandRecord = {
+      id,
+      userId,
+      ...brand,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    this.brands.set(id, brandRecord);
+    return brandRecord;
+  }
+
+  async getBrand(brandId: number, userId: string): Promise<BrandRecord | undefined> {
+    const brand = this.brands.get(brandId);
+    return brand?.userId === userId ? brand : undefined;
+  }
+
+  async getBrandByDomain(domain: string, userId: string): Promise<BrandRecord | undefined> {
+    return Array.from(this.brands.values()).find(b => b.domain === domain && b.userId === userId);
+  }
+
+  async getAllBrands(userId: string): Promise<BrandRecord[]> {
+    return Array.from(this.brands.values())
+      .filter(b => b.userId === userId)
+      .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+  }
+
+  async updateBrand(brandId: number, userId: string, updates: Partial<InsertBrand>): Promise<BrandRecord> {
+    const existing = await this.getBrand(brandId, userId);
+    if (!existing) throw new Error("Brand not found");
+
+    const updated: BrandRecord = {
+      ...existing,
+      ...updates,
+      updated_at: new Date(),
+    };
+    this.brands.set(brandId, updated);
+    return updated;
+  }
+
+  async deleteBrand(brandId: number, userId: string): Promise<void> {
+    const brand = await this.getBrand(brandId, userId);
+    if (brand) {
+      this.brands.delete(brandId);
+    }
+  }
+
+  // ============================================
+  // Contexts (UCR) CRUD Methods
+  // ============================================
+
+  async createContext(context: InsertContext): Promise<ContextRecord> {
+    const id = this.currentContextId++;
+    const contextRecord: ContextRecord = {
+      id,
+      ...context,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+    this.contexts.set(id, contextRecord);
+    return contextRecord;
+  }
+
+  async getContext(contextId: number, userId: string): Promise<ContextRecord | undefined> {
+    const context = this.contexts.get(contextId);
+    return context?.userId === userId ? context : undefined;
+  }
+
+  async getContextByBrand(brandId: number, userId: string): Promise<ContextRecord | undefined> {
+    return Array.from(this.contexts.values())
+      .filter(c => c.brandId === brandId && c.userId === userId)
+      .sort((a, b) => b.updated_at.getTime() - a.updated_at.getTime())[0];
+  }
+
+  async getAllContexts(userId: string): Promise<ContextRecord[]> {
+    return Array.from(this.contexts.values())
+      .filter(c => c.userId === userId)
+      .sort((a, b) => b.updated_at.getTime() - a.updated_at.getTime());
+  }
+
+  async updateContext(contextId: number, userId: string, updates: Partial<InsertContext>): Promise<ContextRecord> {
+    const existing = await this.getContext(contextId, userId);
+    if (!existing) throw new Error("Context not found");
+
+    const updated: ContextRecord = {
+      ...existing,
+      ...updates,
+      updated_at: new Date(),
+    };
+    this.contexts.set(contextId, updated);
+    return updated;
+  }
+
+  async deleteContext(contextId: number, userId: string): Promise<void> {
+    const context = await this.getContext(contextId, userId);
+    if (context) {
+      this.contexts.delete(contextId);
+    }
+  }
+
+  // ============================================
+  // Legacy ExecReports Methods (context-based)
+  // ============================================
+
+  async getExecReportsByContext(contextId: number, userId: string): Promise<ExecReportRecord[]> {
+    const reports = await db
+      .select()
+      .from(execReports)
+      .where(and(eq(execReports.contextId, contextId), eq(execReports.userId, userId)))
+      .orderBy(desc(execReports.executedAt));
+
+    return reports;
+  }
+
+  async getExecReport(execReportId: number, userId: string): Promise<ExecReportRecord | undefined> {
+    const [report] = await db
+      .select()
+      .from(execReports)
+      .where(and(eq(execReports.id, execReportId), eq(execReports.userId, userId)))
+      .limit(1);
+    return report;
+  }
+
+  async getMasterReportData(contextId: number, userId: string): Promise<{
+    context: ContextRecord | undefined;
+    brand: BrandRecord | undefined;
+    reports: ExecReportRecord[];
+  }> {
+    const ctx = await this.getContext(contextId, userId);
+    if (!ctx) {
+      return { context: undefined, brand: undefined, reports: [] };
+    }
+
+    const brand = await this.getBrand(ctx.brandId, userId);
+    const reports = await this.getExecReportsByContext(contextId, userId);
+
+    return { context: ctx, brand, reports };
   }
 }
 

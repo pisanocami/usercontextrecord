@@ -1,13 +1,5 @@
 import { z } from "zod";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, real, index } from "drizzle-orm/pg-core";
-=======
-import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, index } from "drizzle-orm/pg-core";
->>>>>>> Stashed changes
-=======
-import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, index } from "drizzle-orm/pg-core";
->>>>>>> Stashed changes
 import { sql } from "drizzle-orm";
 import { users } from "./models/auth";
 
@@ -16,12 +8,21 @@ export * from "./models/auth";
 export * from "./models/chat";
 export * from "./models/tenant";
 
+// Helper for case-insensitive enums
+const caseInsensitiveEnum = (values: [string, ...string[]]) => {
+  const lowercaseValues = values.map(v => v.toLowerCase()) as [string, ...string[]];
+  return z.preprocess(
+    (val) => (typeof val === "string" ? val.toLowerCase() : val),
+    z.enum(lowercaseValues)
+  );
+};
+
 // ============================================================================
 // BRANDS TABLE - Normalized brand identity data
 // ============================================================================
 export const brands = pgTable("brands", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   domain: varchar("domain", { length: 255 }).notNull(),
   name: text("name").notNull(),
   industry: text("industry"),
@@ -29,8 +30,8 @@ export const brands = pgTable("brands", {
   primaryGeography: jsonb("primary_geography").default([]),
   revenueBand: text("revenue_band"),
   targetMarket: text("target_market"),
-  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_brands_user").on(table.userId),
   index("idx_brands_domain").on(table.domain),
@@ -42,9 +43,9 @@ export const brands = pgTable("brands", {
 // ============================================================================
 export const contexts = pgTable("contexts", {
   id: serial("id").primaryKey(),
-  brandId: integer("brand_id").notNull(),
+  brandId: integer("brand_id").notNull().references(() => brands.id, { onDelete: "cascade" }),
   tenantId: integer("tenant_id"),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   name: text("name").notNull().default("Default Context"),
   // Section A: Brand (reference to brands table, but also JSONB for backward compat)
   brand: jsonb("brand").notNull().default({}),
@@ -67,8 +68,8 @@ export const contexts = pgTable("contexts", {
   isVerified: boolean("is_verified").default(false),
   verifiedAt: timestamp("verified_at"),
   verifiedBy: varchar("verified_by"),
-  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_contexts_brand").on(table.brandId),
   index("idx_contexts_user").on(table.userId),
@@ -81,10 +82,10 @@ export const contexts = pgTable("contexts", {
 // ============================================================================
 export const execReports = pgTable("exec_reports", {
   id: serial("id").primaryKey(),
-  contextId: integer("context_id").notNull(),
-  brandId: integer("brand_id").notNull(),
+  contextId: integer("context_id").notNull().references(() => contexts.id, { onDelete: "cascade" }),
+  brandId: integer("brand_id").notNull().references(() => brands.id, { onDelete: "cascade" }),
   tenantId: integer("tenant_id"),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   moduleId: varchar("module_id", { length: 100 }).notNull(),
   moduleName: text("module_name").notNull(),
   // Execution metadata
@@ -103,8 +104,9 @@ export const execReports = pgTable("exec_reports", {
   // UCR snapshot at execution time
   ucrSnapshotHash: varchar("ucr_snapshot_hash", { length: 64 }),
   // Timestamps
-  executedAt: timestamp("executed_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  executedAt: timestamp("executed_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_exec_reports_context").on(table.contextId),
   index("idx_exec_reports_brand").on(table.brandId),
@@ -234,7 +236,7 @@ export const brandSchema = z.object({
   name: z.string().default(""),
   domain: z.string().default(""),
   industry: z.string().default(""),
-  business_model: z.enum(["B2B", "DTC", "Marketplace", "Hybrid"]),
+  business_model: caseInsensitiveEnum(["b2b", "dtc", "marketplace", "hybrid"]),
   primary_geography: z.array(z.string()).default([]),
   revenue_band: z.string().default(""),
   target_market: z.string().default(""), // Country/market (US, EU, LATAM, etc.)
@@ -267,8 +269,8 @@ export const competitorEvidenceSchema = z.object({
 export const competitorEntrySchema = z.object({
   name: z.string(),
   domain: z.string().default(""),
-  tier: z.enum(["tier1", "tier2", "tier3"]).default("tier1"), // tier1=direct, tier2=adjacent, tier3=aspirational
-  status: z.enum(["approved", "rejected", "pending_review"]).default("pending_review"),
+  tier: caseInsensitiveEnum(["tier1", "tier2", "tier3"]).default("tier1"), // tier1=direct, tier2=adjacent, tier3=aspirational
+  status: caseInsensitiveEnum(["approved", "rejected", "pending_review"]).default("pending_review"),
   // Scoring metrics (0-100)
   similarity_score: z.number().min(0).max(100).default(50),
   serp_overlap: z.number().min(0).max(100).default(0), // % of shared keywords in SERPs
@@ -276,12 +278,12 @@ export const competitorEntrySchema = z.object({
   // Company size guardrails
   revenue_range: z.string().default(""), // e.g., "10M-50M"
   employee_count: z.string().default(""), // e.g., "50-200"
-  funding_stage: z.enum(["bootstrap", "seed", "series_a", "series_b", "series_c_plus", "public", "unknown"]).default("unknown"),
+  funding_stage: caseInsensitiveEnum(["bootstrap", "seed", "series_a", "series_b", "series_c_plus", "public", "unknown"]).default("unknown"),
   geo_overlap: z.array(z.string()).default([]), // Markets where they compete
   // Evidence pack
   evidence: competitorEvidenceSchema.default({}),
   // Metadata
-  added_by: z.enum(["ai", "human"]).default("ai"),
+  added_by: caseInsensitiveEnum(["ai", "human"]).default("ai"),
   added_at: z.string().default(""),
   rejected_reason: z.string().default(""), // If rejected, why
 });
@@ -316,13 +318,13 @@ export const demandDefinitionSchema = z.object({
 // Strategic Intent Schema - Phase 3 enhanced
 export const strategicIntentSchema = z.object({
   growth_priority: z.string().default(""),
-  risk_tolerance: z.enum(["low", "medium", "high"]),
+  risk_tolerance: caseInsensitiveEnum(["low", "medium", "high"]),
   primary_goal: z.string().default(""),
   secondary_goals: z.array(z.string()).default([]),
   avoid: z.array(z.string()).default([]),
   // Phase 3: Enhanced strategic fields
-  goal_type: z.enum(["roi", "volume", "authority", "awareness", "retention"]).default("roi"),
-  time_horizon: z.enum(["short", "medium", "long"]).default("medium"), // short=0-3mo, medium=3-12mo, long=12mo+
+  goal_type: caseInsensitiveEnum(["roi", "volume", "authority", "awareness", "retention"]).default("roi"),
+  time_horizon: caseInsensitiveEnum(["short", "medium", "long"]).default("medium"), // short=0-3mo, medium=3-12mo, long=12mo+
   constraint_flags: z.object({
     budget_constrained: z.boolean().default(false),
     resource_limited: z.boolean().default(false),
@@ -339,17 +341,17 @@ export const strategicIntentSchema = z.object({
 // Channel Context Schema
 export const channelContextSchema = z.object({
   paid_media_active: z.boolean(),
-  seo_investment_level: z.enum(["low", "medium", "high"]),
-  marketplace_dependence: z.enum(["low", "medium", "high"]),
+  seo_investment_level: caseInsensitiveEnum(["low", "medium", "high"]),
+  marketplace_dependence: caseInsensitiveEnum(["low", "medium", "high"]),
 });
 
 // Phase 3: Enhanced exclusion entry with match type and TTL
 export const exclusionEntrySchema = z.object({
   value: z.string(),
-  match_type: z.enum(["exact", "semantic"]).default("exact"),
-  semantic_sensitivity: z.enum(["low", "medium", "high"]).default("medium"), // Only for semantic match
+  match_type: caseInsensitiveEnum(["exact", "semantic"]).default("exact"),
+  semantic_sensitivity: caseInsensitiveEnum(["low", "medium", "high"]).default("medium"), // Only for semantic match
   expires_at: z.string().optional(), // ISO date for TTL, undefined = permanent
-  added_by: z.enum(["ai", "human"]).default("human"),
+  added_by: caseInsensitiveEnum(["ai", "human"]).default("human"),
   added_at: z.string().default(""),
   reason: z.string().default(""),
 });
@@ -357,9 +359,9 @@ export const exclusionEntrySchema = z.object({
 // Audit log entry for applied exclusions
 export const exclusionAuditEntrySchema = z.object({
   timestamp: z.string(),
-  action: z.enum(["applied", "overridden", "expired", "removed"]),
+  action: caseInsensitiveEnum(["applied", "overridden", "expired", "removed"]),
   exclusion_value: z.string(),
-  exclusion_type: z.enum(["category", "keyword", "use_case", "competitor"]),
+  exclusion_type: caseInsensitiveEnum(["category", "keyword", "use_case", "competitor"]),
   context: z.string().default(""), // What triggered it
   user_id: z.string().default(""),
 });
@@ -395,7 +397,7 @@ export const contextQualityScoreSchema = z.object({
   evidence_coverage: z.number().min(0).max(100).default(0), // % of competitors with evidence packs
   // Composite score
   overall: z.number().min(0).max(100).default(0),
-  grade: z.enum(["high", "medium", "low"]).default("low"),
+  grade: caseInsensitiveEnum(["high", "medium", "low"]).default("low"),
   // Breakdown notes for transparency
   breakdown: z.object({
     completeness_details: z.string().default(""),
@@ -445,7 +447,7 @@ export const governanceSchema = z.object({
     categories: z.array(z.string()),
   }),
   context_confidence: z.object({
-    level: z.enum(["high", "medium", "low"]),
+    level: caseInsensitiveEnum(["high", "medium", "low"]),
     notes: z.string(),
   }),
   last_reviewed: z.string(),
@@ -455,7 +457,7 @@ export const governanceSchema = z.object({
   // Phase 1: Validation & Versioning
   context_hash: z.string().default(""), // Deterministic fingerprint for reproducibility
   context_version: z.number().default(1), // Incrementing version number
-  validation_status: z.enum(["complete", "incomplete", "blocked", "needs_review"]).default("incomplete"),
+  validation_status: caseInsensitiveEnum(["complete", "incomplete", "blocked", "needs_review"]).default("incomplete"),
   human_verified: z.boolean().default(false),
   human_verified_at: z.string().optional(), // ISO date when human verified
   blocked_reasons: z.array(z.string()).default([]), // Why validation is blocked
@@ -605,70 +607,30 @@ export const masterReportSchema = z.object({
   }),
   modulesIncluded: z.array(z.string()),
   overallConfidence: z.number(),
-  dataFreshness: z.enum(['fresh', 'moderate', 'stale']),
+  dataFreshness: caseInsensitiveEnum(['fresh', 'moderate', 'stale']),
 });
-
-// Database tables for ExecReports
-export const execReports = pgTable("exec_reports", {
-  id: varchar("id").primaryKey(), // Generated by app or could use default(sql`gen_random_uuid()`)
-  configurationId: integer("configuration_id").notNull().references(() => configurations.id, { onDelete: "cascade" }),
-  moduleId: varchar("module_id").notNull(),
-  contextVersion: integer("context_version").notNull(),
-  contextHash: varchar("context_hash").notNull(),
-  executedAt: timestamp("executed_at").defaultNow().notNull(),
-  output: jsonb("output").notNull(),
-  playbookResult: jsonb("playbook_result"),
-  created_at: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("idx_exec_reports_config").on(table.configurationId),
-  index("idx_exec_reports_module").on(table.moduleId),
-  index("idx_exec_reports_hash").on(table.contextHash),
-]);
-
-// Database tables for MasterReports
-export const masterReports = pgTable("master_reports", {
-  id: varchar("id").primaryKey(),
-  configurationId: integer("configuration_id").notNull().references(() => configurations.id, { onDelete: "cascade" }),
-  contextVersion: integer("context_version").notNull(),
-  contextHash: varchar("context_hash").notNull(),
-  generatedAt: timestamp("generated_at").defaultNow().notNull(),
-  ucrSnapshot: jsonb("ucr_snapshot").notNull(),
-  execReportIds: jsonb("exec_report_ids").notNull(), // Array of exec report IDs
-  consolidatedInsights: jsonb("consolidated_insights").notNull(),
-  consolidatedRecommendations: jsonb("consolidated_recommendations").notNull(),
-  councilSynthesis: jsonb("council_synthesis").notNull(),
-  modulesIncluded: jsonb("modules_included").notNull(),
-  overallConfidence: integer("overall_confidence").notNull(),
-  dataFreshness: varchar("data_freshness").notNull(), // 'fresh' | 'moderate' | 'stale'
-  created_at: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("idx_master_reports_config").on(table.configurationId),
-  index("idx_master_reports_hash").on(table.contextHash),
-]);
-
-// Types for ExecReports
-export type ExecReport = z.infer<typeof execReportSchema>;
-export type InsertExecReport = Omit<ExecReport, 'executedAt'> & { executedAt?: Date };
-
-// Types for MasterReports  
-export type MasterReport = z.infer<typeof masterReportSchema>;
-export type InsertMasterReport = Omit<MasterReport, 'generatedAt'> & { generatedAt?: Date };
 
 // Database row types
 export interface DbExecReport {
-  id: string;
-  configurationId: number;
+  id: number;
+  contextId: number;
+  brandId: number;
+  tenantId: number | null;
+  userId: string;
   moduleId: string;
-  contextVersion: number;
-  contextHash: string;
+  moduleName: string;
+  status: string;
+  confidence: number | null;
+  hasData: boolean | null;
+  insights: any;
+  recommendations: any;
+  rawOutput: any;
+  councilPerspectives: any;
+  synthesis: any;
+  guardrailStatus: any;
+  ucrSnapshotHash: string | null;
   executedAt: Date;
-  output: any;
-  playbookResult?: {
-    insights: any[];
-    recommendations: any[];
-    deprioritized: string[];
-    councilPrompt: string;
-  };
+  expiresAt: Date | null;
   created_at: Date;
 }
 
@@ -832,7 +794,6 @@ export type InsertContext = typeof contexts.$inferInsert;
 // EXEC_REPORTS TYPES
 // ============================================================================
 export type ExecReportRecord = typeof execReports.$inferSelect;
-export type InsertExecReport = typeof execReports.$inferInsert;
 
 // Exec report status enum
 export const execReportStatuses = ["pending", "running", "completed", "failed", "expired"] as const;

@@ -13,6 +13,8 @@ interface BrandContextType {
   createBrand: (brandName: string, domain: string) => Promise<Configuration>;
   isCreating: boolean;
   refreshBrands: () => void;
+  generationResults?: { section: string; success: boolean; error?: string; attempts: number }[];
+  hasGenerationFailures: boolean;
 }
 
 const BrandContext = createContext<BrandContextType | null>(null);
@@ -42,6 +44,7 @@ function setStoredBrandId(tenantId: string, brandId: number | null) {
 export function BrandProvider({ children }: { children: React.ReactNode }) {
   const { currentTenant } = useTenant();
   const [activeBrandId, setActiveBrandIdState] = useState<number | null>(null);
+  const [generationResults, setGenerationResults] = useState<{ section: string; success: boolean; error?: string; attempts: number }[]>([]);
 
   const { data: brandsData, isLoading, refetch } = useQuery<Configuration[]>({
     queryKey: ["/api/configurations"],
@@ -211,15 +214,56 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       "governance",
     ];
 
+    const results: { section: string; success: boolean; error?: string; attempts: number }[] = [];
+
     for (const section of sections) {
-      try {
-        await apiRequest("POST", "/api/ai/generate", { section, configId });
-      } catch (error) {
-        console.error(`Failed to generate ${section}:`, error);
+      let success = false;
+      let lastError: any;
+      let attempts = 0;
+      const maxRetries = 3;
+      const baseDelay = 1000;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        attempts = attempt;
+        try {
+          await apiRequest("POST", "/api/ai/generate", { section, configId });
+          success = true;
+          break;
+        } catch (error) {
+          lastError = error;
+          console.error(`Failed to generate ${section} (attempt ${attempt}/${maxRetries}):`, error);
+          
+          // Exponential backoff with jitter
+          if (attempt < maxRetries) {
+            const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
       }
+
+      results.push({
+        section,
+        success,
+        error: success ? undefined : lastError?.message || 'Unknown error',
+        attempts
+      });
+    }
+
+    // Log summary for debugging
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success);
+    
+    console.log(`AI Generation Summary: ${successful}/${sections.length} sections successful`);
+    
+    if (failed.length > 0) {
+      console.warn('Failed sections:', failed.map(f => `${f.section} (${f.attempts} attempts)`));
     }
     
     await refetch();
+    
+    setGenerationResults(results);
+    
+    return results;
   };
 
   const createBrand = useCallback(async (brandName: string, domain: string) => {
@@ -239,6 +283,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         createBrand,
         isCreating: createBrandMutation.isPending,
         refreshBrands: refetch,
+        generationResults,
+        hasGenerationFailures: generationResults.some(r => !r.success),
       }}
     >
       {children}

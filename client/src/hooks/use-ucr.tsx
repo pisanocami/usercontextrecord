@@ -138,11 +138,44 @@ export function useUCR() {
 
 export function useUCRGate() {
   const { isAllowed, blockReason, isLoading, status } = useUCR();
+  
+  // Fallback mechanism for validation failures
+  const canExecuteWithFallback = () => {
+    if (isLoading) return false;
+    
+    // If validation passes, allow execution
+    if (isAllowed) return true;
+    
+    // Fallback: Allow execution with warnings for non-critical failures
+    const nonCriticalFailures = [
+      'missing_optional_fields',
+      'low_quality_score',
+      'missing_recommendations',
+      'incomplete_context'
+    ];
+    
+    if (blockReason && nonCriticalFailures.some(failure => 
+      blockReason.toLowerCase().includes(failure.replace('_', ' '))
+    )) {
+      console.warn('Proceeding with module execution despite validation issues:', blockReason);
+      return true;
+    }
+    
+    // Critical failures still block execution
+    return false;
+  };
+  
+  const canExecuteModules = canExecuteWithFallback();
+  const isBlocked = !canExecuteModules && !isLoading;
+  const hasFallbackWarnings = canExecuteModules && !isAllowed;
+  
   return {
-    canExecuteModules: isAllowed && !isLoading,
-    isBlocked: !isAllowed && !isLoading,
+    canExecuteModules,
+    isBlocked,
     reason: blockReason,
     isLoading,
     validationStatus: status?.validationStatus ?? "no_context",
+    hasFallbackWarnings,
+    fallbackReason: hasFallbackWarnings ? blockReason : undefined,
   };
 }

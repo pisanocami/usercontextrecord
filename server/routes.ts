@@ -14,6 +14,15 @@ import moduleRoutes from "./modules/routes";
 import councilRoutes from "./councils/routes";
 import ucrRoutes from "./ucr/routes";
 import { reportExecutor } from "./reports/executor";
+import { 
+  errorHandler, 
+  withErrorHandling, 
+  createValidationError, 
+  createExternalApiError, 
+  createNotFoundError,
+  createDatabaseError,
+  AppError 
+} from "./utils/error-handling";
 
 function getTenantId(req: Request): number | null {
   const tenantHeader = req.headers["x-tenant-id"];
@@ -1226,199 +1235,6 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     res.json({ message: "Cache cleared" });
   });
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  // ============================================================================
-  // BRANDS API
-  // ============================================================================
-  app.get("/api/brands", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const brands = await storage.getAllBrands(userId);
-      res.json({ brands });
-    } catch (error) {
-      console.error("Error fetching brands:", error);
-      res.status(500).json({ error: "Failed to fetch brands" });
-    }
-  });
-
-  app.get("/api/brands/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const brand = await storage.getBrand(parseInt(req.params.id), userId);
-      if (!brand) {
-        return res.status(404).json({ error: "Brand not found" });
-      }
-      res.json({ brand });
-    } catch (error) {
-      console.error("Error fetching brand:", error);
-      res.status(500).json({ error: "Failed to fetch brand" });
-    }
-  });
-
-  app.post("/api/brands", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const brand = await storage.createBrand(userId, req.body);
-      res.status(201).json({ brand });
-    } catch (error) {
-      console.error("Error creating brand:", error);
-      res.status(500).json({ error: "Failed to create brand" });
-    }
-  });
-
-  app.patch("/api/brands/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const brand = await storage.updateBrand(parseInt(req.params.id), userId, req.body);
-      res.json({ brand });
-    } catch (error) {
-      console.error("Error updating brand:", error);
-      res.status(500).json({ error: "Failed to update brand" });
-    }
-  });
-
-  app.delete("/api/brands/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      await storage.deleteBrand(parseInt(req.params.id), userId);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting brand:", error);
-      res.status(500).json({ error: "Failed to delete brand" });
-    }
-  });
-
-  // ============================================================================
-  // CONTEXTS (UCR) API
-  // ============================================================================
-  app.get("/api/contexts", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const contexts = await storage.getAllContexts(userId);
-      res.json({ contexts });
-    } catch (error) {
-      console.error("Error fetching contexts:", error);
-      res.status(500).json({ error: "Failed to fetch contexts" });
-    }
-  });
-
-  app.get("/api/contexts/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const context = await storage.getContext(parseInt(req.params.id), userId);
-      if (!context) {
-        return res.status(404).json({ error: "Context not found" });
-      }
-      res.json({ context });
-    } catch (error) {
-      console.error("Error fetching context:", error);
-      res.status(500).json({ error: "Failed to fetch context" });
-    }
-  });
-
-  app.post("/api/contexts", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const context = await storage.createContext({ ...req.body, userId });
-      res.status(201).json({ context });
-    } catch (error) {
-      console.error("Error creating context:", error);
-      res.status(500).json({ error: "Failed to create context" });
-    }
-  });
-
-  app.patch("/api/contexts/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const context = await storage.updateContext(parseInt(req.params.id), userId, req.body);
-      res.json({ context });
-    } catch (error) {
-      console.error("Error updating context:", error);
-      res.status(500).json({ error: "Failed to update context" });
-    }
-  });
-
-  app.delete("/api/contexts/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      await storage.deleteContext(parseInt(req.params.id), userId);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting context:", error);
-      res.status(500).json({ error: "Failed to delete context" });
-    }
-  });
-
-  // ============================================================================
-  // EXEC_REPORTS API
-  // ============================================================================
-  app.get("/api/exec-reports", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const contextId = parseInt(req.query.contextId as string);
-      if (!contextId) {
-        return res.status(400).json({ error: "contextId query param required" });
-      }
-      const reports = await storage.getExecReportsByContext(contextId, userId);
-      res.json({ reports });
-    } catch (error) {
-      console.error("Error fetching exec reports:", error);
-      res.status(500).json({ error: "Failed to fetch exec reports" });
-    }
-  });
-
-  app.get("/api/exec-reports/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const report = await storage.getExecReport(parseInt(req.params.id), userId);
-      if (!report) {
-        return res.status(404).json({ error: "Exec report not found" });
-      }
-      res.json({ report });
-    } catch (error) {
-      console.error("Error fetching exec report:", error);
-      res.status(500).json({ error: "Failed to fetch exec report" });
-    }
-  });
-
-  // ============================================================================
-  // MASTER REPORT API
-  // ============================================================================
-  app.get("/api/master-report/:contextId", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id || "anonymous-user";
-      const contextId = parseInt(req.params.contextId);
-      
-      const { context, brand, reports } = await storage.getMasterReportData(contextId, userId);
-      
-      if (!context) {
-        return res.status(404).json({ error: "Context not found" });
-      }
-      
-      const aggregatedInsights = reports.flatMap((r: any) => r.insights || []);
-      const aggregatedRecommendations = reports.flatMap((r: any) => r.recommendations || []);
-      const avgConfidence = reports.length > 0 
-        ? reports.reduce((sum: number, r: any) => sum + (r.confidence || 0), 0) / reports.length 
-        : 0;
-      
-      res.json({
-        contextId,
-        brandId: context.brandId,
-        context,
-        brand,
-        execReports: reports,
-        aggregatedInsights,
-        aggregatedRecommendations,
-        overallConfidence: avgConfidence,
-        generatedAt: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Error generating master report:", error);
-      res.status(500).json({ error: "Failed to generate master report" });
-=======
-=======
->>>>>>> Stashed changes
   // ============================================
   // ExecReports & MasterReports API Routes
   // ============================================
@@ -1525,10 +1341,6 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
     } catch (error: any) {
       console.error("Error fetching master report:", error);
       res.status(500).json({ error: error.message || "Failed to fetch master report" });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     }
   });
 
