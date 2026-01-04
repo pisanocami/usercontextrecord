@@ -30,7 +30,7 @@ import NotFound from "@/pages/not-found";
 import { Link } from "wouter";
 import { MobileNav } from "@/components/mobile-nav";
 import GapComplianceReport from "./pages/gap-compliance-report.md?raw";
-import RemediationPlan from "../remediation-plan.md?raw";
+import RemediationPlan from "../../remediation-plan.md?raw";
 import ReactMarkdown from "react-markdown";
 
 function GapReportPage() {
