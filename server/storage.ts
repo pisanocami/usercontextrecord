@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { z } from "zod";
 import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports, brands, contexts } from "@shared/schema";
 import { eq, and, desc, max, isNull } from "drizzle-orm";
 import type {
@@ -14,40 +15,16 @@ import type {
   BulkJob,
   BulkBrandInput,
   ConfigurationVersion,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
   BrandRecord,
   InsertBrand,
   ContextRecord,
   InsertContext,
   ExecReportRecord,
+  InsertMasterReport,
 } from "@shared/schema";
 
-// Define missing types
-export interface DbExecReport {
-  id: number;
-  configurationId: number;
-  moduleId: string;
-  contextVersion: number;
-  contextHash: string;
-  output: any;
-  playbookResult?: any;
-  executedAt: Date;
-  createdAt: Date;
-}
-
-export interface DbMasterReport {
-  id: number;
-  configurationId: number;
-  title: string;
-  summary: string;
-  insights: any[];
-  recommendations: any[];
-  data: any;
-  generatedAt: Date;
-  createdAt: Date;
-}
+// Re-export database types for use in other modules
+export type { DbExecReport, DbMasterReport } from "@shared/schema";
 
 // Schema validation for report data
 const moduleOutputSchema = z.object({
@@ -93,24 +70,6 @@ function validateModuleOutput(output: any): boolean {
   }
 }
 
-=======
-  DbExecReport,
-  DbMasterReport,
-} from "@shared/schema";
-
->>>>>>> Stashed changes
-=======
-  DbExecReport,
-  DbMasterReport,
-} from "@shared/schema";
-
->>>>>>> Stashed changes
-=======
-  DbExecReport,
-  DbMasterReport,
-} from "@shared/schema";
-
->>>>>>> Stashed changes
 // Import AuditLog type from schema
 import type { AuditLog as SchemaAuditLog } from "@shared/schema";
 
@@ -150,9 +109,6 @@ export interface IStorage {
   restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration>;
   createAuditLog(log: Omit<AuditLog, "id" | "created_at">): Promise<AuditLog>;
   getAuditLogs(tenantId: number | null, configurationId?: number): Promise<AuditLog[]>;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
   getExecReportsByConfiguration(configId: number, contextVersion?: number): Promise<DbExecReport[]>;
   getExecReportById(id: string): Promise<DbExecReport | undefined>;
   getExecReportsByModule(configId: number, moduleId: string): Promise<DbExecReport[]>;
@@ -160,12 +116,6 @@ export interface IStorage {
   getMasterReportsByConfiguration(configId: number): Promise<DbMasterReport[]>;
   getLatestMasterReport(configId: number): Promise<DbMasterReport | undefined>;
   getMasterReportById(id: string): Promise<DbMasterReport | undefined>;
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 }
 
 export interface AuditLogInsert {
@@ -183,9 +133,6 @@ export interface AuditLogInsert {
 
 // Use SchemaAuditLog for the AuditLog type
 export type AuditLog = SchemaAuditLog;
-
-// Re-export database types for use in other modules
-export type { DbExecReport, DbMasterReport } from "@shared/schema";
 
 export class DatabaseStorage implements IStorage {
   async getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined> {
@@ -876,71 +823,6 @@ export class DatabaseStorage implements IStorage {
     output: any;
     playbookResult?: any;
   }): Promise<DbExecReport> {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    // Validate input data before transaction
-    if (!report.id || !report.configurationId || !report.moduleId) {
-      throw new Error("Missing required fields for exec report creation");
-    }
-
-    // Validate output structure using schema
-    if (!validateModuleOutput(report.output)) {
-      throw new Error("Invalid module output structure - does not conform to expected schema");
-    }
-
-    // Use transaction for atomic operation
-    const result = await db.transaction(async (tx) => {
-      // Insert the exec report
-      const [created] = await tx
-        .insert(execReports)
-        .values({
-          id: report.id,
-          configurationId: report.configurationId,
-          moduleId: report.moduleId,
-          contextVersion: report.contextVersion,
-          contextHash: report.contextHash,
-          output: report.output,
-          playbookResult: report.playbookResult,
-        })
-        .returning();
-
-      // Create audit log entry
-      await tx
-        .insert(auditLogs)
-        .values({
-          action: 'create',
-          entityType: 'exec_report',
-          entityId: created.id,
-          userId: 'system',
-          tenantId: 1, // Default tenant
-          newValue: JSON.stringify({
-            moduleId: report.moduleId,
-            configurationId: report.configurationId,
-            contextVersion: report.contextVersion,
-            dataValidated: true
-          }),
-          createdAt: new Date(),
-        });
-
-      return created;
-    });
-
-    return {
-      id: result.id,
-      configurationId: result.configurationId,
-      moduleId: result.moduleId,
-      contextVersion: result.contextVersion,
-      contextHash: result.contextHash,
-      output: result.output,
-      playbookResult: result.playbookResult,
-      executedAt: result.created_at,
-      createdAt: result.created_at,
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     const [created] = await db
       .insert(execReports)
       .values({
@@ -964,13 +846,6 @@ export class DatabaseStorage implements IStorage {
       output: created.output,
       playbookResult: created.playbookResult as DbExecReport['playbookResult'],
       created_at: created.created_at,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     };
   }
 
@@ -1000,14 +875,14 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getExecReportById(id: string): Promise<DbExecReport | null> {
+  async getExecReportById(id: string): Promise<DbExecReport | undefined> {
     const [report] = await db
       .select()
       .from(execReports)
       .where(eq(execReports.id, id))
       .limit(1);
 
-    if (!report) return null;
+    if (!report) return undefined;
 
     return {
       id: report.id,
@@ -1046,9 +921,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
   // Brands CRUD Methods
   // ============================================
 
@@ -1156,49 +1028,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
-  // Legacy ExecReports Methods (context-based)
-  // ============================================
-
-  async getExecReportsByContext(contextId: number, userId: string): Promise<ExecReportRecord[]> {
-    return db
-      .select()
-      .from(execReports)
-      .where(and(eq(execReports.contextId, contextId), eq(execReports.userId, userId)))
-      .orderBy(desc(execReports.executedAt));
-  }
-
-  async getExecReport(execReportId: number, userId: string): Promise<ExecReportRecord | undefined> {
-    const [report] = await db
-      .select()
-      .from(execReports)
-      .where(and(eq(execReports.id, execReportId), eq(execReports.userId, userId)))
-      .limit(1);
-    return report;
-  }
-
-  async getMasterReportData(contextId: number, userId: string): Promise<{
-    context: ContextRecord | undefined;
-    brand: BrandRecord | undefined;
-    reports: ExecReportRecord[];
-  }> {
-    const ctx = await this.getContext(contextId, userId);
-    if (!ctx) {
-      return { context: undefined, brand: undefined, reports: [] };
-    }
-
-    const brand = await this.getBrand(ctx.brandId, userId);
-    const reports = await this.getExecReportsByContext(contextId, userId);
-
-    return { context: ctx, brand, reports };
-  }
-
-  // ============================================
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
   // MasterReports CRUD Methods
   // ============================================
 
@@ -1281,7 +1110,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getLatestMasterReport(configurationId: number): Promise<DbMasterReport | null> {
+  async getLatestMasterReport(configurationId: number): Promise<DbMasterReport | undefined> {
     const [report] = await db
       .select()
       .from(masterReports)
@@ -1289,7 +1118,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(masterReports.generatedAt))
       .limit(1);
 
-    if (!report) return null;
+    if (!report) return undefined;
 
     return {
       id: report.id,
@@ -1309,14 +1138,14 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getMasterReportById(id: string): Promise<DbMasterReport | null> {
+  async getMasterReportById(id: string): Promise<DbMasterReport | undefined> {
     const [report] = await db
       .select()
       .from(masterReports)
       .where(eq(masterReports.id, id))
       .limit(1);
 
-    if (!report) return null;
+    if (!report) return undefined;
 
     return {
       id: report.id,
@@ -1344,32 +1173,14 @@ export class MemStorage implements IStorage {
   private auditLogs: AuditLog[] = [];
   private execReports: Map<string, DbExecReport> = new Map();
   private masterReports: Map<string, DbMasterReport> = new Map();
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
   private brands: Map<number, BrandRecord> = new Map();
   private contexts: Map<number, ContextRecord> = new Map();
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
   private currentConfigId = 1;
   private currentBulkJobId = 1;
   private currentVersionId = 1;
   private currentAuditLogId = 1;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
   private currentBrandId = 1;
   private currentContextId = 1;
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
   async getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined> {
     return Array.from(this.configurations.values()).find(
@@ -1541,40 +1352,14 @@ export class MemStorage implements IStorage {
   // ExecReports
   async createExecReport(report: any): Promise<DbExecReport> {
     const execReport: DbExecReport = {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
       id: report.id,
-      contextId: report.contextId || 0,
-      brandId: report.brandId || 0,
-      tenantId: report.tenantId || null,
-      userId: report.userId || '',
-      moduleId: report.moduleId || '',
-      moduleName: report.moduleName || '',
-      status: report.status || 'completed',
-      confidence: report.confidence || null,
-      hasData: report.hasData || false,
-      insights: report.insights || [],
-      recommendations: report.recommendations || [],
-      rawOutput: report.rawOutput || {},
-      councilPerspectives: report.councilPerspectives || null,
-      synthesis: report.synthesis || null,
-      guardrailStatus: report.guardrailStatus || null,
-      ucrSnapshotHash: report.ucrSnapshotHash || null,
+      configurationId: report.configurationId,
+      moduleId: report.moduleId,
+      contextVersion: report.contextVersion,
+      contextHash: report.contextHash,
       executedAt: new Date(),
-      expiresAt: report.expiresAt || null,
-=======
-      ...report,
-      executedAt: new Date(),
->>>>>>> Stashed changes
-=======
-      ...report,
-      executedAt: new Date(),
->>>>>>> Stashed changes
-=======
-      ...report,
-      executedAt: new Date(),
->>>>>>> Stashed changes
+      output: report.output,
+      playbookResult: report.playbookResult,
       created_at: new Date(),
     };
     this.execReports.set(report.id, execReport);
@@ -1582,51 +1367,21 @@ export class MemStorage implements IStorage {
   }
 
   async getExecReportsByConfiguration(configurationId: number, contextVersion?: number): Promise<DbExecReport[]> {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     // For MemStorage, we need to map from contextId to configurationId
     // This is a limitation of in-memory storage - we can't easily query by configuration
     // Return all exec reports for now (this is a fallback storage)
     return Array.from(this.execReports.values())
-=======
-    return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
->>>>>>> Stashed changes
-=======
-    return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
->>>>>>> Stashed changes
-=======
-    return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
->>>>>>> Stashed changes
       .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   }
 
-  async getExecReportById(id: string): Promise<DbExecReport | null> {
-    return this.execReports.get(id) || null;
+  async getExecReportById(id: string): Promise<DbExecReport | undefined> {
+    return this.execReports.get(id) || undefined;
   }
 
   async getExecReportsByModule(configurationId: number, moduleId: string): Promise<DbExecReport[]> {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
     // For MemStorage, filter by moduleId only
     return Array.from(this.execReports.values())
       .filter(r => r.moduleId === moduleId)
-=======
-    return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
->>>>>>> Stashed changes
-=======
-    return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
->>>>>>> Stashed changes
-=======
-    return Array.from(this.execReports.values())
-      .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
->>>>>>> Stashed changes
       .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   }
 
@@ -1655,9 +1410,6 @@ export class MemStorage implements IStorage {
   async getMasterReportById(id: string): Promise<DbMasterReport | null> {
     return this.masterReports.get(id) || null;
   }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 
   // ============================================
   // Brands CRUD Methods
@@ -1817,12 +1569,6 @@ export class MemStorage implements IStorage {
 
     return { context: ctx, brand, reports };
   }
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 }
 
 import { db as dbInstance } from "./db";
