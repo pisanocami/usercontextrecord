@@ -2,13 +2,15 @@ import { z } from "zod";
 import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-// Re-export auth and chat models
+// Re-export auth, chat and tenant models
 export * from "./models/auth";
 export * from "./models/chat";
+export * from "./models/tenant";
 
 // Configurations table for persistent storage
 export const configurations = pgTable("configurations", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id"),
   userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   brand: jsonb("brand").notNull(),
@@ -27,6 +29,7 @@ export const configurations = pgTable("configurations", {
 export const configurationVersions = pgTable("configuration_versions", {
   id: serial("id").primaryKey(),
   configurationId: integer("configuration_id").notNull(),
+  tenantId: integer("tenant_id"),
   userId: varchar("user_id").notNull(),
   versionNumber: integer("version_number").notNull(),
   name: text("name").notNull(),
@@ -45,6 +48,7 @@ export const configurationVersions = pgTable("configuration_versions", {
 // Bulk generation jobs table
 export const bulkJobs = pgTable("bulk_jobs", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id"),
   userId: varchar("user_id").notNull(),
   status: varchar("status").notNull().default("pending"),
   totalBrands: integer("total_brands").notNull(),
@@ -75,6 +79,7 @@ export type BulkJobRequest = z.infer<typeof bulkJobRequestSchema>;
 
 export interface BulkJob {
   id: number;
+  tenantId: number;
   userId: string;
   status: "pending" | "processing" | "completed" | "failed";
   totalBrands: number;

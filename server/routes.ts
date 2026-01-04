@@ -4,10 +4,45 @@ import { storage } from "./storage";
 import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, type InsertConfiguration, type BulkBrandInput, type ContextQualityScore } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
+import { registerTenantRoutes } from "./tenant-routes";
+import { tenantStorage } from "./tenant-storage";
 import OpenAI from "openai";
 import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
+
+function getTenantId(req: Request): number | null {
+  const tenantHeader = req.headers["x-tenant-id"];
+  if (tenantHeader && typeof tenantHeader === "string") {
+    const parsed = parseInt(tenantHeader, 10);
+    return isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+async function validateTenantAccess(req: Request, res: Response): Promise<number | null> {
+  const user = req.user as any;
+  const userId = user?.claims?.sub;
+  
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return null;
+  }
+  
+  const tenantId = getTenantId(req);
+  if (!tenantId) {
+    res.status(400).json({ message: "X-Tenant-Id header is required" });
+    return null;
+  }
+  
+  const isInTenant = await tenantStorage.isUserInTenant(userId, tenantId);
+  if (!isInTenant) {
+    res.status(403).json({ message: "Access denied to this tenant" });
+    return null;
+  }
+  
+  return tenantId;
+}
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -405,6 +440,7 @@ export async function registerRoutes(
   // Setup authentication FIRST
   await setupAuth(app);
   registerAuthRoutes(app);
+  registerTenantRoutes(app);
   
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {

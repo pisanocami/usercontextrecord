@@ -16,9 +16,10 @@ import type {
   ConfigurationVersion,
 } from "@shared/schema";
 
-// Database configuration type (includes userId for security)
+// Database configuration type (includes userId and tenantId for security)
 export interface DbConfiguration {
   id: number;
+  tenantId: number | null;
   userId: string;
   name: string;
   brand: Brand;
@@ -34,35 +35,40 @@ export interface DbConfiguration {
 }
 
 export interface IStorage {
-  getConfiguration(userId: string): Promise<DbConfiguration | undefined>;
-  getConfigurationById(id: number, userId?: string): Promise<DbConfiguration | undefined>;
-  getAllConfigurations(userId: string): Promise<DbConfiguration[]>;
-  saveConfiguration(userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
-  createConfiguration(userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
-  updateConfiguration(id: number, userId: string, config: InsertConfiguration, editReason: string): Promise<DbConfiguration>;
-  deleteConfiguration(id: number, userId: string): Promise<void>;
-  createBulkJob(userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob>;
-  getBulkJob(id: number): Promise<BulkJob | undefined>;
-  getBulkJobs(userId: string): Promise<BulkJob[]>;
-  updateBulkJob(id: number, updates: Partial<BulkJob>): Promise<BulkJob>;
-  createConfigurationVersion(configId: number, userId: string, changeSummary: string): Promise<ConfigurationVersion>;
-  getConfigurationVersions(configId: number, userId: string): Promise<ConfigurationVersion[]>;
-  getConfigurationVersion(versionId: number, userId: string): Promise<ConfigurationVersion | undefined>;
-  restoreConfigurationVersion(versionId: number, userId: string): Promise<DbConfiguration>;
+  getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined>;
+  getConfigurationById(id: number, tenantId: number | null, userId?: string): Promise<DbConfiguration | undefined>;
+  getAllConfigurations(tenantId: number | null, userId: string): Promise<DbConfiguration[]>;
+  saveConfiguration(tenantId: number | null, userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
+  createConfiguration(tenantId: number | null, userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
+  updateConfiguration(id: number, tenantId: number | null, userId: string, config: InsertConfiguration, editReason: string): Promise<DbConfiguration>;
+  deleteConfiguration(id: number, tenantId: number | null, userId: string): Promise<void>;
+  createBulkJob(tenantId: number | null, userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob>;
+  getBulkJob(id: number, tenantId: number | null): Promise<BulkJob | undefined>;
+  getBulkJobs(tenantId: number | null, userId: string): Promise<BulkJob[]>;
+  updateBulkJob(id: number, tenantId: number | null, updates: Partial<BulkJob>): Promise<BulkJob>;
+  createConfigurationVersion(configId: number, tenantId: number | null, userId: string, changeSummary: string): Promise<ConfigurationVersion>;
+  getConfigurationVersions(configId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion[]>;
+  getConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<ConfigurationVersion | undefined>;
+  restoreConfigurationVersion(versionId: number, tenantId: number | null, userId: string): Promise<DbConfiguration>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getConfiguration(userId: string): Promise<DbConfiguration | undefined> {
+  async getConfiguration(tenantId: number | null, userId: string): Promise<DbConfiguration | undefined> {
+    const conditions = [eq(configurations.userId, userId)];
+    if (tenantId !== null) {
+      conditions.push(eq(configurations.tenantId, tenantId));
+    }
     const [config] = await db
       .select()
       .from(configurations)
-      .where(eq(configurations.userId, userId))
+      .where(and(...conditions))
       .limit(1);
     
     if (!config) return undefined;
     
     return {
       id: config.id,
+      tenantId: config.tenantId,
       userId: config.userId,
       name: config.name,
       brand: config.brand as Brand,
@@ -78,8 +84,8 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async saveConfiguration(userId: string, insertConfig: InsertConfiguration): Promise<DbConfiguration> {
-    const existing = await this.getConfiguration(userId);
+  async saveConfiguration(tenantId: number | null, userId: string, insertConfig: InsertConfiguration): Promise<DbConfiguration> {
+    const existing = await this.getConfiguration(tenantId, userId);
     
     if (existing) {
       const [updated] = await db
@@ -101,6 +107,7 @@ export class DatabaseStorage implements IStorage {
       
       return {
         id: updated.id,
+        tenantId: updated.tenantId,
         userId: updated.userId,
         name: updated.name,
         brand: updated.brand as Brand,
@@ -119,6 +126,7 @@ export class DatabaseStorage implements IStorage {
     const [created] = await db
       .insert(configurations)
       .values({
+        tenantId,
         userId,
         name: insertConfig.name,
         brand: insertConfig.brand,
@@ -134,6 +142,7 @@ export class DatabaseStorage implements IStorage {
     
     return {
       id: created.id,
+      tenantId: created.tenantId,
       userId: created.userId,
       name: created.name,
       brand: created.brand as Brand,
@@ -149,10 +158,10 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getConfigurationById(id: number, userId?: string): Promise<DbConfiguration | undefined> {
+  async getConfigurationById(id: number, tenantId: number, userId?: string): Promise<DbConfiguration | undefined> {
     const conditions = userId 
-      ? and(eq(configurations.id, id), eq(configurations.userId, userId))
-      : eq(configurations.id, id);
+      ? and(eq(configurations.id, id), eq(configurations.tenantId, tenantId), eq(configurations.userId, userId))
+      : and(eq(configurations.id, id), eq(configurations.tenantId, tenantId));
     
     const [config] = await db
       .select()
@@ -164,6 +173,7 @@ export class DatabaseStorage implements IStorage {
     
     return {
       id: config.id,
+      tenantId: config.tenantId,
       userId: config.userId,
       name: config.name,
       brand: config.brand as Brand,
@@ -179,15 +189,16 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getAllConfigurations(userId: string): Promise<DbConfiguration[]> {
+  async getAllConfigurations(tenantId: number, userId: string): Promise<DbConfiguration[]> {
     const configs = await db
       .select()
       .from(configurations)
-      .where(eq(configurations.userId, userId))
+      .where(and(eq(configurations.tenantId, tenantId), eq(configurations.userId, userId)))
       .orderBy(desc(configurations.updated_at));
     
     return configs.map(config => ({
       id: config.id,
+      tenantId: config.tenantId,
       userId: config.userId,
       name: config.name,
       brand: config.brand as Brand,
@@ -203,10 +214,11 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async createConfiguration(userId: string, insertConfig: InsertConfiguration): Promise<DbConfiguration> {
+  async createConfiguration(tenantId: number, userId: string, insertConfig: InsertConfiguration): Promise<DbConfiguration> {
     const [created] = await db
       .insert(configurations)
       .values({
+        tenantId,
         userId,
         name: insertConfig.name,
         brand: insertConfig.brand,
@@ -222,6 +234,7 @@ export class DatabaseStorage implements IStorage {
     
     return {
       id: created.id,
+      tenantId: created.tenantId,
       userId: created.userId,
       name: created.name,
       brand: created.brand as Brand,
@@ -237,8 +250,8 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async updateConfiguration(id: number, userId: string, insertConfig: InsertConfiguration, editReason: string): Promise<DbConfiguration> {
-    const existing = await this.getConfigurationById(id, userId);
+  async updateConfiguration(id: number, tenantId: number, userId: string, insertConfig: InsertConfiguration, editReason: string): Promise<DbConfiguration> {
+    const existing = await this.getConfigurationById(id, tenantId, userId);
     if (!existing) {
       throw new Error("Configuration not found");
     }
@@ -269,11 +282,12 @@ export class DatabaseStorage implements IStorage {
         governance: updatedGovernance,
         updated_at: new Date(),
       })
-      .where(and(eq(configurations.id, id), eq(configurations.userId, userId)))
+      .where(and(eq(configurations.id, id), eq(configurations.tenantId, tenantId), eq(configurations.userId, userId)))
       .returning();
     
     return {
       id: updated.id,
+      tenantId: updated.tenantId,
       userId: updated.userId,
       name: updated.name,
       brand: updated.brand as Brand,
@@ -289,16 +303,17 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async deleteConfiguration(id: number, userId: string): Promise<void> {
+  async deleteConfiguration(id: number, tenantId: number, userId: string): Promise<void> {
     await db.delete(configurations).where(
-      and(eq(configurations.id, id), eq(configurations.userId, userId))
+      and(eq(configurations.id, id), eq(configurations.tenantId, tenantId), eq(configurations.userId, userId))
     );
   }
 
-  async createBulkJob(userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob> {
+  async createBulkJob(tenantId: number, userId: string, primaryCategory: string, brands: BulkBrandInput[]): Promise<BulkJob> {
     const [job] = await db
       .insert(bulkJobs)
       .values({
+        tenantId,
         userId,
         primaryCategory,
         totalBrands: brands.length,
@@ -313,6 +328,7 @@ export class DatabaseStorage implements IStorage {
     
     return {
       id: job.id,
+      tenantId: job.tenantId,
       userId: job.userId,
       status: job.status as BulkJob["status"],
       totalBrands: job.totalBrands,
@@ -327,17 +343,18 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getBulkJob(id: number): Promise<BulkJob | undefined> {
+  async getBulkJob(id: number, tenantId: number): Promise<BulkJob | undefined> {
     const [job] = await db
       .select()
       .from(bulkJobs)
-      .where(eq(bulkJobs.id, id))
+      .where(and(eq(bulkJobs.id, id), eq(bulkJobs.tenantId, tenantId)))
       .limit(1);
     
     if (!job) return undefined;
     
     return {
       id: job.id,
+      tenantId: job.tenantId,
       userId: job.userId,
       status: job.status as BulkJob["status"],
       totalBrands: job.totalBrands,
@@ -352,15 +369,16 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getBulkJobs(userId: string): Promise<BulkJob[]> {
+  async getBulkJobs(tenantId: number, userId: string): Promise<BulkJob[]> {
     const jobs = await db
       .select()
       .from(bulkJobs)
-      .where(eq(bulkJobs.userId, userId))
+      .where(and(eq(bulkJobs.tenantId, tenantId), eq(bulkJobs.userId, userId)))
       .orderBy(desc(bulkJobs.created_at));
     
     return jobs.map(job => ({
       id: job.id,
+      tenantId: job.tenantId,
       userId: job.userId,
       status: job.status as BulkJob["status"],
       totalBrands: job.totalBrands,
@@ -375,7 +393,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async updateBulkJob(id: number, updates: Partial<BulkJob>): Promise<BulkJob> {
+  async updateBulkJob(id: number, tenantId: number, updates: Partial<BulkJob>): Promise<BulkJob> {
     const updateData: Record<string, any> = {
       updated_at: new Date(),
     };
@@ -389,11 +407,12 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(bulkJobs)
       .set(updateData)
-      .where(eq(bulkJobs.id, id))
+      .where(and(eq(bulkJobs.id, id), eq(bulkJobs.tenantId, tenantId)))
       .returning();
     
     return {
       id: updated.id,
+      tenantId: updated.tenantId,
       userId: updated.userId,
       status: updated.status as BulkJob["status"],
       totalBrands: updated.totalBrands,
@@ -408,8 +427,8 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createConfigurationVersion(configId: number, userId: string, changeSummary: string): Promise<ConfigurationVersion> {
-    const config = await this.getConfigurationById(configId, userId);
+  async createConfigurationVersion(configId: number, tenantId: number, userId: string, changeSummary: string): Promise<ConfigurationVersion> {
+    const config = await this.getConfigurationById(configId, tenantId, userId);
     if (!config) {
       throw new Error("Configuration not found");
     }
@@ -425,6 +444,7 @@ export class DatabaseStorage implements IStorage {
       .insert(configurationVersions)
       .values({
         configurationId: configId,
+        tenantId,
         userId,
         versionNumber: nextVersionNumber,
         name: config.name,
@@ -459,8 +479,8 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getConfigurationVersions(configId: number, userId: string): Promise<ConfigurationVersion[]> {
-    const config = await this.getConfigurationById(configId, userId);
+  async getConfigurationVersions(configId: number, tenantId: number, userId: string): Promise<ConfigurationVersion[]> {
+    const config = await this.getConfigurationById(configId, tenantId, userId);
     if (!config) {
       throw new Error("Configuration not found");
     }
@@ -470,6 +490,7 @@ export class DatabaseStorage implements IStorage {
       .from(configurationVersions)
       .where(and(
         eq(configurationVersions.configurationId, configId),
+        eq(configurationVersions.tenantId, tenantId),
         eq(configurationVersions.userId, userId)
       ))
       .orderBy(desc(configurationVersions.versionNumber));
@@ -493,12 +514,13 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getConfigurationVersion(versionId: number, userId: string): Promise<ConfigurationVersion | undefined> {
+  async getConfigurationVersion(versionId: number, tenantId: number, userId: string): Promise<ConfigurationVersion | undefined> {
     const [version] = await db
       .select()
       .from(configurationVersions)
       .where(and(
         eq(configurationVersions.id, versionId),
+        eq(configurationVersions.tenantId, tenantId),
         eq(configurationVersions.userId, userId)
       ))
       .limit(1);
@@ -524,19 +546,20 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async restoreConfigurationVersion(versionId: number, userId: string): Promise<DbConfiguration> {
-    const version = await this.getConfigurationVersion(versionId, userId);
+  async restoreConfigurationVersion(versionId: number, tenantId: number, userId: string): Promise<DbConfiguration> {
+    const version = await this.getConfigurationVersion(versionId, tenantId, userId);
     if (!version) {
       throw new Error("Version not found");
     }
 
-    const config = await this.getConfigurationById(version.configurationId, userId);
+    const config = await this.getConfigurationById(version.configurationId, tenantId, userId);
     if (!config) {
       throw new Error("Configuration not found");
     }
 
     await this.createConfigurationVersion(
       config.id,
+      tenantId,
       userId,
       `Auto-saved before restoring to version ${version.versionNumber}`
     );
@@ -555,11 +578,12 @@ export class DatabaseStorage implements IStorage {
         governance: version.governance,
         updated_at: new Date(),
       })
-      .where(and(eq(configurations.id, version.configurationId), eq(configurations.userId, userId)))
+      .where(and(eq(configurations.id, version.configurationId), eq(configurations.tenantId, tenantId), eq(configurations.userId, userId)))
       .returning();
 
     return {
       id: updated.id,
+      tenantId: updated.tenantId,
       userId: updated.userId,
       name: updated.name,
       brand: updated.brand as Brand,

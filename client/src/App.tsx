@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,12 +7,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { TenantSelector } from "@/components/tenant-selector";
+import { TenantProvider, useTenant } from "@/hooks/use-tenant";
 import { ConfigurationPage } from "@/pages/configuration";
 import BulkGeneration from "@/pages/bulk-generation";
 import ConfigurationsList from "@/pages/configurations-list";
 import OnePager from "@/pages/one-pager";
 import KeywordGap from "@/pages/keyword-gap";
 import VersionHistory from "@/pages/version-history";
+import TenantSelect from "@/pages/tenant-select";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,9 +26,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, List } from "lucide-react";
+import { LogOut, User, Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { Link } from "wouter";
+
+function RequireTenant({ children }: { children: React.ReactNode }) {
+  const { currentTenant, isLoading, userTenants } = useTenant();
+  const [location] = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!currentTenant && userTenants.length === 0 && location !== "/tenants") {
+    return <Redirect to="/tenants" />;
+  }
+
+  if (!currentTenant && location !== "/tenants") {
+    return <Redirect to="/tenants" />;
+  }
+
+  return <>{children}</>;
+}
 
 function ConfigurationLayout() {
   const [activeSection, setActiveSection] = useState("brand");
@@ -57,7 +83,10 @@ function ConfigurationLayout() {
         />
         <div className="flex flex-1 flex-col overflow-hidden">
           <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-2">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <TenantSelector />
+            </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <DropdownMenu>
@@ -344,12 +373,37 @@ function VersionHistoryLayout() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={ConfigurationsListLayout} />
-      <Route path="/new" component={ConfigurationLayout} />
-      <Route path="/bulk" component={BulkGenerationLayout} />
-      <Route path="/one-pager/:id" component={OnePagerLayout} />
-      <Route path="/keyword-gap/:id" component={KeywordGapLayout} />
-      <Route path="/versions/:id" component={VersionHistoryLayout} />
+      <Route path="/tenants" component={TenantSelect} />
+      <Route path="/">
+        <RequireTenant>
+          <ConfigurationsListLayout />
+        </RequireTenant>
+      </Route>
+      <Route path="/new">
+        <RequireTenant>
+          <ConfigurationLayout />
+        </RequireTenant>
+      </Route>
+      <Route path="/bulk">
+        <RequireTenant>
+          <BulkGenerationLayout />
+        </RequireTenant>
+      </Route>
+      <Route path="/one-pager/:id">
+        <RequireTenant>
+          <OnePagerLayout />
+        </RequireTenant>
+      </Route>
+      <Route path="/keyword-gap/:id">
+        <RequireTenant>
+          <KeywordGapLayout />
+        </RequireTenant>
+      </Route>
+      <Route path="/versions/:id">
+        <RequireTenant>
+          <VersionHistoryLayout />
+        </RequireTenant>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -359,8 +413,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <TenantProvider>
+          <Toaster />
+          <Router />
+        </TenantProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
