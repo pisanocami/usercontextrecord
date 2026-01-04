@@ -32,6 +32,7 @@ interface ModuleResult {
   hasData: boolean;
   confidence: number;
   dataSources: string[];
+  dataTimestamp?: string;
   chartsData?: Array<{
     type: string;
     title: string;
@@ -249,44 +250,69 @@ export default function ModulesPage() {
                       </TabsContent>
 
                       <TabsContent value="results" className="space-y-4 mt-4">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-2">
+                          <div className="flex gap-4">
+                            <span>API Source: <Badge variant="outline" className="text-[10px] ml-1">{moduleResult.dataSources.join(', ')}</Badge></span>
+                            <span>Timestamp: {new Date(moduleResult.dataTimestamp || '').toLocaleString()}</span>
+                          </div>
+                        </div>
+
                         {selectedModule === 'market-demand' && moduleResult.rawData.trends && (
                           <div className="space-y-6">
                             <Card>
-                              <CardHeader>
-                                <CardTitle className="text-sm">Demand Trends</CardTitle>
+                              <CardHeader className="py-3">
+                                <CardTitle className="text-sm font-semibold">Historical Demand Trends</CardTitle>
                               </CardHeader>
                               <CardContent>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                  {moduleResult.rawData.trends.slice(-12).map((item: any, i: number) => (
-                                    <div key={i} className="p-3 border rounded-md">
-                                      <p className="text-xs text-muted-foreground">{item.date}</p>
-                                      <p className="text-sm font-bold">{item.value}</p>
-                                      <p className="text-[10px] truncate">{item.keyword}</p>
-                                    </div>
-                                  ))}
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="border-b">
+                                        <th className="text-left pb-2 font-medium">Period / Month</th>
+                                        <th className="text-right pb-2 font-medium">Search Volume / Interest</th>
+                                        <th className="text-left pb-2 pl-4 font-medium">Keyword Context</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {moduleResult.rawData.trends.slice(-20).reverse().map((item: any, i: number) => (
+                                        <tr key={i} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                                          <td className="py-2.5 font-medium">{item.date}</td>
+                                          <td className="py-2.5 text-right font-mono">
+                                            {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
+                                          </td>
+                                          <td className="py-2.5 pl-4 text-muted-foreground italic">
+                                            {item.keyword}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
                                 </div>
                               </CardContent>
                             </Card>
-
+                            
                             <Card>
-                              <CardHeader>
-                                <CardTitle className="text-sm">Seasonality Details</CardTitle>
+                              <CardHeader className="py-3">
+                                <CardTitle className="text-sm font-semibold">Seasonality & Growth Analysis</CardTitle>
                               </CardHeader>
                               <CardContent>
-                                <div className="space-y-2">
-                                  <div className="flex justify-between text-sm">
-                                    <span>Peak Months:</span>
-                                    <span className="font-medium">{moduleResult.rawData.seasonality.peakMonths.join(', ')}</span>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Peak Demand Months</p>
+                                    <p className="text-sm font-medium">{moduleResult.rawData.seasonality.peakMonths.join(', ')}</p>
                                   </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span>Low Months:</span>
-                                    <span className="font-medium">{moduleResult.rawData.seasonality.lowMonths.join(', ')}</span>
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Low Demand Months</p>
+                                    <p className="text-sm font-medium">{moduleResult.rawData.seasonality.lowMonths.join(', ')}</p>
                                   </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span>YoY Trend:</span>
-                                    <Badge variant={moduleResult.rawData.seasonality.yoyTrend > 0 ? 'default' : 'destructive'}>
-                                      {moduleResult.rawData.seasonality.yoyTrend}%
-                                    </Badge>
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Year-over-Year Trend</p>
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant={moduleResult.rawData.seasonality.yoyTrend >= 0 ? 'default' : 'destructive'} className="font-mono">
+                                        {moduleResult.rawData.seasonality.yoyTrend > 0 ? '+' : ''}{moduleResult.rawData.seasonality.yoyTrend}%
+                                      </Badge>
+                                      <span className="text-xs text-muted-foreground">Search Interest Growth</span>
+                                    </div>
                                   </div>
                                 </div>
                               </CardContent>
@@ -297,30 +323,44 @@ export default function ModulesPage() {
                         {selectedModule === 'keyword-gap' && moduleResult.rawData.gapAnalysis && (
                           <div className="space-y-6">
                             <Card>
-                              <CardHeader>
-                                <CardTitle className="text-sm">Top Gap Keywords</CardTitle>
+                              <CardHeader className="py-3">
+                                <CardTitle className="text-sm font-semibold">Competitive Keyword Gap Matrix</CardTitle>
                               </CardHeader>
                               <CardContent>
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-sm">
                                     <thead>
                                       <tr className="border-b">
-                                        <th className="text-left pb-2">Keyword</th>
-                                        <th className="text-right pb-2">Volume</th>
-                                        <th className="text-right pb-2">Difficulty</th>
-                                        <th className="text-left pb-2 pl-4">Intent</th>
+                                        <th className="text-left pb-2 font-medium">Keyword Opportunity</th>
+                                        <th className="text-right pb-2 font-medium">Avg. Volume</th>
+                                        <th className="text-right pb-2 font-medium">KD %</th>
+                                        <th className="text-left pb-2 pl-4 font-medium">Intent</th>
+                                        <th className="text-right pb-2 font-medium">CPC</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {moduleResult.rawData.gapAnalysis.topGapKeywords.map((kw: any, i: number) => (
-                                        <tr key={i} className="border-b last:border-0">
-                                          <td className="py-2">{kw.keyword}</td>
-                                          <td className="py-2 text-right">{kw.volume.toLocaleString()}</td>
-                                          <td className="py-2 text-right">{kw.difficulty}</td>
-                                          <td className="py-2 pl-4">
-                                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                        <tr key={i} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                                          <td className="py-2.5 font-medium">{kw.keyword}</td>
+                                          <td className="py-2.5 text-right font-mono">{kw.volume.toLocaleString()}</td>
+                                          <td className="py-2.5 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                              <span className="font-mono text-xs">{kw.difficulty}</span>
+                                              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div 
+                                                  className={`h-full ${kw.difficulty > 70 ? 'bg-red-500' : kw.difficulty > 30 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                                                  style={{ width: `${kw.difficulty}%` }}
+                                                />
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="py-2.5 pl-4">
+                                            <Badge variant="secondary" className="text-[10px] uppercase tracking-tighter px-1.5 py-0">
                                               {kw.intent}
                                             </Badge>
+                                          </td>
+                                          <td className="py-2.5 text-right font-mono text-muted-foreground">
+                                            ${kw.cpc?.toFixed(2)}
                                           </td>
                                         </tr>
                                       ))}
@@ -332,21 +372,21 @@ export default function ModulesPage() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <Card>
-                                <CardHeader>
-                                  <CardTitle className="text-sm">Opportunity Summary</CardTitle>
+                                <CardHeader className="py-3">
+                                  <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">Opportunity Landscape</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-2">
-                                  <div className="flex justify-between text-sm">
-                                    <span>Total Gap Keywords:</span>
-                                    <span className="font-bold">{moduleResult.rawData.gapAnalysis.totalGapKeywords}</span>
+                                <CardContent className="space-y-3">
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">Total Untapped Keywords:</span>
+                                    <span className="font-bold font-mono text-lg">{moduleResult.rawData.gapAnalysis.totalGapKeywords}</span>
                                   </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span>Total Monthly Volume:</span>
-                                    <span className="font-bold">{moduleResult.rawData.gapAnalysis.totalGapVolume.toLocaleString()}</span>
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">Aggregate Monthly Volume:</span>
+                                    <span className="font-bold font-mono text-lg text-primary">{moduleResult.rawData.gapAnalysis.totalGapVolume.toLocaleString()}</span>
                                   </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span>Avg Difficulty:</span>
-                                    <span className="font-bold">{moduleResult.rawData.gapAnalysis.avgDifficulty}%</span>
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">Weighted Difficulty Avg:</span>
+                                    <span className="font-bold font-mono text-lg">{moduleResult.rawData.gapAnalysis.avgDifficulty}%</span>
                                   </div>
                                 </CardContent>
                               </Card>
