@@ -10,6 +10,8 @@ import OpenAI from "openai";
 import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
+import moduleRoutes from "./modules/routes";
+import councilRoutes from "./councils/routes";
 
 function getTenantId(req: Request): number | null {
   const tenantHeader = req.headers["x-tenant-id"];
@@ -421,6 +423,10 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
   registerTenantRoutes(app);
+  
+  // FON Architecture Routes
+  app.use('/api/fon', moduleRoutes);
+  app.use('/api/fon', councilRoutes);
   
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {

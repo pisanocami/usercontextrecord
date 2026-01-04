@@ -12,6 +12,42 @@ Key features:
 - **Full Auditability**: CMO-safe governance with human override tracking
 - **One Pager Visualization**: Executive summary view of User Context Records (UCR) with sections A-H
 - **DataForSEO Keyword Gap Analysis**: Competitor keyword gap analysis with UCR-based guardrails filtering
+- **FON Architecture**: Module executors, playbook-based execution, and council-based strategic reasoning
+
+## FON (Foundational Operational Network) Architecture
+
+The platform implements a FON architecture for brand intelligence analysis:
+
+### Module Executors (`server/modules/`)
+- **Base Executor**: Abstract class providing standard output structure (hasData, confidence, insights, recommendations)
+- **Registry**: Central registry for module executors
+- **Implemented Modules**:
+  - `market-demand`: Google Trends integration with seasonality detection
+  - `keyword-gap`: SEO visibility analysis with competitor keyword gaps
+  - `strategic-summary`: Cross-module synthesis for executive recommendations
+
+### Playbooks (`server/playbooks/`)
+- **Loader**: JSON-based playbook configuration system
+- **Executor**: Template-based processing for insights and recommendations
+- **Playbook Configs**: Define processing steps, confidence factors, and insight templates
+
+### Councils (`server/councils/`)
+- **7 Councils**: Strategic Intelligence, SEO Visibility, Performance Media, Content Commerce, Product GTM, Ops Attribution, Growth Strategy
+- **Reasoning**: OpenAI-powered strategic analysis from each council's perspective
+- **Synthesis**: Unified recommendations from multiple council perspectives
+
+### FON UI Components (`client/src/components/ui/`)
+- `ConfidenceBar`: Visual confidence score indicator
+- `InsightBlock`: Structured insight display with data_point, source, why_it_matters
+- `RecommendationCard`: Priority-based action cards with effort/timeline
+- `FreshnessIndicator`: Data age status (fresh/moderate/stale/expired)
+
+### FON API Routes
+- `GET /api/fon/modules` - List all available modules
+- `POST /api/fon/modules/:id/execute` - Execute a module
+- `POST /api/fon/modules/:id/execute-with-council` - Execute with council reasoning
+- `GET /api/fon/councils` - List all councils
+- `POST /api/fon/councils/:id/reason` - Get council perspective
 
 ## User Preferences
 
