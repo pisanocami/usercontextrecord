@@ -14,8 +14,6 @@ import moduleRoutes from "./modules/routes";
 import councilRoutes from "./councils/routes";
 import ucrRoutes from "./ucr/routes";
 import { reportExecutor } from "./reports/executor";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 import { 
   errorHandler, 
   withErrorHandling, 
