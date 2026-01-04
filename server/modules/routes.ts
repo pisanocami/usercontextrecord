@@ -3,6 +3,7 @@ import { moduleRegistry } from './registry';
 import { councilReasoning } from '../councils/reasoning';
 import { playbookExecutor } from '../playbooks/executor';
 import { requireValidUCR, type UCRSnapshot } from '../ucr/controller';
+import { storage } from '../storage';
 import './executors';
 
 const router = Router();
@@ -65,6 +66,30 @@ router.post('/modules/:moduleId/execute', requireValidUCR(), async (req: Request
         isCMOSafe: ucr.validation.isCMOSafe,
       },
     };
+
+    const userId = (req as any).user?.id || "anonymous-user";
+    const contextId = ucr.id;
+    const brandId = req.body.brandId || 1;
+
+    try {
+      await storage.createExecReport({
+        contextId,
+        brandId,
+        tenantId: ucr.tenantId,
+        userId,
+        moduleId,
+        moduleName: executor.definition.name,
+        status: "completed",
+        confidence: output.confidence || 0,
+        hasData: output.hasData || false,
+        insights: playbookResult.insights || [],
+        recommendations: playbookResult.recommendations || [],
+        rawOutput: output,
+        ucrSnapshotHash: ucr.snapshotHash,
+      });
+    } catch (saveError) {
+      console.warn(`Failed to save exec report for ${moduleId}:`, saveError);
+    }
 
     res.json({ result: finalOutput });
   } catch (error) {
@@ -138,6 +163,33 @@ router.post('/modules/:moduleId/execute-with-council', requireValidUCR(), async 
           isCMOSafe: ucr.validation.isCMOSafe,
         },
       });
+    }
+
+    const userId = (req as any).user?.id || "anonymous-user";
+    const contextId = ucr.id;
+    const brandId = req.body.brandId || 1;
+
+    try {
+      await storage.createExecReport({
+        contextId,
+        brandId,
+        tenantId: ucr.tenantId,
+        userId,
+        moduleId,
+        moduleName: executor.definition.name,
+        status: "completed",
+        confidence: output.confidence || 0,
+        hasData: output.hasData || false,
+        insights: (enforcedSynthesis as any).insights || [],
+        recommendations: (enforcedSynthesis as any).recommendations || [],
+        rawOutput: output,
+        councilPerspectives: Object.fromEntries(perspectives),
+        synthesis: enforcedSynthesis,
+        guardrailStatus: guardrailEnforcement || null,
+        ucrSnapshotHash: ucr.snapshotHash,
+      });
+    } catch (saveError) {
+      console.warn(`Failed to save exec report for ${moduleId}:`, saveError);
     }
 
     res.json({

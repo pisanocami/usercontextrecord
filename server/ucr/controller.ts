@@ -1,7 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { validateUCR, applyNegativeScope, createAuditEntry, type UCRValidationResult, type PreFilterResult } from "../ucr-enforcement";
-import type { Configuration, NegativeScope } from "@shared/schema";
+import type { Configuration, NegativeScope, ContextRecord, BrandRecord } from "@shared/schema";
+
+export type UCRSource = Configuration | ContextRecord;
 
 export interface UCRStatus {
   isValid: boolean;
@@ -289,12 +291,53 @@ export function createUCRSnapshot(config: Configuration & { tenantId?: number | 
 }
 
 export async function getActiveUCR(tenantId: number, userId: string): Promise<UCRSnapshot | null> {
+  const ctxs = await storage.getAllContexts(userId);
+  if (ctxs && ctxs.length > 0) {
+    const activeContext = ctxs[0];
+    return createUCRSnapshotFromContext(activeContext);
+  }
+  
   const configs = await storage.getAllConfigurations(tenantId, userId);
   if (!configs || configs.length === 0) {
     return null;
   }
   const activeConfig = configs[0];
   return createUCRSnapshot(activeConfig as Configuration);
+}
+
+export function createUCRSnapshotFromContext(ctx: ContextRecord): UCRSnapshot {
+  const configLike: Configuration = {
+    id: ctx.id,
+    name: ctx.name,
+    brand: ctx.brand as Configuration["brand"],
+    category_definition: ctx.category_definition as Configuration["category_definition"],
+    competitors: ctx.competitors as Configuration["competitors"],
+    demand_definition: ctx.demand_definition as Configuration["demand_definition"],
+    strategic_intent: ctx.strategic_intent as Configuration["strategic_intent"],
+    channel_context: ctx.channel_context as Configuration["channel_context"],
+    negative_scope: ctx.negative_scope as Configuration["negative_scope"],
+    governance: ctx.governance as Configuration["governance"],
+    created_at: ctx.created_at,
+    updated_at: ctx.updated_at,
+  };
+  
+  const validation = computeUCRStatus(configLike);
+  
+  return {
+    id: ctx.id,
+    tenantId: ctx.tenantId ?? null,
+    brand: configLike.brand,
+    category_definition: configLike.category_definition,
+    competitors: configLike.competitors,
+    demand_definition: configLike.demand_definition,
+    strategic_intent: configLike.strategic_intent,
+    channel_context: configLike.channel_context,
+    negative_scope: configLike.negative_scope,
+    governance: configLike.governance,
+    validation,
+    snapshotHash: ctx.snapshotHash || generateSnapshotHash(configLike),
+    snapshotAt: new Date().toISOString(),
+  };
 }
 
 export async function validateAndGateUCR(tenantId: number, userId: string): Promise<UCRGateResult> {
