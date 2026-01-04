@@ -30,10 +30,13 @@ import NotFound from "@/pages/not-found";
 import { Link } from "wouter";
 import { MobileNav } from "@/components/mobile-nav";
 import GapComplianceReport from "./pages/gap-compliance-report.md?raw";
+import RemediationPlan from "../remediation-plan.md?raw";
 import ReactMarkdown from "react-markdown";
 
 function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
+  const [showPlan, setShowPlan] = useState(false);
+  
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden">
       <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
@@ -44,6 +47,13 @@ function GapReportPage() {
               Configurations
             </Button>
            </Link>
+           <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowPlan(!showPlan)}
+           >
+             {showPlan ? "View Gap Analysis" : "View Remediation Plan"}
+           </Button>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -55,7 +65,7 @@ function GapReportPage() {
       </header>
       <main className="flex-1 overflow-auto p-8">
         <div className="mx-auto max-w-4xl prose dark:prose-invert">
-          <ReactMarkdown>{GapComplianceReport}</ReactMarkdown>
+          <ReactMarkdown>{showPlan ? RemediationPlan : GapComplianceReport}</ReactMarkdown>
         </div>
       </main>
     </div>
