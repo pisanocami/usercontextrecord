@@ -1,0 +1,335 @@
+web/ (50 items)
+# Mentor Feedback (Camila) — Context / Keyword Gap MVP / Filtering Issues
+
+Camila, primero: **NO estás “haciendo todo tan mal”**.  
+Estás haciendo lo que casi todo equipo hace en un MVP técnico: **construir demasiado rápido outputs antes de tener los guardrails bien cerrados**, y eso hace que el sistema “se vea roto” aunque *la arquitectura sea buena*.
+
+Ahora sí, como mentor, voy directo a lo importante: **por qué está fallando, cómo arreglarlo, y qué hacer YA para que Susan tenga tranquilidad y un demo sólido**.
+
+---
+
+## 1) Lo que estás haciendo “mal” (y por qué es normal)
+
+### ❌ Problema #1: Estás corriendo Keyword Gap con un contexto incorrecto (o sin fence fuerte)
+Ejemplo clarísimo:
+
+> Reporte de “Oofos.com” y el output está trayendo UPS / Fedex / DHL keywords.
+
+Esto **no es un bug de ranking**, es un bug de input + governance:
+
+- O el sistema está usando **competitors incorrectos**
+- o el “context lock” no está aplicado antes del módulo
+- o tu filtro de NegativeScope está **demasiado débil (substring only)**
+- o el módulo no está usando “Category fence” (solo negative keywords)
+
+✅ *Mentor truth:* si la demo muestra esto, Susan (CMO) va a pensar:  
+**“Nice framework, but unsafe outputs.”**  
+y eso mata la credibilidad.
+
+---
+
+### ❌ Problema #2: Tu filtro está mal conceptualizado
+Ahora estás filtrando con:
+
+- excluded_keywords (substring match)
+- excluded_categories (match texto)
+- excluded_competitors (remove)
+
+Pero eso **NO alcanza**.
+
+Porque lo que está pasando no es solo “keyword excluded”, es **categoría completamente incorrecta**.
+
+✅ Tu sistema necesita 2 capas de seguridad:
+
+1. **Hard Block** (exclusions exactas)
+2. **Semantic Fence** (classifier / council check)
+
+Si no, siempre vas a tener drift:  
+“recovery footwear” → “recovery shipping” → “recovery logistics” etc.
+
+---
+
+### ❌ Problema #3: “High Priority” está vacío de lógica
+Hoy estás marcando todo como High Priority porque:
+
+- gap = competitor top keywords - brand keywords
+- si brand no aparece → “High Priority”
+
+Eso es **matemáticamente correcto**, pero **estratégicamente estúpido**.
+
+Lo que Susan espera es:
+
+> “Oportunidades donde podemos sacar ventaja”
+
+No “todo lo que no rankeamos”.
+
+✅ Prioridad necesita:
+- intent
+- fit con category
+- difficulty
+- volume/cpc (aunque sea aproximado)
+- “competitor overlap”
+- y un score con threshold
+
+---
+
+### ❌ Problema #4: Estás ordenando alfabéticamente
+Esto mata la percepción del módulo.
+
+Una keyword gap report sin sorting correcto parece:
+
+- desordenada
+- no priorizada
+- no ejecutable
+
+**Ordenar alfabéticamente** comunica:
+
+> “esto es un dump”
+
+No un sistema.
+
+---
+
+## 2) Qué tenés MUY bien (y tenés que defender)
+
+### ✅ Lo mejor que estás construyendo
+- El concepto de **UCR como fuente única**
+- El enfoque de **Context-First**
+- El diseño de guardrails (pre-filter + post-validation)
+- La idea de **Council validation**
+- AuditLog + versioning + override policy
+
+Esto es *exactamente lo que un sistema CMO-safe necesita.*
+
+**El problema no es la arquitectura.**  
+El problema es que estás mostrando outputs antes de cerrar “fence + filtering”.
+
+---
+
+## 3) Qué haría yo para que esto sea “perfecto” (Checklist brutal)
+
+### ✅ Checklist de “Context Generator Perfecto”
+**(lo que el Context AI tiene que tener para ser confiable)**
+
+#### A. Inputs mínimos obligatorios
+- Domain
+- Category primary + category alternatives
+- Business model
+- Geography
+- Revenue band o employee count (para evitar wrong competitors)
+- Negative scope mínimo (keywords + categories)
+- Strategic intent (ROI / Volume / Authority)
+
+#### B. Evidence requirements (esto te falta)
+Cada cosa generada por IA debe venir con:
+- “why we think this”
+- “evidence link”
+- “confidence score”
+- “source” (Google results, SimilarWeb, SERP overlap, etc.)
+
+#### C. Competitor validation (el punto de Susan)
+El contexto NO puede aceptar competitors sin:
+- size similarity band
+- SERP overlap score
+- category similarity score
+
+Y si no cumple, queda como:
+- ⚠️ Needs Review (no aprobado)
+
+#### D. Guardrails que deben ser visibles
+La UI debe mostrar:
+- qué cosas están “locked”
+- qué cosas están “AI draft”
+- qué cosas están “human confirmed”
+
+No solo “context fields”.
+
+#### E. Human review NO frena la generación
+Pero sí define el “lock”.
+Si no está human-confirmed:
+- el módulo puede correr
+- pero output debe salir como “Not CMO Safe”
+- con warnings y lower confidence
+
+---
+
+## 4) MVP recomendado para Demo (sin sacrificar calidad)
+
+Susan quiere Keyword Gap, perfecto.
+
+Pero no el “full Keyword Gap”.  
+El MVP correcto es:
+
+## ✅ Keyword Gap Lite (Embarrassment-Safe)
+
+### Objetivo único:
+> “Con UCR confirmado, puedo comparar mi dominio vs competidores y devolver keywords relevantes sin salirme del fence.”
+
+### Inputs
+- domain
+- 3–5 competitors direct
+- UCR locked (o “draft con warning”)
+
+### Process (simple)
+1. Pedís top keywords orgánicos del dominio + de competidores (DataForSEO)
+2. gap = competitor keywords - brand keywords
+3. Filtro guardrails:
+   - excluded keywords
+   - excluded categories
+   - semantic fence classifier (simple LLM call)
+4. Output:
+   - 20–50 keywords
+   - agrupadas por theme
+   - score simple
+   - ✅ / ⚠️ / ⛔
+
+### Output UI (3 bloques)
+1) Inputs (del UCR)
+2) Results table sorted by opportunity score
+3) “Approve these as in-scope for next modules”
+
+✅ Esto demuestra la tesis completa de Context-First, sin construir todo.
+
+---
+
+## 5) Cómo arreglar el filtrado YA (para que no vuelva UPS)
+
+### ✅ Necesitás agregar estas 3 protecciones:
+
+#### 1. Category Fence Classifier (obligatorio)
+Antes de mostrar una keyword, el sistema debe preguntar:
+
+**“Is this keyword in-scope for category?”**
+
+Input al classifier:
+- category.in_scope_concepts
+- category.excluded_categories
+- negative_scope keywords
+- keyword
+
+Output:
+- pass / borderline / block
+- reason
+
+#### 2. Intent filter (casi obligatorio)
+Bloqueá automáticamente:
+- jobs
+- careers
+- phone numbers
+- tracking
+- customer service
+- login
+
+Porque esos keywords siempre se cuelan y destruyen output quality.
+
+#### 3. Competitor sanity check
+Si competitor set es incorrecto → output basura.
+
+El módulo debe:
+- validar que competitor domains sean del mismo category
+- si no lo son → flag + request confirmation
+
+---
+
+## 6) Slack message en inglés para tranquilizar a Susan (copy/paste)
+
+### ✅ Slack (short, calming, confident)
+```text
+Hey Susan — quick update from our side. 🙌
+
+Good news: a lot of the concerns you mentioned are already solved in the Context-First architecture (Negative Scope guardrails, pre-filter before external APIs, and post-validation after AI output).
+
+The UI you saw is NOT the final interface — it was part of the first prototype we built, and we had to rebuild the platform from scratch. The core governance + enforcement logic is still in place and we’re now wiring it end-to-end.
+
+On competitor identification: we agree with you 100%. We can generate most of the context with AI, but the competitor set *must* be human-validated to stay CMO-safe. We’re adding an explicit “company size / revenue band” check + SERP overlap scoring so we don’t accidentally benchmark against the wrong competitors.
+
+To maximize speed (and avoid surprises), I’d love to send you small incremental screenshots/outputs as we progress — so you can flag anything that feels off early. Totally up to you: would you prefer updates via Slack or WhatsApp?
+
+We’re sprinting through Monday to have a solid architecture + a working Keyword Gap Lite module for demo. 🚀
+
+7) Sobre el repo DeepTutor (como mentor)
+
+Te digo directo:
+
+✅ Sí, podés clonarlo y adaptarlo si:
+
+lo usás como base de UI / layout / components
+
+no compromete tu arquitectura Context-First
+
+no introduces “blackbox logic” que no puedas defender
+
+❌ Pero NO lo uses si:
+
+te obliga a reestructurar tu backend
+
+mete demasiada complejidad
+
+te roba el foco del MVP
+
+⚡ Mi recomendación:
+Usalo solo como inspiración para:
+
+UI Notion-like
+
+block components
+
+layout system
+
+Pero mantené tu core architecture.
+
+8) Qué haría yo mañana si estuviera en tu lugar (Plan 48h)
+Día 1
+
+Fix competitor selection (no más UPS para Oofos)
+
+Add semantic fence classifier
+
+Add intent hard blocks
+
+Día 2
+
+Keyword Gap Lite output
+
+Prioritized sorting (score)
+
+UI table con:
+
+keyword
+
+theme
+
+competitor source
+
+in-scope badge
+
+reason
+
+score
+
+✅ Resultado:
+Un demo donde Susan ve:
+
+“esto está safe”
+
+“esto tiene lógica”
+
+“esto es escalable”
+
+“esto no me hace quedar mal”
+
+Nota final (mentor energy)
+
+Camila: el sistema no está mal.
+Lo que está mal es el orden.
+
+Primero:
+guardrails + fence + competitor sanity
+
+Después:
+output bonito
+
+Y recién ahí:
+full OS
+
+Si lo haces así, esto va a volar.
