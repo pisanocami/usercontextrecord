@@ -351,7 +351,7 @@ export default function Dashboard() {
                         <h4 className="text-sm font-medium mb-2">{chart.title}</h4>
                         <ResponsiveContainer width="100%" height="100%">
                           {chart.type === 'bar' ? (
-                            <BarChart data={chart.data}>
+                            <BarChart data={Array.isArray(chart.data) ? chart.data : []}>
                               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                               <YAxis />
@@ -364,9 +364,9 @@ export default function Dashboard() {
                               <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                             </BarChart>
                           ) : chart.type === 'line' ? (
-                            <LineChart data={chart.data}>
+                            <LineChart data={Array.isArray(chart.data) ? chart.data : []}>
                               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                               <YAxis />
                               <Tooltip 
                                 contentStyle={{ 
@@ -375,36 +375,35 @@ export default function Dashboard() {
                                 }} 
                               />
                               <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} />
-                              {chart.data[0]?.brand && (
-                                <>
-                                  <Line type="monotone" dataKey="brand" stroke="hsl(var(--chart-1))" strokeWidth={2} />
-                                  <Line type="monotone" dataKey="market" stroke="hsl(var(--chart-2))" strokeWidth={2} />
-                                </>
-                              )}
                               <Legend />
                             </LineChart>
                           ) : chart.type === 'pie' ? (
                             <RechartsPieChart>
                               <Pie
-                                data={chart.data}
+                                data={Array.isArray(chart.data) ? chart.data : []}
                                 cx="50%"
                                 cy="50%"
                                 outerRadius={80}
                                 dataKey="value"
                                 label={({ name }) => name}
                               >
-                                {chart.data.map((entry: any, index: number) => (
+                                {(Array.isArray(chart.data) ? chart.data : []).map((entry: any, index: number) => (
                                   <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                                 ))}
                               </Pie>
                               <Tooltip />
                             </RechartsPieChart>
-                          ) : chart.type === 'radar' && chart.data?.length > 0 ? (
-                            <RadarChart data={chart.data[0]?.values?.map((v: number, i: number) => ({
-                              subject: ['Brand', 'Product', 'Price', 'Service', 'Innovation'][i],
-                              A: v,
-                              B: chart.data[1]?.values?.[i] || 0
-                            })) || []}>
+                          ) : chart.type === 'radar' && Array.isArray(chart.data) && chart.data.length > 0 ? (
+                            <RadarChart 
+                              cx="50%" 
+                              cy="50%" 
+                              outerRadius="80%" 
+                              data={Array.isArray(chart.data[0]?.values) ? chart.data[0].values.map((v: number, i: number) => ({
+                                subject: ['Brand', 'Product', 'Price', 'Service', 'Innovation'][i] || `Dim ${i+1}`,
+                                A: v,
+                                B: Array.isArray(chart.data[1]?.values) ? chart.data[1].values[i] || 0 : 0
+                              })) : []}
+                            >
                               <PolarGrid />
                               <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                               <PolarRadiusAxis angle={30} domain={[0, 100]} />

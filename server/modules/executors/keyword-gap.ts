@@ -137,7 +137,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
           this.createChartData({
             type: 'bar',
             title: 'Keyword Gap by Intent',
-            data: gapAnalysis.byIntent
+            data: Object.entries(gapAnalysis.byIntent).map(([name, value]) => ({ name, value }))
           }),
           this.createChartData({
             type: 'table',
@@ -147,7 +147,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
           this.createChartData({
             type: 'pie',
             title: 'Difficulty Distribution',
-            data: gapAnalysis.byDifficulty
+            data: Object.entries(gapAnalysis.byDifficulty).map(([name, value]) => ({ name, value }))
           })
         ],
         councilContext: {

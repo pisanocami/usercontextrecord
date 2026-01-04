@@ -61,7 +61,7 @@ export class MarketDemandExecutor extends BaseModuleExecutor {
           this.createChartData({
             type: 'bar',
             title: 'Seasonality Index by Month',
-            data: seasonality.monthlyIndex
+            data: Object.entries(seasonality.monthlyIndex).map(([name, value]) => ({ name, value }))
           })
         ],
         councilContext: {
