@@ -1,0 +1,473 @@
+Master Intelligence Report
+Consolidated analysis across all FON modules
+
+Generate Report
+No Report Data
+Click "Generate Report" to run all intelligence modules and create a comprehensive analysis.
+
+Generate Report
+Made with Replit
+# Mentor Feedback (Camila → Context + Keyword Gap MVP + UI)
+
+Camila — primero: **no lo estás haciendo “tan mal”**.  
+Estás construyendo cosas complejas (arquitectura + gobernanza + filtros + outputs ejecutivos) bajo presión y con muchas piezas nuevas a la vez.
+
+Lo que estás viviendo es **normal** en productos AI-first:  
+> el MVP no falla porque “el código esté mal”, falla porque *la definición del problema y el fence* todavía no están correctamente aplicados **en la salida**.
+
+A continuación te dejo feedback como mentor, **sin suavizar**, pero para ayudarte a corregir rápido.
+
+---
+
+## 1) Por qué está saliendo tan mal el Keyword Gap (la raíz real)
+
+Tu problema NO es el set-diff.  
+Tu problema es que **estás pidiendo keywords al mundo antes de fijar el universo permitido.**
+
+Hoy el sistema hace:
+
+1) Trae keywords por dominio (competidores)  
+2) Hace gap  
+3) Filtra por negative scope (substring)  
+4) Presenta “High Priority”
+
+Eso *parece correcto*, pero en AI / SEO **es fatal** porque:
+
+### ❌ Problema A: No existe "Semantic Fence" real antes del fetch  
+Si tus competidores son enormes (Amazon, USPS, XPO), sus keywords incluyen TODO:
+- careers, tracking, customer service, stamps, logistics, etc.
+
+Y tu filtro por substring no va a cortar lo semántico ni lo indirecto.
+
+**Resultado:**  
+Tu reporte se convierte en un dump de “lo que rankea el competidor”, no en oportunidades.
+
+---
+
+### ❌ Problema B: Competitors wrong / mismatched  
+Estás usando “competitors” que no son del mismo tipo o tamaño (ej. UPS vs OOFOs).
+
+Entonces el output es inevitablemente basura: la brecha existe, sí… pero no es estratégica.
+
+---
+
+### ❌ Problema C: “High Priority” se está asignando por heurística simplona  
+Ahora mismo “High Priority” está marcado por regla:
+> Competitor ranks top 10, brand missing → High Priority
+
+Eso es **inaceptable** para un CMO.
+
+Porque un keyword gap sin:
+- intención
+- categoría
+- in-scope
+- fit del negocio
+- cluster value
+
+…no es “High Priority”.
+
+Es *“things we don’t rank for”*.
+
+---
+
+### ❌ Problema D: El output está ordenado alfabéticamente  
+Eso es un síntoma grave:  
+significa que tu engine de scoring no está dirigiendo la experiencia.
+
+En un producto de oportunidades, el orden es:  
+> **la verdad del sistema**.
+
+Orden alfabético comunica:  
+> “esto no fue pensado”.
+
+---
+
+## 2) Qué tenés que cambiar YA (sin romper tu arquitectura)
+
+Esto es lo que yo haría para volverlo **CMO-safe** con mínimo cambio:
+
+---
+
+### ✅ Fix 1 — Introducir un “In-Scope Classifier” obligatorio
+Antes de guardar cualquier keyword como oportunidad:
+
+**Cada keyword debe tener:**
+- `scope_status`: in_scope / borderline / out_of_scope
+- `scope_reason`: 1 línea (por qué)
+- `matched_fence_concept`: qué concepto del fence lo permitió
+
+Ejemplo:
+
+```json
+{
+  "keyword": "recovery sandals",
+  "scope_status": "in_scope",
+  "matched_fence_concept": "Recovery Footwear"
+}
+
+✅ Fix 2 — Hard block de “navigational/support/careers”
+
+Esto debe ser parte del NegativeScope default global.
+
+En todos los clientes deberías bloquear por defecto:
+
+login
+
+careers / jobs
+
+tracking number
+
+customer service
+
+phone number
+
+address
+
+return policy
+
+shipping status
+
+Porque si no, SIEMPRE vas a ver cosas tipo:
+
+“fedex phone number”
+
+“xpo careers”
+
+“tracking number generator”
+
+✅ Fix 3 — Competitor gating (esto calma a Susan)
+
+Si AI sugiere competidores, no pasan directo.
+
+La regla debería ser:
+
+Si competitor_confidence < 80 → queda en pending_review
+
+Solo se usan los approved
+
+Esto permite:
+
+AI genera rápido
+
+humano valida cuando quiera
+
+pero el sistema no se embarra
+
+✅ Fix 4 — Scoring real: ordenar por oportunidad, no por string
+
+Aunque sea simple, debe ser “ranking by value”.
+
+Mínimo para Gap Lite:
+
+Score = Intent Weight × Gap Severity × Brand Fit
+
+Donde:
+
+Intent Weight: transactional > commercial > informational
+
+Gap severity: competitor top3 y brand NR = fuerte
+
+Brand fit: match con fence concepts
+
+Y listo. Eso solo ya elimina el 80% del ruido.
+
+3) El MVP correcto (para que Susan diga “OK”)
+
+Sí. Está perfecto presentar solo un módulo.
+
+De hecho es lo correcto.
+
+Susan quiere ver:
+
+“Puedo confiar en el sistema para que no me avergüence.”
+
+No necesita:
+
+clustering perfecto
+
+forecasting
+
+dashboards complejos
+
+multi-council orchestration
+
+Entonces:
+
+✅ MVP: Keyword Gap Lite (Embarrassment-Safe)
+Inputs
+
+Brand domain
+
+Competitors (3–5)
+
+Context (UCR locked o draft + guardrails)
+
+Process
+
+Fetch keywords top N por domain (competidores + brand)
+
+Gap set diff
+
+Filtros:
+
+NegativeScope hard
+
+Semantic Fence classifier
+
+Remove nav/support/careers
+
+Score básico
+
+Output:
+
+Top 20 oportunidades
+
+agrupadas por theme
+
+con reason y scope_status
+
+Output format ideal:
+
+✅ in_scope
+
+⚠️ borderline (needs approval)
+
+⛔ blocked
+
+4) Cómo se ve “perfecto” el Generador de Contexto (Checklist)
+
+Tu context generator está bien encaminado, pero hoy le faltan 4 capas para ser “enterprise safe”.
+
+✅ Context Generator Checklist (Perfect Version)
+A. Core Identity (required)
+
+Domain
+
+Primary Category (canonical)
+
+Business Model
+
+Geography
+
+Revenue band / employee count (para competitor matching)
+
+B. Semantic Fence (required)
+
+In-scope concepts (10–30)
+
+Out-of-scope concepts (10–30)
+
+Exclusion defaults (jobs, support, tracking, etc.)
+
+C. Competitive Set (required)
+
+Direct competitors (3–8)
+
+Adjacent (3–8)
+
+Marketplaces (optional)
+
+Size similarity score (must be visible)
+
+D. Demand Definition (required)
+
+brand seeds
+
+category seeds
+
+problem seeds
+
+E. Governance (required)
+
+AI confidence score per section
+
+human confirmed status
+
+locked snapshot
+
+context_hash (deterministic fingerprint)
+
+5) Sí: un Context Council puede validar el contexto
+
+Sí — y es buena idea.
+
+No necesitás un “playbook nuevo” completo todavía.
+
+Podés modelarlo como:
+
+Context Council = Module (pre-module)
+
+Inputs:
+
+Draft UCR
+Output:
+
+Approved UCR (locked)
+
+Or: list of missing fields / uncertainties
+
+Esto permite:
+
+no bloquear generación
+
+pero sí bloquear outputs no aprobados
+
+✅ Es como un pre-flight checklist automático.
+
+6) Qué está pasando con el filtro “re mal” (caso UPS / OOFOs)
+
+Ese reporte muestra que:
+
+estás usando un contexto de UPS
+
+pero lo estás asociando con oofos.com
+
+o estás mezclando domains / brand name
+
+Eso es un bug crítico.
+
+🚨 Esto NO es filtrado malo
+
+Esto es:
+
+context mismatch in report generation
+
+Solución:
+
+En cada run guardá:
+
+ucr_id
+
+ucr_hash
+
+brand_domain_snapshot
+
+competitors_snapshot
+
+Y en el frontend mostrás:
+
+"This report was generated with Context: UPS (ucr_id=X)"
+
+7) UI: el Contexto se ve feo porque está “full dump”
+
+Lo que querés es Notion-like:
+
+bloques colapsables
+
+1-liners
+
+badges
+
+edit inline
+
+evidence visible
+
+“approve section” por bloque
+
+Tu versión con Honeywell está MUCHO mejor que la primera.
+
+Lo que falta:
+
+✅ Layout exacto sugerido (Notion-like)
+
+Top bar
+
+Brand name + domain
+
+Confidence badge
+
+Status badge (Draft / Needs Review / Locked)
+
+Primary CTA: Approve & Lock
+
+Left nav
+
+8 sections
+
+completion dots
+
+quick jump
+
+Main
+Cada sección como block:
+
+Header
+
+Title + status badge
+
+AI confidence
+
+buttons: Generate / Edit / Approve
+
+Body
+
+5–10 fields max
+
+show only essentials (rest in “see more”)
+
+Bottom fixed
+
+Save
+
+Last saved
+
+“Run Module” enabled only if locked
+
+8) Mensaje en inglés para Susan (Slack/WhatsApp)
+
+Aquí tenés uno que le da tranquilidad, incluye lo de updates, y explica que UI actual no es final:
+
+✅ Message for Susan (English)
+
+Hey Susan — hope you’re having an amazing weekend.
+Ale and I are doing an intensive build sprint through Monday so we can deliver a solid architecture + demo without sacrificing code quality.
+
+We made a decision to keep things clean and scalable:
+
+Ale is continuing to build the core Context-First foundation (locking, enforcement gates, audit trail).
+
+I’m making the Keyword Gap module fully functional in a containerized way — meaning it runs with the same guardrails + logic, but independently, so we can demo a real module without waiting for every service to be complete.
+
+Also: the UI you’ve seen so far is from our first prototype — we rebuilt the system, but many of the safety + governance features you asked for are still implemented and will be surfaced properly in the new interface.
+
+Re: competitor/context generation — we agree with your point: AI can generate context, but it must be human-validated before reports are considered “CMO-safe.” We’re baking that into the flow (AI draft → human confirmation → locked context snapshot).
+
+If you’re open to it, I’d love to send you small progress updates as we ship pieces, so you can quickly flag anything that looks off. Do you prefer Slack or WhatsApp for those updates?
+
+9) Calificación honesta (de mentor)
+Arquitectura: A-
+
+Está muy bien pensada (context versioning, audit log, pre/post gates).
+
+Keyword Gap MVP: C
+
+Funciona técnicamente, pero el output hoy es demasiado sucio para ser demo.
+
+UI Context: B
+
+La versión Honeywell ya se acerca al look “Notion-like” y está ordenada.
+
+Lo único urgente:
+
+hacer el fence real + ordenar por score + eliminar navigational/support.
+
+Con eso subís de C → B+ en 48 horas.
+
+10) Próximo paso recomendado (con orden)
+
+Fix “context mismatch bug” (ucr_id, hash, snapshot)
+
+Add default NegativeScope global (jobs/tracking/support)
+
+Add scope classifier (in/border/out)
+
+Add scoring ordering (no alphabetical)
+
+Demo con 1 vertical real (OOFOs / recovery footwear)
+
+Si querés, en el próximo mensaje te escribo:
+✅ el JSON exacto de output para Keyword Gap Lite
+✅ el pseudo-código del scope classifier
+✅ cómo mostrar el “filter log” para que Susan lo ame
+
+(Decime si preferís primero resolver UI o resolver output.)
