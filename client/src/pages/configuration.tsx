@@ -30,6 +30,24 @@ interface ConfigurationPageProps {
   onCmoSafeChange?: (isSafe: boolean) => void;
 }
 
+// Helper function to generate configuration name from domain
+function generateNameFromDomain(domain: string): string {
+  if (!domain) return "New Context";
+  // Remove protocol and www, extract main domain part
+  const cleanDomain = domain
+    .replace(/^(https?:\/\/)?(www\.)?/, "")
+    .replace(/\/$/, "")
+    .split("/")[0];
+  // Capitalize first letter of each word
+  const name = cleanDomain
+    .split(".")[0]
+    .replace(/[-_]/g, " ")
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+  return `${name} Context`;
+}
+
 const sectionComponents: Record<string, () => JSX.Element> = {
   brand: BrandContextSection,
   category: CategoryDefinitionSection,
@@ -121,14 +139,20 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
 
   const saveMutation = useMutation({
     mutationFn: async (data: InsertConfiguration) => {
+      // Auto-generate name from domain if not provided
+      const configData = {
+        ...data,
+        name: data.name.trim() || generateNameFromDomain(data.brand.domain),
+      };
+      
       if (isEditMode && editId) {
         const res = await apiRequest("PUT", `/api/configurations/${editId}`, {
-          ...data,
+          ...configData,
           editReason: editReason || "Update via configuration editor",
         });
         return res.json() as Promise<Configuration>;
       } else {
-        const res = await apiRequest("POST", "/api/configurations", data);
+        const res = await apiRequest("POST", "/api/configurations", configData);
         return res.json() as Promise<Configuration>;
       }
     },

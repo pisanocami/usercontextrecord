@@ -190,24 +190,6 @@ export function BrandContextSection() {
           <div className="grid gap-6 md:grid-cols-2">
             <FormField
               control={form.control}
-              name="brand.name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Brand Name *</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Acme Corporation"
-                      data-testid="input-brand-name"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="brand.domain"
               render={({ field }) => (
                 <FormItem>
@@ -219,6 +201,26 @@ export function BrandContextSection() {
                       data-testid="input-brand-domain"
                     />
                   </FormControl>
+                  <FormDescription>Required - Your brand's website domain</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="brand.name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Brand Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Acme Corporation (auto-generated from domain)"
+                      data-testid="input-brand-name"
+                    />
+                  </FormControl>
+                  <FormDescription>Optional - AI can infer from domain</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -231,11 +233,11 @@ export function BrandContextSection() {
               name="brand.industry"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Industry *</FormLabel>
+                  <FormLabel>Industry</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid="select-brand-industry">
-                        <SelectValue placeholder="Select industry" />
+                        <SelectValue placeholder="Select industry (AI will suggest)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -246,6 +248,7 @@ export function BrandContextSection() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormDescription>Optional - AI can infer from domain</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -256,7 +259,7 @@ export function BrandContextSection() {
               name="brand.business_model"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Business Model *</FormLabel>
+                  <FormLabel>Business Model</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid="select-business-model">
@@ -271,6 +274,7 @@ export function BrandContextSection() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormDescription>Optional - Default is B2B</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -283,11 +287,11 @@ export function BrandContextSection() {
               name="brand.revenue_band"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Revenue Band *</FormLabel>
+                  <FormLabel>Revenue Band</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid="select-revenue-band">
-                        <SelectValue placeholder="Select revenue range" />
+                        <SelectValue placeholder="Select revenue range (optional)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -298,6 +302,7 @@ export function BrandContextSection() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormDescription>Optional - Helps with competitor sizing</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -337,7 +342,7 @@ export function BrandContextSection() {
             name="brand.primary_geography"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Primary Geography *</FormLabel>
+                <FormLabel>Primary Geography</FormLabel>
                 <FormControl>
                   <TagInput
                     value={field.value}
@@ -347,7 +352,7 @@ export function BrandContextSection() {
                   />
                 </FormControl>
                 <FormDescription>
-                  Enter the primary regions where your brand operates
+                  Optional - Enter the primary regions where your brand operates
                 </FormDescription>
                 <FormMessage />
               </FormItem>

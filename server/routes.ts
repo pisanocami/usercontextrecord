@@ -51,20 +51,51 @@ function generateContextHash(config: InsertConfiguration): string {
   return Buffer.from(canonicalJson).toString('base64').slice(0, 32);
 }
 
+// Helper function to generate configuration name from domain
+function generateNameFromDomain(domain: string): string {
+  if (!domain) return "New Context";
+  const cleanDomain = domain
+    .replace(/^(https?:\/\/)?(www\.)?/, "")
+    .replace(/\/$/, "")
+    .split("/")[0];
+  const name = cleanDomain
+    .split(".")[0]
+    .replace(/[-_]/g, " ")
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+  return `${name} Context`;
+}
+
 function validateConfiguration(config: InsertConfiguration): ValidationResult {
   const blockedReasons: string[] = [];
   const warnings: string[] = [];
 
-  if (!config.name || config.name.trim().length === 0) {
-    blockedReasons.push("Configuration name is required");
+  // REQUIRED: Domain is the only strictly required brand field
+  if (!config.brand?.domain || config.brand.domain.trim().length === 0) {
+    blockedReasons.push("Domain is required");
   }
 
-  if (!config.brand?.name || config.brand.name.trim().length === 0) {
-    blockedReasons.push("Brand name is required");
-  }
-
+  // REQUIRED: Primary category is required for fail-closed validation
   if (!config.category_definition?.primary_category || config.category_definition.primary_category.trim().length === 0) {
-    blockedReasons.push("Primary category is required for fail-closed validation");
+    blockedReasons.push("Primary category is required");
+  }
+
+  if (blockedReasons.length > 0) {
+    return {
+      status: "blocked",
+      blockedReasons,
+      isValid: false,
+    };
+  }
+
+  // WARNINGS: Optional fields that improve context quality
+  if (!config.brand?.name || config.brand.name.trim().length === 0) {
+    warnings.push("Brand name not specified (will be auto-generated)");
+  }
+
+  if (!config.name || config.name.trim().length === 0) {
+    warnings.push("Configuration name not specified (will be auto-generated from domain)");
   }
 
   const negativeScope = config.negative_scope;
@@ -75,23 +106,15 @@ function validateConfiguration(config: InsertConfiguration): ValidationResult {
   );
 
   if (!hasNegativeScope) {
-    blockedReasons.push("Negative scope must have at least one exclusion rule for fail-closed validation");
+    warnings.push("Negative scope has no exclusion rules (recommended for fail-closed validation)");
   }
 
   if (!negativeScope?.enforcement_rules?.hard_exclusion) {
-    blockedReasons.push("Enforcement rules must have hard_exclusion enabled");
+    warnings.push("Enforcement rules: hard_exclusion not enabled");
   }
 
   if (!config.governance?.context_valid_until) {
     warnings.push("Missing context expiration date");
-  }
-
-  if (blockedReasons.length > 0) {
-    return {
-      status: "blocked",
-      blockedReasons,
-      isValid: false,
-    };
   }
 
   if (!config.competitors?.direct || config.competitors.direct.length === 0) {
@@ -513,7 +536,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: validationError.message });
       }
       
-      const validation = validateConfiguration(result.data);
+      // Auto-generate name from domain if not provided
+      const configData = {
+        ...result.data,
+        name: result.data.name?.trim() || generateNameFromDomain(result.data.brand?.domain || ""),
+      };
+      
+      const validation = validateConfiguration(configData);
       
       if (!validation.isValid) {
         return res.status(422).json({ 
@@ -523,25 +552,25 @@ export async function registerRoutes(
         });
       }
       
-      const contextHash = generateContextHash(result.data);
-      const qualityScore = calculateQualityScore(result.data);
+      const contextHash = generateContextHash(configData);
+      const qualityScore = calculateQualityScore(configData);
       
       // Determine if human review is required based on quality score
-      const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
+      const aiBehavior = configData.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
       const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
       const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
       
       const configWithValidation = {
-        ...result.data,
+        ...configData,
         governance: {
-          ...result.data.governance,
+          ...configData.governance,
           validation_status: validation.status,
           blocked_reasons: validation.blockedReasons,
           context_hash: contextHash,
           context_version: 1,
           quality_score: qualityScore,
           ai_behavior: {
-            ...(result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
+            ...(configData.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
             requires_human_review: requiresHumanReview,
             auto_approved: autoApproved,
           },
