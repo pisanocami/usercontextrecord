@@ -209,6 +209,7 @@ export default function ModulesPage() {
                       />
                     </div>
 
+                    <Tabs defaultValue="insights">
                       <TabsList>
                         <TabsTrigger value="insights" data-testid="tab-insights">
                           Insights ({moduleResult.insights.length})
@@ -222,7 +223,7 @@ export default function ModulesPage() {
                           </TabsTrigger>
                         )}
                       </TabsList>
-                      
+
                       <TabsContent value="insights" className="space-y-4 mt-4">
                         {moduleResult.insights.length > 0 ? (
                           moduleResult.insights.map((insight) => (
@@ -234,7 +235,7 @@ export default function ModulesPage() {
                           </p>
                         )}
                       </TabsContent>
-                      
+
                       <TabsContent value="recommendations" className="space-y-4 mt-4">
                         {moduleResult.recommendations.length > 0 ? (
                           moduleResult.recommendations.map((rec) => (
@@ -266,7 +267,7 @@ export default function ModulesPage() {
                                 </div>
                               </CardContent>
                             </Card>
-                            
+
                             <Card>
                               <CardHeader>
                                 <CardTitle className="text-sm">Seasonality Details</CardTitle>
@@ -352,7 +353,7 @@ export default function ModulesPage() {
                             </div>
                           </div>
                         )}
-                        
+
                         {!['market-demand', 'keyword-gap'].includes(selectedModule || '') && (
                           <div className="p-8 text-center bg-muted/30 rounded-lg border-2 border-dashed">
                             <p className="text-muted-foreground">Detailed data view for this module is coming soon.</p>
