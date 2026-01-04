@@ -111,11 +111,22 @@ The frontend features:
 - **Storage**: PostgreSQL database via Drizzle ORM
 - **AI Integration**: OpenAI via Replit AI Integrations (no API key required)
 
-### Database Schema
+### Database Schema (Normalized Data Model)
+The platform uses a normalized data model: **Brand (1) → Context/UCR (1) → Exec Reports (N) → Master Report (aggregation)**
+
 - **users**: User accounts from Replit Auth
 - **sessions**: Session storage for authentication
-- **configurations**: User configuration data (JSON columns for each section)
+- **brands**: Reusable brand entity (name, domain, industry, geography, revenue)
+- **contexts**: UCR (User Context Record) with brand_id FK + 8 canonical JSONB sections (A-H)
+- **exec_reports**: Module execution results with context_id FK, insights, recommendations, confidence
+- **configurations**: Legacy table for backward compatibility
 - **conversations/messages**: Chat storage (for future AI chat features)
+
+### Data Flow
+1. **brands** - Reusable entity with core brand attributes
+2. **contexts** - UCR linked to brand, contains 8 sections (brand, category, competitors, demand, strategic, channel, negative_scope, governance)
+3. **exec_reports** - Persisted after each module execution with context_id + brand_id linkage
+4. **master_report** - Dynamic aggregation of all exec_reports for a context
 
 ### API Endpoints
 - `GET/POST /api/configuration` - Protected configuration CRUD (user-scoped)
