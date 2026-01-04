@@ -1,17 +1,5 @@
 import { db } from "./db";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports, brands, contexts } from "@shared/schema";
-=======
-import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
->>>>>>> Stashed changes
-=======
-import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
->>>>>>> Stashed changes
-=======
-import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
->>>>>>> Stashed changes
 import { eq, and, desc, max, isNull } from "drizzle-orm";
 import type {
   Brand,
