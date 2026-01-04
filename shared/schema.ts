@@ -1,6 +1,10 @@
 import { z } from "zod";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, real, index } from "drizzle-orm/pg-core";
+=======
+import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, index } from "drizzle-orm/pg-core";
+>>>>>>> Stashed changes
 =======
 import { pgTable, serial, text, jsonb, timestamp, varchar, integer, boolean, index } from "drizzle-orm/pg-core";
 >>>>>>> Stashed changes
@@ -612,6 +616,7 @@ export const masterReportSchema = z.object({
   modulesIncluded: z.array(z.string()),
   overallConfidence: z.number(),
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   dataFreshness: caseInsensitiveEnum(['fresh', 'moderate', 'stale']),
 });
 
@@ -637,6 +642,8 @@ export interface DbExecReport {
   executedAt: Date;
   expiresAt: Date | null;
 =======
+=======
+>>>>>>> Stashed changes
   dataFreshness: z.enum(['fresh', 'moderate', 'stale']),
 });
 
@@ -701,6 +708,9 @@ export interface DbExecReport {
     deprioritized: string[];
     councilPrompt: string;
   };
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   created_at: Date;
 }

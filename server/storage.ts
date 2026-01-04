@@ -1,6 +1,10 @@
 import { db } from "./db";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports, brands, contexts } from "@shared/schema";
+=======
+import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
+>>>>>>> Stashed changes
 =======
 import { configurations, bulkJobs, configurationVersions, auditLogs, execReports, masterReports } from "@shared/schema";
 >>>>>>> Stashed changes
@@ -18,6 +22,7 @@ import type {
   BulkJob,
   BulkBrandInput,
   ConfigurationVersion,
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   BrandRecord,
   InsertBrand,
@@ -101,6 +106,12 @@ function validateModuleOutput(output: any): boolean {
 } from "@shared/schema";
 
 >>>>>>> Stashed changes
+=======
+  DbExecReport,
+  DbMasterReport,
+} from "@shared/schema";
+
+>>>>>>> Stashed changes
 // Import AuditLog type from schema
 import type { AuditLog as SchemaAuditLog } from "@shared/schema";
 
@@ -141,6 +152,7 @@ export interface IStorage {
   createAuditLog(log: Omit<AuditLog, "id" | "created_at">): Promise<AuditLog>;
   getAuditLogs(tenantId: number | null, configurationId?: number): Promise<AuditLog[]>;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   getExecReportsByConfiguration(configId: number, contextVersion?: number): Promise<DbExecReport[]>;
   getExecReportById(id: string): Promise<DbExecReport | undefined>;
   getExecReportsByModule(configId: number, moduleId: string): Promise<DbExecReport[]>;
@@ -148,6 +160,8 @@ export interface IStorage {
   getMasterReportsByConfiguration(configId: number): Promise<DbMasterReport[]>;
   getLatestMasterReport(configId: number): Promise<DbMasterReport | undefined>;
   getMasterReportById(id: string): Promise<DbMasterReport | undefined>;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 }
@@ -861,6 +875,7 @@ export class DatabaseStorage implements IStorage {
     playbookResult?: any;
   }): Promise<DbExecReport> {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Validate input data before transaction
     if (!report.id || !report.configurationId || !report.moduleId) {
       throw new Error("Missing required fields for exec report creation");
@@ -919,6 +934,8 @@ export class DatabaseStorage implements IStorage {
       executedAt: result.created_at,
       createdAt: result.created_at,
 =======
+=======
+>>>>>>> Stashed changes
     const [created] = await db
       .insert(execReports)
       .values({
@@ -942,6 +959,9 @@ export class DatabaseStorage implements IStorage {
       output: created.output,
       playbookResult: created.playbookResult as DbExecReport['playbookResult'],
       created_at: created.created_at,
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     };
   }
@@ -1018,6 +1038,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   // Brands CRUD Methods
   // ============================================
@@ -1163,6 +1184,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
   // MasterReports CRUD Methods
@@ -1311,8 +1334,11 @@ export class MemStorage implements IStorage {
   private execReports: Map<string, DbExecReport> = new Map();
   private masterReports: Map<string, DbMasterReport> = new Map();
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   private brands: Map<number, BrandRecord> = new Map();
   private contexts: Map<number, ContextRecord> = new Map();
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
   private currentConfigId = 1;
@@ -1320,8 +1346,11 @@ export class MemStorage implements IStorage {
   private currentVersionId = 1;
   private currentAuditLogId = 1;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   private currentBrandId = 1;
   private currentContextId = 1;
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 
@@ -1496,6 +1525,7 @@ export class MemStorage implements IStorage {
   async createExecReport(report: any): Promise<DbExecReport> {
     const execReport: DbExecReport = {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       id: report.id,
       contextId: report.contextId || 0,
       brandId: report.brandId || 0,
@@ -1519,6 +1549,10 @@ export class MemStorage implements IStorage {
       ...report,
       executedAt: new Date(),
 >>>>>>> Stashed changes
+=======
+      ...report,
+      executedAt: new Date(),
+>>>>>>> Stashed changes
       created_at: new Date(),
     };
     this.execReports.set(report.id, execReport);
@@ -1527,10 +1561,15 @@ export class MemStorage implements IStorage {
 
   async getExecReportsByConfiguration(configurationId: number, contextVersion?: number): Promise<DbExecReport[]> {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // For MemStorage, we need to map from contextId to configurationId
     // This is a limitation of in-memory storage - we can't easily query by configuration
     // Return all exec reports for now (this is a fallback storage)
     return Array.from(this.execReports.values())
+=======
+    return Array.from(this.execReports.values())
+      .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
+>>>>>>> Stashed changes
 =======
     return Array.from(this.execReports.values())
       .filter(r => r.configurationId === configurationId && (contextVersion === undefined || r.contextVersion === contextVersion))
@@ -1544,9 +1583,14 @@ export class MemStorage implements IStorage {
 
   async getExecReportsByModule(configurationId: number, moduleId: string): Promise<DbExecReport[]> {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // For MemStorage, filter by moduleId only
     return Array.from(this.execReports.values())
       .filter(r => r.moduleId === moduleId)
+=======
+    return Array.from(this.execReports.values())
+      .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
+>>>>>>> Stashed changes
 =======
     return Array.from(this.execReports.values())
       .filter(r => r.configurationId === configurationId && r.moduleId === moduleId)
@@ -1579,6 +1623,7 @@ export class MemStorage implements IStorage {
   async getMasterReportById(id: string): Promise<DbMasterReport | null> {
     return this.masterReports.get(id) || null;
   }
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 
   // ============================================
@@ -1739,6 +1784,8 @@ export class MemStorage implements IStorage {
 
     return { context: ctx, brand, reports };
   }
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 }
