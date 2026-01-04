@@ -1,0 +1,32 @@
+Unchecked runtime.lastError: Cannot create item with duplicate id LastPass https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id separator https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Item https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Password https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Address https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Payment Card https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id Add other item https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id Save all entered data https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id Generate Secure Password https://aistudio.google.com/u/2/apps/drive/1mKmC02HoRwdzb9UGChTJay3zgTV-aKX1?showPreview=true&showAssistant=true
+Unchecked runtime.lastError: Cannot create item with duplicate id LastPass https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id separator https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Item https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Password https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Address https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Payment Card https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add other item https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Save all entered data https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Generate Secure Password https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id LastPass https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id separator https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Item https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Password https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Address https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add Payment Card https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Add other item https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Save all entered data https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+Unchecked runtime.lastError: Cannot create item with duplicate id Generate Secure Password https://chatgpt.com/share/69449b86-f424-8013-87a1-0da23e15e9dd
+/modules/keyword-gap:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+/modules/keyword-gap:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+overlay.js:1 Uncaught SyntaxError: Identifier 'EXCEPTIONS_HOSTS' has already been declared (at overlay.js:1:1)
+web-client-content-script.js:2 Uncaught TypeError: Failed to execute 'observe' on 'MutationObserver': parameter 1 is not of type 'Node'.
+    at HTMLIFrameElement.<anonymous> (web-client-content-script.js:2:2350937)
