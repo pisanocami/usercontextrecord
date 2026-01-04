@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
   Layers,
@@ -15,6 +16,15 @@ import {
   Plus,
   BarChart3,
   LayoutDashboard,
+  TrendingUp,
+  Eye,
+  Swords,
+  LineChart,
+  Activity,
+  DollarSign,
+  Share2,
+  Brain,
+  Loader2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +39,42 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
+interface FONModule {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  ownerCouncil: string;
+  dataSources: string[];
+}
+
+const categoryIcons: Record<string, typeof TrendingUp> = {
+  demand: TrendingUp,
+  visibility: Eye,
+  competitive: Swords,
+  strategy: Brain,
+  performance: Activity,
+  content: LineChart,
+  other: BarChart3,
+};
+
+const categoryLabels: Record<string, string> = {
+  demand: "Demand Analysis",
+  visibility: "SEO & Visibility",
+  competitive: "Competitive Intel",
+  strategy: "Strategic Planning",
+  performance: "Performance Metrics",
+  content: "Content Analysis",
+  other: "Other Modules",
+};
+
+const categoryOrder = ['demand', 'visibility', 'competitive', 'strategy', 'performance', 'content', 'other'];
 
 interface SidebarProps {
   activeSection: string;
@@ -94,6 +140,24 @@ export function AppSidebar({
   hasUnsavedChanges = false,
   cmoSafe = false,
 }: SidebarProps) {
+  const [location] = useLocation();
+  
+  const { data: modulesData, isLoading: modulesLoading } = useQuery<{ modules: FONModule[] }>({
+    queryKey: ["/api/fon/modules"],
+  });
+
+  const modules = modulesData?.modules || [];
+  
+  const modulesByCategory = modules.reduce((acc, mod) => {
+    const cat = mod.category || "other";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(mod);
+    return acc;
+  }, {} as Record<string, FONModule[]>);
+
+  const isModuleActive = (moduleId: string) => location === `/modules/${moduleId}`;
+  const isModulesSection = location.startsWith("/modules");
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
@@ -103,7 +167,7 @@ export function AppSidebar({
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">Brand Intelligence</span>
-            <span className="text-xs text-muted-foreground">Configuration</span>
+            <span className="text-xs text-muted-foreground">FON Platform</span>
           </div>
         </div>
       </SidebarHeader>
@@ -157,7 +221,7 @@ export function AppSidebar({
 
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Tools
+            Intelligence
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -174,7 +238,7 @@ export function AppSidebar({
                   >
                     <LayoutDashboard className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">Intelligence Dashboard</span>
+                      <span className="text-sm font-medium">Dashboard</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
@@ -182,9 +246,9 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <Link href="/modules">
                   <SidebarMenuButton
-                    isActive={activeSection === "modules"}
+                    isActive={activeSection === "modules" && location === "/modules"}
                     className={`group relative ${
-                      activeSection === "modules"
+                      activeSection === "modules" && location === "/modules"
                         ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
                         : ""
                     }`}
@@ -192,11 +256,84 @@ export function AppSidebar({
                   >
                     <BarChart3 className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
-                      <span className="text-sm font-medium">FON Modules</span>
+                      <span className="text-sm font-medium">All Modules</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            FON Modules
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {modulesLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <SidebarMenu>
+                {categoryOrder
+                  .filter(cat => modulesByCategory[cat]?.length > 0)
+                  .map((category) => {
+                  const categoryModules = modulesByCategory[category] || [];
+                  const CategoryIcon = categoryIcons[category] || BarChart3;
+                  const categoryLabel = categoryLabels[category] || category;
+                  const hasActiveModule = categoryModules.some(m => isModuleActive(m.id));
+                  
+                  return (
+                    <Collapsible key={category} defaultOpen={hasActiveModule || isModulesSection}>
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            className="group"
+                            data-testid={`nav-category-${category}`}
+                          >
+                            <CategoryIcon className="h-4 w-4" />
+                            <span className="text-sm font-medium flex-1 text-left">{categoryLabel}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {categoryModules.length}
+                            </Badge>
+                            <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="ml-4 border-l pl-2 mt-1 space-y-1">
+                            {categoryModules.map((mod) => (
+                              <Link key={mod.id} href={`/modules/${mod.id}`}>
+                                <SidebarMenuButton
+                                  isActive={isModuleActive(mod.id)}
+                                  className={`group relative text-sm ${
+                                    isModuleActive(mod.id)
+                                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                      : ""
+                                  }`}
+                                  data-testid={`nav-module-${mod.id}`}
+                                >
+                                  <span className="truncate">{mod.name}</span>
+                                </SidebarMenuButton>
+                              </Link>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                })}
+              </SidebarMenu>
+            )}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Tools
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
               <SidebarMenuItem>
                 <Link href="/bulk">
                   <SidebarMenuButton

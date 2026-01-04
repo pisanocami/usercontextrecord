@@ -439,15 +439,15 @@ function DashboardLayout() {
 
 function ModulesLayout() {
   const { user, logout, isLoggingOut } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const style = {
-    "--sidebar-width": "16rem",
+    "--sidebar-width": "18rem",
     "--sidebar-width-icon": "3rem",
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection="modules"
@@ -537,6 +537,11 @@ function Router() {
         </RequireTenant>
       </Route>
       <Route path="/modules">
+        <RequireTenant>
+          <ModulesLayout />
+        </RequireTenant>
+      </Route>
+      <Route path="/modules/:moduleId">
         <RequireTenant>
           <ModulesLayout />
         </RequireTenant>

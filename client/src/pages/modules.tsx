@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,12 +71,20 @@ const categoryIcons: Record<string, typeof BarChart3> = {
 };
 
 export default function ModulesPage() {
+  const params = useParams<{ moduleId?: string }>();
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [moduleResult, setModuleResult] = useState<ModuleResult | null>(null);
 
   const { data: modulesData, isLoading } = useQuery<{ modules: ModuleDefinition[] }>({
     queryKey: ['/api/fon/modules'],
   });
+
+  useEffect(() => {
+    if (params.moduleId && params.moduleId !== selectedModule) {
+      setSelectedModule(params.moduleId);
+      setModuleResult(null);
+    }
+  }, [params.moduleId, selectedModule]);
 
   const executeMutation = useMutation({
     mutationFn: async (moduleId: string) => {
