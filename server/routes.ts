@@ -629,121 +629,18 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to update configuration" });
     }
   });
-      const qualityScore = calculateQualityScore(result.data);
-      
-      // Determine if human review is required based on quality score
-      const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
-      const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
-      const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
-      
-      const configWithValidation = {
-        ...result.data,
-        governance: {
-          ...result.data.governance,
-          validation_status: validation.status,
-          blocked_reasons: validation.blockedReasons,
-          context_hash: contextHash,
-          context_version: 1,
-          quality_score: qualityScore,
-          ai_behavior: {
-            ...(result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
-            requires_human_review: requiresHumanReview,
-            auto_approved: autoApproved,
-          },
-        },
-      };
-      
-      const config = await storage.createConfiguration(userId, configWithValidation);
-      res.json(config);
-    } catch (error) {
-      console.error("Error creating configuration:", error);
-      res.status(500).json({ error: "Failed to create configuration" });
-    }
-  });
-
-  // Update configuration with edit reason
-  app.put("/api/configurations/:id", async (req: any, res) => {
-    try {
-      const userId = "anonymous-user";
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid configuration ID" });
-      }
-      
-      const { editReason, ...configData } = req.body;
-      
-      if (!editReason || typeof editReason !== "string" || editReason.trim().length < 5) {
-        return res.status(400).json({ error: "Edit reason is required (minimum 5 characters)" });
-      }
-      
-      const result = insertConfigurationSchema.safeParse(configData);
-      
-      if (!result.success) {
-        const validationError = fromZodError(result.error);
-        return res.status(400).json({ error: validationError.message });
-      }
-      
-      const validation = validateConfiguration(result.data);
-      
-      if (!validation.isValid) {
-        return res.status(422).json({ 
-          error: "Fail-closed validation failed", 
-          blockedReasons: validation.blockedReasons,
-          status: validation.status 
-        });
-      }
-      
-      const existingConfig = await storage.getConfigurationById(id, userId);
-      if (!existingConfig) {
-        return res.status(404).json({ error: "Configuration not found" });
-      }
-      
-      await storage.createConfigurationVersion(id, userId, editReason.trim());
-      
-      const currentVersion = existingConfig?.governance?.context_version || 0;
-      const contextHash = generateContextHash(result.data);
-      const qualityScore = calculateQualityScore(result.data);
-      
-      // Determine if human review is required based on quality score
-      const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
-      const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
-      const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
-      
-      const configWithValidation = {
-        ...result.data,
-        governance: {
-          ...result.data.governance,
-          validation_status: validation.status,
-          blocked_reasons: validation.blockedReasons,
-          context_hash: contextHash,
-          context_version: currentVersion + 1,
-          quality_score: qualityScore,
-          ai_behavior: {
-            ...(result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
-            requires_human_review: requiresHumanReview,
-            auto_approved: autoApproved,
-          },
-        },
-      };
-      
-      const config = await storage.updateConfiguration(id, userId, configWithValidation, editReason.trim());
-      res.json(config);
-    } catch (error) {
-      console.error("Error updating configuration:", error);
-      res.status(500).json({ error: "Failed to update configuration" });
-    }
-  });
 
   // Delete configuration
   app.delete("/api/configurations/:id", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
       
-      await storage.deleteConfiguration(id, userId);
+      await storage.deleteConfiguration(id, tenantId, userId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting configuration:", error);
@@ -754,13 +651,14 @@ export async function registerRoutes(
   // Get configuration version history
   app.get("/api/configurations/:id/versions", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
       
-      const versions = await storage.getConfigurationVersions(id, userId);
+      const versions = await storage.getConfigurationVersions(id, tenantId, userId);
       res.json(versions);
     } catch (error: any) {
       console.error("Error fetching versions:", error);
@@ -774,13 +672,14 @@ export async function registerRoutes(
   // Get a specific version
   app.get("/api/versions/:versionId", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const versionId = parseInt(req.params.versionId);
       if (isNaN(versionId)) {
         return res.status(400).json({ error: "Invalid version ID" });
       }
       
-      const version = await storage.getConfigurationVersion(versionId, userId);
+      const version = await storage.getConfigurationVersion(versionId, tenantId, userId);
       if (!version) {
         return res.status(404).json({ error: "Version not found" });
       }
@@ -794,6 +693,7 @@ export async function registerRoutes(
   // Create a version snapshot manually
   app.post("/api/configurations/:id/versions", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
@@ -802,7 +702,8 @@ export async function registerRoutes(
       
       const { changeSummary } = req.body;
       const version = await storage.createConfigurationVersion(
-        id, 
+        id,
+        tenantId,
         userId, 
         changeSummary || "Manual snapshot"
       );
@@ -819,13 +720,14 @@ export async function registerRoutes(
   // Restore a version
   app.post("/api/versions/:versionId/restore", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const versionId = parseInt(req.params.versionId);
       if (isNaN(versionId)) {
         return res.status(400).json({ error: "Invalid version ID" });
       }
       
-      const restored = await storage.restoreConfigurationVersion(versionId, userId);
+      const restored = await storage.restoreConfigurationVersion(versionId, tenantId, userId);
       res.json(restored);
     } catch (error: any) {
       console.error("Error restoring version:", error);
@@ -952,6 +854,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
   // Create bulk generation job
   app.post("/api/bulk/jobs", async (req: any, res: Response) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const result = bulkJobRequestSchema.safeParse(req.body);
       
@@ -961,12 +864,13 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
       }
 
       const job = await storage.createBulkJob(
+        tenantId,
         userId,
         result.data.primaryCategory,
         result.data.brands
       );
 
-      processBulkJob(job.id, result.data.primaryCategory, result.data.brands);
+      processBulkJob(job.id, tenantId, result.data.primaryCategory, result.data.brands);
 
       res.json(job);
     } catch (error) {
@@ -978,8 +882,9 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
   // Get all bulk jobs for user
   app.get("/api/bulk/jobs", async (req: any, res: Response) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
-      const jobs = await storage.getBulkJobs(userId);
+      const jobs = await storage.getBulkJobs(tenantId, userId);
       res.json(jobs);
     } catch (error) {
       console.error("Error fetching bulk jobs:", error);
@@ -990,8 +895,10 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
   // Get specific bulk job
   app.get("/api/bulk/jobs/:id", async (req: any, res: Response) => {
     try {
+      const tenantId = 1; // Default tenant
+      const userId = "anonymous-user";
       const jobId = parseInt(req.params.id);
-      const job = await storage.getBulkJob(jobId);
+      const job = await storage.getBulkJob(jobId, tenantId, userId);
       
       if (!job) {
         return res.status(404).json({ error: "Job not found" });
@@ -1027,8 +934,9 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
         return res.status(400).json({ error: "configurationId and competitorDomain are required" });
       }
 
-      const userId = (req.user as any)?.id || null;
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const tenantId = 1; // Default tenant
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const config = await storage.getConfigurationById(configurationId, tenantId, userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
@@ -1083,8 +991,9 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
         return res.status(400).json({ error: "configurationId is required" });
       }
 
-      const userId = (req.user as any)?.id || null;
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const tenantId = 1; // Default tenant
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const config = await storage.getConfigurationById(configurationId, tenantId, userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
@@ -1192,8 +1101,9 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
         return res.status(400).json({ error: "configurationId is required" });
       }
 
+      const tenantId = 1; // Default tenant
       const userId = (req.user as any)?.id || "anonymous-user";
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const config = await storage.getConfigurationById(configurationId, tenantId, userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
@@ -1256,19 +1166,20 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
 
 async function processBulkJob(
   jobId: number,
+  tenantId: number,
   primaryCategory: string,
   brands: BulkBrandInput[]
 ) {
-  const limit = pLimit(3);
+  const limitConcurrency = pLimit(3);
   const results: InsertConfiguration[] = [];
   const errors: { domain: string; error: string }[] = [];
   let completed = 0;
   let failed = 0;
 
-  await storage.updateBulkJob(jobId, { status: "processing" });
+  await storage.updateBulkJob(jobId, tenantId, { status: "processing" });
 
   const tasks = brands.map((brand) =>
-    limit(async () => {
+    limitConcurrency(async () => {
       try {
         const config = await generateCompleteConfiguration(
           brand.domain,
@@ -1278,7 +1189,7 @@ async function processBulkJob(
         results.push(config);
         completed++;
         
-        await storage.updateBulkJob(jobId, {
+        await storage.updateBulkJob(jobId, tenantId, {
           completedBrands: completed,
           results: results,
         });
@@ -1289,7 +1200,7 @@ async function processBulkJob(
           error: error.message || "Unknown error",
         });
         
-        await storage.updateBulkJob(jobId, {
+        await storage.updateBulkJob(jobId, tenantId, {
           failedBrands: failed,
           errors: errors,
         });
@@ -1299,7 +1210,7 @@ async function processBulkJob(
 
   await Promise.all(tasks);
 
-  await storage.updateBulkJob(jobId, {
+  await storage.updateBulkJob(jobId, tenantId, {
     status: "completed",
     completedBrands: completed,
     failedBrands: failed,
