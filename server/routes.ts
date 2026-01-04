@@ -431,13 +431,14 @@ export async function registerRoutes(
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       
-      let config = await storage.getConfiguration(userId);
+      let config = await storage.getConfiguration(tenantId, userId);
       
       // If no configuration exists, create a default one
       if (!config) {
-        config = await storage.saveConfiguration(userId, defaultConfiguration);
+        config = await storage.saveConfiguration(tenantId, userId, defaultConfiguration);
       }
       
       res.json(config);
@@ -450,6 +451,7 @@ export async function registerRoutes(
   // Save configuration (bypass auth)
   app.post("/api/configuration", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       
       const result = insertConfigurationSchema.safeParse(req.body);
@@ -459,7 +461,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: validationError.message });
       }
       
-      const config = await storage.saveConfiguration(userId, result.data);
+      const config = await storage.saveConfiguration(tenantId, userId, result.data);
       res.json(config);
     } catch (error) {
       console.error("Error saving configuration:", error);
@@ -470,8 +472,9 @@ export async function registerRoutes(
   // Get all configurations for user
   app.get("/api/configurations", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
-      const configs = await storage.getAllConfigurations(userId);
+      const configs = await storage.getAllConfigurations(tenantId, userId);
       res.json(configs);
     } catch (error) {
       console.error("Error fetching configurations:", error);
@@ -482,13 +485,14 @@ export async function registerRoutes(
   // Get single configuration by ID
   app.get("/api/configurations/:id", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
       
-      const config = await storage.getConfigurationById(id, userId);
+      const config = await storage.getConfigurationById(id, tenantId, userId);
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
       }
@@ -503,6 +507,7 @@ export async function registerRoutes(
   // Create new configuration
   app.post("/api/configurations", async (req: any, res) => {
     try {
+      const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       
       const result = insertConfigurationSchema.safeParse(req.body);
@@ -517,12 +522,113 @@ export async function registerRoutes(
       if (!validation.isValid) {
         return res.status(422).json({ 
           error: "Fail-closed validation failed", 
-          blockedReasons: validation.blockedReasons,
+          blockedReasons: validation.blockedReasons, 
           status: validation.status 
         });
       }
       
       const contextHash = generateContextHash(result.data);
+      const qualityScore = calculateQualityScore(result.data);
+      
+      // Determine if human review is required based on quality score
+      const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
+      const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
+      const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
+      
+      const configWithValidation = {
+        ...result.data,
+        governance: {
+          ...result.data.governance,
+          validation_status: validation.status,
+          blocked_reasons: validation.blockedReasons,
+          context_hash: contextHash,
+          context_version: 1,
+          quality_score: qualityScore,
+          ai_behavior: {
+            ...(result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
+            requires_human_review: requiresHumanReview,
+            auto_approved: autoApproved,
+          },
+        },
+      };
+      
+      const config = await storage.createConfiguration(tenantId, userId, configWithValidation);
+      res.json(config);
+    } catch (error) {
+      console.error("Error creating configuration:", error);
+      res.status(500).json({ error: "Failed to create configuration" });
+    }
+  });
+
+  // Update configuration with edit reason
+  app.put("/api/configurations/:id", async (req: any, res) => {
+    try {
+      const tenantId = 1; // Default tenant
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const { editReason, ...configData } = req.body;
+      
+      if (!editReason || typeof editReason !== "string" || editReason.trim().length < 5) {
+        return res.status(400).json({ error: "Edit reason is required (minimum 5 characters)" });
+      }
+      
+      const result = insertConfigurationSchema.safeParse(configData);
+      
+      if (!result.success) {
+        const validationError = fromZodError(result.error);
+        return res.status(400).json({ error: validationError.message });
+      }
+      
+      const validation = validateConfiguration(result.data);
+      
+      if (!validation.isValid) {
+        return res.status(422).json({ 
+          error: "Fail-closed validation failed", 
+          blockedReasons: validation.blockedReasons, 
+          status: validation.status 
+        });
+      }
+      
+      const existingConfig = await storage.getConfigurationById(id, tenantId, userId);
+      if (!existingConfig) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const contextHash = generateContextHash(result.data);
+      const qualityScore = calculateQualityScore(result.data);
+
+      const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
+      const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
+      const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
+
+      const configWithValidation = {
+        ...result.data,
+        governance: {
+          ...result.data.governance,
+          validation_status: validation.status,
+          blocked_reasons: validation.blockedReasons,
+          context_hash: contextHash,
+          context_version: (existingConfig.governance?.context_version || 1) + 1,
+          quality_score: qualityScore,
+          ai_behavior: {
+            ...(result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
+            requires_human_review: requiresHumanReview,
+            auto_approved: autoApproved,
+          },
+        },
+      };
+
+      const config = await storage.updateConfiguration(id, tenantId, userId, configWithValidation, editReason.trim());
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating configuration:", error);
+      res.status(500).json({ error: "Failed to update configuration" });
+    }
+  });
       const qualityScore = calculateQualityScore(result.data);
       
       // Determine if human review is required based on quality score
