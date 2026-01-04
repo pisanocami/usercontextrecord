@@ -59,11 +59,22 @@ interface KeywordGapResult {
   configuration_name: string;
 }
 
+interface CompetitorEntry {
+  name: string;
+  domain: string;
+  status: "approved" | "rejected" | "pending_review";
+  similarity_score?: number;
+}
+
 interface Configuration {
   id: number;
   name: string;
   brand: { domain: string; name: string };
-  competitors: { direct: string[]; indirect: string[] };
+  competitors: { 
+    direct: string[]; 
+    indirect: string[];
+    competitors: CompetitorEntry[];
+  };
 }
 
 interface KeywordLiteResult {
@@ -75,6 +86,10 @@ interface KeywordLiteResult {
   competitorsSeen: string[];
   searchVolume?: number;
   theme: string;
+  scope_status: "in_scope" | "borderline" | "out_of_scope";
+  scope_reason: string;
+  matched_fence_concept?: string;
+  opportunity_score: number;
 }
 
 interface KeywordGapLiteResult {
@@ -87,6 +102,13 @@ interface KeywordGapLiteResult {
     passed: number;
     warned: number;
     blocked: number;
+  };
+  context_metadata: {
+    ucr_id?: number;
+    ucr_hash: string;
+    brand_domain_snapshot: string;
+    competitors_snapshot: string[];
+    generated_at: string;
   };
 }
 
@@ -307,9 +329,35 @@ export default function KeywordGap() {
                 </Button>
               </div>
 
-              {allCompetitors.length > 0 && (
+              {config.competitors?.competitors && config.competitors.competitors.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-2">Competidores configurados:</p>
+                  <p className="text-sm text-muted-foreground mb-2">Competidores (Phase 2):</p>
+                  <div className="flex flex-wrap gap-2">
+                    {config.competitors.competitors.map((comp) => (
+                      <div key={comp.domain} className="flex flex-col gap-1">
+                        <Button
+                          variant={comp.status === "approved" ? "outline" : "ghost"}
+                          size="sm"
+                          onClick={() => handleQuickAnalyze(comp.domain)}
+                          disabled={analyzeMutation.isPending || comp.status !== "approved"}
+                          className={comp.status !== "approved" ? "opacity-50 cursor-not-allowed" : ""}
+                        >
+                          {comp.name || comp.domain}
+                        </Button>
+                        {comp.status !== "approved" && (
+                          <Badge variant="outline" className="text-[9px] py-0 h-4 border-amber-500 text-amber-600">
+                            {comp.status === "pending_review" ? "Needs Review" : "Rejected"}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {allCompetitors.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <p className="text-sm text-muted-foreground mb-2">Legacy Competitors:</p>
                   <div className="flex flex-wrap gap-2">
                     {allCompetitors.map((comp) => (
                       <Button
@@ -383,6 +431,15 @@ export default function KeywordGap() {
                   <CardDescription>
                     {liteMutation.data.brandDomain} vs {liteMutation.data.competitors.length} competidores - {liteMutation.data.totalGapKeywords} keywords de brecha encontradas
                   </CardDescription>
+                  <div className="flex flex-col gap-1 mt-2">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" />
+                      Context Snapshot: {liteMutation.data.context_metadata.ucr_hash.slice(0, 8)}... (UCR ID: {liteMutation.data.context_metadata.ucr_id || "N/A"})
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Generado el: {new Date(liteMutation.data.context_metadata.generated_at).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Badge variant="default" className="flex items-center gap-1">
@@ -419,6 +476,8 @@ export default function KeywordGap() {
                             <TableRow>
                               <TableHead className="w-8">Estado</TableHead>
                               <TableHead>Keyword</TableHead>
+                              <TableHead>Score</TableHead>
+                              <TableHead>Scope</TableHead>
                               <TableHead>Competidores</TableHead>
                               <TableHead className="text-right">Razón</TableHead>
                             </TableRow>
@@ -434,6 +493,23 @@ export default function KeywordGap() {
                                   </span>
                                 </TableCell>
                                 <TableCell className="font-medium">{kw.keyword}</TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={kw.opportunity_score > 70 ? "default" : kw.opportunity_score > 40 ? "secondary" : "outline"}
+                                    className="font-mono"
+                                  >
+                                    {kw.opportunity_score}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={kw.scope_status === "in_scope" ? "default" : kw.scope_status === "borderline" ? "secondary" : "destructive"}
+                                    className="text-[10px] uppercase px-1"
+                                    title={kw.scope_reason}
+                                  >
+                                    {kw.scope_status.replace('_', ' ')}
+                                  </Badge>
+                                </TableCell>
                                 <TableCell>
                                   <div className="flex flex-wrap gap-1">
                                     {kw.competitorsSeen.map((c, j) => (

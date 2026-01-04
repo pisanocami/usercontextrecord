@@ -79,7 +79,7 @@ export type BulkJobRequest = z.infer<typeof bulkJobRequestSchema>;
 
 export interface BulkJob {
   id: number;
-  tenantId: number;
+  tenantId: number | null;
   userId: string;
   status: "pending" | "processing" | "completed" | "failed";
   totalBrands: number;
@@ -353,7 +353,7 @@ export const governanceSchema = z.object({
 
 // Full Configuration Schema
 export const configurationSchema = z.object({
-  id: z.string(),
+  id: z.number(),
   name: z.string().min(1, "Configuration name is required"),
   brand: brandSchema,
   category_definition: categoryDefinitionSchema,
@@ -363,8 +363,8 @@ export const configurationSchema = z.object({
   channel_context: channelContextSchema,
   negative_scope: negativeScopeSchema,
   governance: governanceSchema,
-  created_at: z.string(),
-  updated_at: z.string(),
+  created_at: z.date(),
+  updated_at: z.date(),
 });
 
 // Insert schema (without auto-generated fields)

@@ -355,6 +355,10 @@ Return a complete JSON object with ALL sections filled.`;
       direct: generated.competitors?.direct || [],
       indirect: generated.competitors?.indirect || [],
       marketplaces: generated.competitors?.marketplaces || [],
+      competitors: [],
+      approved_count: 0,
+      rejected_count: 0,
+      pending_review_count: 0,
     },
     demand_definition: {
       brand_keywords: {
@@ -373,6 +377,14 @@ Return a complete JSON object with ALL sections filled.`;
       primary_goal: generated.strategic_intent?.primary_goal || "Increase market share",
       secondary_goals: generated.strategic_intent?.secondary_goals || [],
       avoid: generated.strategic_intent?.avoid || [],
+      goal_type: generated.strategic_intent?.goal_type || "roi",
+      time_horizon: generated.strategic_intent?.time_horizon || "medium",
+      constraint_flags: generated.strategic_intent?.constraint_flags || {
+        budget_constrained: false,
+        resource_limited: false,
+        regulatory_sensitive: false,
+        brand_protection_priority: false,
+      },
     },
     channel_context: {
       paid_media_active: generated.channel_context?.paid_media_active ?? true,
@@ -384,11 +396,16 @@ Return a complete JSON object with ALL sections filled.`;
       excluded_keywords: generated.negative_scope?.excluded_keywords || [],
       excluded_use_cases: generated.negative_scope?.excluded_use_cases || [],
       excluded_competitors: generated.negative_scope?.excluded_competitors || [],
+      category_exclusions: [],
+      keyword_exclusions: [],
+      use_case_exclusions: [],
+      competitor_exclusions: [],
       enforcement_rules: {
         hard_exclusion: true,
         allow_model_suggestion: true,
         require_human_override_for_expansion: true,
       },
+      audit_log: [],
     },
     governance: {
       model_suggested: true,
@@ -410,6 +427,31 @@ Return a complete JSON object with ALL sections filled.`;
       validation_status: "needs_review" as const,
       human_verified: false,
       blocked_reasons: [],
+      quality_score: {
+        completeness: 0,
+        competitor_confidence: 0,
+        negative_strength: 0,
+        evidence_coverage: 0,
+        overall: 0,
+        grade: "low",
+        breakdown: {
+          completeness_details: "",
+          competitor_details: "",
+          negative_details: "",
+          evidence_details: "",
+        },
+        calculated_at: "",
+      },
+      ai_behavior: {
+        regeneration_count: 0,
+        max_regenerations: 1,
+        redacted_fields: [],
+        auto_approve_threshold: 80,
+        require_human_below: 50,
+        requires_human_review: false,
+        auto_approved: false,
+        violation_detected: false,
+      },
     },
   };
 }
@@ -898,7 +940,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
       const tenantId = 1; // Default tenant
       const userId = "anonymous-user";
       const jobId = parseInt(req.params.id);
-      const job = await storage.getBulkJob(jobId, tenantId, userId);
+      const job = await storage.getBulkJob(jobId, tenantId);
       
       if (!job) {
         return res.status(404).json({ error: "Job not found" });
@@ -1137,11 +1179,13 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
         },
       };
 
-      const result = await computeKeywordGap(config, dataforseoClient, {
+      const result = await computeKeywordGap(config as any, dataforseoClient, {
         limitPerDomain,
         locationCode,
         languageCode,
         maxCompetitors,
+        ucrId: config.id,
+        ucrHash: config.governance?.context_hash,
       });
 
       res.json(result);

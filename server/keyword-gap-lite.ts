@@ -12,6 +12,10 @@ export interface KeywordResult {
   competitorsSeen: string[];
   searchVolume?: number;
   theme: string;
+  scope_status: "in_scope" | "borderline" | "out_of_scope";
+  scope_reason: string;
+  matched_fence_concept?: string;
+  opportunity_score: number;
 }
 
 export interface KeywordGapResult {
@@ -25,6 +29,13 @@ export interface KeywordGapResult {
     warned: number;
     blocked: number;
   };
+  context_metadata: {
+    ucr_id?: number;
+    ucr_hash: string;
+    brand_domain_snapshot: string;
+    competitors_snapshot: string[];
+    generated_at: string;
+  };
 }
 
 interface CacheEntry {
@@ -34,6 +45,17 @@ interface CacheEntry {
 
 const keywordCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+const DEFAULT_BLOCKED_PATTERNS = [
+  'login', 'sign in', 'signin',
+  'careers', 'jobs', 'hiring', 'employment',
+  'tracking number', 'track package', 'track order',
+  'customer service', 'support', 'help center',
+  'phone number', 'contact us', 'call us',
+  'address', 'locations', 'store finder',
+  'return policy', 'returns', 'refund',
+  'shipping status', 'delivery status'
+];
 
 export function normalizeDomain(domain: string): string {
   let normalized = domain.toLowerCase().trim();
@@ -48,6 +70,74 @@ export function normalizeKeyword(keyword: string): string {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, " ");
+}
+
+export function getIntentWeight(keyword: string): number {
+  const normalizedKw = normalizeKeyword(keyword);
+  
+  // Transactional intent
+  if (/\b(buy|price|cost|shop|store|order|purchase|near me|for sale)\b/.test(normalizedKw)) {
+    return 1.0;
+  }
+  
+  // Commercial intent
+  if (/\b(best|top|vs|review|comparison|alternative|choice)\b/.test(normalizedKw)) {
+    return 0.8;
+  }
+  
+  // Informational intent (default)
+  return 0.5;
+}
+
+export function calculateOpportunityScore(params: {
+  intentWeight: number;
+  gapSeverity: number;
+  brandFit: number;
+}): number {
+  // Score = Intent Weight × Gap Severity × Brand Fit
+  // Scale it to 0-100
+  return Math.round(params.intentWeight * params.gapSeverity * params.brandFit * 100);
+}
+
+export function classifyKeywordScope(
+  keyword: string,
+  inScopeConcepts: string[],
+  demandThemes: string[]
+): { scope_status: "in_scope" | "borderline" | "out_of_scope"; scope_reason: string; matched_fence_concept?: string } {
+  const normalizedKw = normalizeKeyword(keyword);
+  const allConcepts = [...inScopeConcepts, ...demandThemes].map(c => normalizeKeyword(c));
+  
+  for (const concept of allConcepts) {
+    if (normalizedKw.includes(concept) || concept.includes(normalizedKw)) {
+      return { 
+        scope_status: "in_scope", 
+        scope_reason: `Matches in-scope concept: "${concept}"`,
+        matched_fence_concept: concept
+      };
+    }
+  }
+
+  // Token based partial match for borderline
+  const keywordTokens = normalizedKw.split(" ");
+  for (const concept of allConcepts) {
+    const conceptTokens = concept.split(" ");
+    const hasPartialMatch = conceptTokens.some((token: string) => 
+      token.length > 3 && keywordTokens.some((kwToken: string) => kwToken.includes(token))
+    );
+    
+    if (hasPartialMatch) {
+      return { 
+        scope_status: "borderline", 
+        scope_reason: `Partial match with concept: "${concept}"`,
+        matched_fence_concept: concept
+      };
+    }
+  }
+
+  return { 
+    scope_status: "out_of_scope", 
+    scope_reason: "No direct or partial match to in-scope concepts" 
+  };
 }
 
 function getCacheKey(domain: string, locationCode: number, languageCode: string, limit: number): string {
@@ -81,9 +171,22 @@ export function applyExclusions(
     excludedUseCases?: string[];
     excludedCompetitors?: string[];
   }
-): { blocked: boolean; reason: string } {
+): { blocked: boolean; reason: string; type?: "custom" | "default" } {
   const normalizedKw = normalizeKeyword(keyword);
   
+  // 1. Check Default Blocked Patterns first (Hard Block)
+  for (const pattern of DEFAULT_BLOCKED_PATTERNS) {
+    const normalizedPattern = normalizeKeyword(pattern);
+    if (normalizedKw.includes(normalizedPattern)) {
+      return { 
+        blocked: true, 
+        reason: `Default exclusion: "${pattern}"`,
+        type: "default" 
+      };
+    }
+  }
+
+  // 2. Check Custom Exclusions
   const allExclusions = [
     ...(exclusions.excludedCategories || []),
     ...(exclusions.excludedKeywords || []),
@@ -93,7 +196,11 @@ export function applyExclusions(
   
   for (const exclusion of allExclusions) {
     if (normalizedKw.includes(exclusion) || exclusion.includes(normalizedKw)) {
-      return { blocked: true, reason: `Matches exclusion: "${exclusion}"` };
+      return { 
+        blocked: true, 
+        reason: `Matches custom exclusion: "${exclusion}"`,
+        type: "custom"
+      };
     }
   }
   
@@ -209,6 +316,8 @@ export async function computeKeywordGap(
     locationCode?: number;
     languageCode?: string;
     maxCompetitors?: number;
+    ucrId?: number;
+    ucrHash?: string;
   } = {}
 ): Promise<KeywordGapResult> {
   const {
@@ -216,12 +325,19 @@ export async function computeKeywordGap(
     locationCode = 2840,
     languageCode = "en",
     maxCompetitors = 5,
+    ucrId,
+    ucrHash = "",
   } = options;
   
   const brandDomain = normalizeDomain(config.brand?.domain || "");
-  const directCompetitors = (config.competitors?.direct || [])
+  
+  // Fix 3: Use only approved competitors
+  const directCompetitors = (config.competitors?.competitors || [])
+    .filter(c => c.status === "approved")
+    .map(c => c.domain)
+    .concat(config.competitors?.direct || []) // Backward compatibility
     .slice(0, maxCompetitors)
-    .map(c => typeof c === "string" ? c : c);
+    .filter(Boolean);
   
   const limit = pLimit(5);
   
@@ -245,7 +361,6 @@ export async function computeKeywordGap(
   }
   
   const brandKeywordsSet = new Set(brandKeywords);
-  
   const competitorKeywordsMap = new Map<string, Set<string>>();
   
   await Promise.all(
@@ -291,10 +406,32 @@ export async function computeKeywordGap(
   const results: KeywordResult[] = [];
   const stats = { passed: 0, warned: 0, blocked: 0 };
   
+  const inScopeConcepts = [
+    ...(config.category_definition?.included || []),
+    config.category_definition?.primary_category || "",
+    ...(config.category_definition?.approved_categories || []),
+  ].filter(Boolean);
+  
+  const demandThemes = [
+    ...(config.demand_definition?.brand_keywords?.seed_terms || []),
+    ...(config.demand_definition?.non_brand_keywords?.category_terms || []),
+    ...(config.demand_definition?.non_brand_keywords?.problem_terms || []),
+  ];
+
   allCompetitorKeywords.forEach((competitors, keyword) => {
     const evaluation = evaluateKeyword(keyword, config);
     const theme = assignTheme(keyword, config);
+    const scope = classifyKeywordScope(keyword, inScopeConcepts, demandThemes);
     
+    // Calculate Score (Fix 4)
+    const intentWeight = getIntentWeight(keyword);
+    // Severity: more competitors rank for it, higher the gap
+    const gapSeverity = competitors.length / directCompetitors.length;
+    // Fit: in_scope = 1.0, borderline = 0.5, out_of_scope = 0.1
+    const brandFit = scope.scope_status === "in_scope" ? 1.0 : (scope.scope_status === "borderline" ? 0.5 : 0.1);
+    
+    const opportunity_score = calculateOpportunityScore({ intentWeight, gapSeverity, brandFit });
+
     results.push({
       keyword,
       normalizedKeyword: normalizeKeyword(keyword),
@@ -303,6 +440,10 @@ export async function computeKeywordGap(
       reason: evaluation.reason,
       competitorsSeen: competitors,
       theme,
+      scope_status: scope.scope_status,
+      scope_reason: scope.scope_reason,
+      matched_fence_concept: scope.matched_fence_concept,
+      opportunity_score
     });
     
     if (evaluation.status === "pass") stats.passed++;
@@ -310,13 +451,8 @@ export async function computeKeywordGap(
     else stats.blocked++;
   });
   
-  results.sort((a, b) => {
-    const statusOrder = { pass: 0, warn: 1, block: 2 };
-    if (statusOrder[a.status] !== statusOrder[b.status]) {
-      return statusOrder[a.status] - statusOrder[b.status];
-    }
-    return b.competitorsSeen.length - a.competitorsSeen.length;
-  });
+  // Fix 4: Sort by opportunity score DESC
+  results.sort((a, b) => b.opportunity_score - a.opportunity_score);
   
   const top30 = results.slice(0, 30);
   
@@ -335,6 +471,13 @@ export async function computeKeywordGap(
     results: top30,
     grouped,
     stats,
+    context_metadata: {
+      ucr_id: ucrId,
+      ucr_hash: ucrHash,
+      brand_domain_snapshot: brandDomain,
+      competitors_snapshot: directCompetitors,
+      generated_at: new Date().toISOString()
+    }
   };
 }
 
