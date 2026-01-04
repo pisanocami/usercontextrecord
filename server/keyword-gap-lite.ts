@@ -241,6 +241,18 @@ export function evaluateKeyword(
   keyword: string,
   config: Configuration
 ): { status: GuardrailStatus; statusIcon: string; reason: string } {
+  const normalizedKw = normalizeKeyword(keyword);
+
+  // Intent Hard Blocks
+  const hardBlocks = [
+    'job', 'career', 'hiring', 'vacancy', 'tracking', 'track order', 'support', 'customer service',
+    'phone number', 'login', 'sign in', 'contact us', 'shipping status', 'delivery status', 'help desk'
+  ];
+
+  if (hardBlocks.some(block => normalizedKw.includes(block))) {
+    return { status: "block", statusIcon: "⛔", reason: "Intent Block: Navigation/Support" };
+  }
+
   const exclusions = {
     excludedCategories: config.negative_scope?.excluded_categories || [],
     excludedKeywords: config.negative_scope?.excluded_keywords || [],
