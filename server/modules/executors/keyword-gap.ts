@@ -1,5 +1,6 @@
 import { BaseModuleExecutor } from '../base-executor';
 import type { ModuleInput, ModuleOutput, ModuleDefinition } from '../types';
+import { getKeywordGap, checkCredentialsConfigured } from '../../dataforseo';
 
 interface KeywordData {
   keyword: string;
@@ -20,7 +21,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
     supportingCouncils: ['strategic_intelligence'],
     requiredInputs: ['domain', 'competitors'],
     optionalInputs: ['keywords'],
-    dataSources: ['DataForSEO', 'Ahrefs']
+    dataSources: ['DataForSEO']
   };
 
   async execute(input: ModuleInput): Promise<ModuleOutput> {
@@ -43,28 +44,80 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
     }
 
     try {
-      const brandKeywords = await this.fetchDomainKeywords(domain);
-      const competitorKeywordsMap = await this.fetchCompetitorKeywords(competitors);
-      const gapAnalysis = this.calculateGap(brandKeywords, competitorKeywordsMap);
+      let gapAnalysis;
+      let brandKeywords: KeywordData[] = [];
+      let competitorKeywords: Record<string, KeywordData[]> = {};
+
+      if (checkCredentialsConfigured()) {
+        // Use real DataForSEO API
+        const apiResult = await getKeywordGap(domain, competitors[0]);
+        
+        brandKeywords = apiResult.brand_keywords.map(k => ({
+          keyword: k.keyword,
+          volume: k.search_volume || 0,
+          difficulty: k.competition || 0,
+          cpc: k.cpc || 0,
+          intent: 'commercial', // Simplified mapping
+          position: k.position
+        }));
+
+        const gapKeywords = apiResult.gap_keywords.map(k => ({
+          keyword: k.keyword,
+          volume: k.search_volume || 0,
+          difficulty: k.competition || 0,
+          cpc: k.cpc || 0,
+          intent: 'commercial',
+          position: k.position
+        }));
+
+        const byIntent: Record<string, number> = {
+          informational: 0,
+          transactional: 0,
+          navigational: 0,
+          commercial: gapKeywords.length
+        };
+
+        const byDifficulty: Record<string, number> = {
+          easy: gapKeywords.filter(k => (k.difficulty || 0) < 30).length,
+          medium: gapKeywords.filter(k => (k.difficulty || 0) >= 30 && (k.difficulty || 0) < 60).length,
+          hard: gapKeywords.filter(k => (k.difficulty || 0) >= 60).length
+        };
+
+        const totalVolume = gapKeywords.reduce((sum, k) => sum + (k.volume || 0), 0);
+        const avgDifficulty = gapKeywords.length > 0 
+          ? Math.round(gapKeywords.reduce((sum, k) => sum + (k.difficulty || 0), 0) / gapKeywords.length)
+          : 0;
+
+        gapAnalysis = {
+          gapKeywords,
+          topGapKeywords: gapKeywords.slice(0, 20),
+          totalGapKeywords: gapKeywords.length,
+          totalGapVolume: totalVolume,
+          avgDifficulty,
+          byIntent,
+          byDifficulty
+        };
+      } else {
+        // Fallback to mock
+        brandKeywords = await this.fetchDomainKeywords(domain);
+        const competitorKeywordsMap = await this.fetchCompetitorKeywords(competitors);
+        gapAnalysis = this.calculateGap(brandKeywords, competitorKeywordsMap);
+        competitorKeywords = Object.fromEntries(competitorKeywordsMap);
+      }
+
       const insights = this.generateInsights(gapAnalysis);
       const recommendations = this.generateRecommendations(gapAnalysis);
-
       const dataTimestamp = new Date();
 
       return {
         moduleId: this.definition.id,
         hasData: true,
-        confidence: this.calculateConfidence({
-          dataCompleteness: gapAnalysis.gapKeywords.length > 0 ? 1 : 0.5,
-          sourceCount: 2,
-          dataFreshness: 1,
-          insightQuality: insights.length > 0 ? 0.85 : 0.5
-        }),
-        dataSources: ['DataForSEO', 'Ahrefs'],
+        confidence: checkCredentialsConfigured() ? 0.95 : 0.6,
+        dataSources: ['DataForSEO'],
         dataTimestamp,
         rawData: {
           brandKeywords,
-          competitorKeywords: Object.fromEntries(competitorKeywordsMap),
+          competitorKeywords,
           gapAnalysis
         },
         insights,
@@ -92,7 +145,7 @@ export class KeywordGapExecutor extends BaseModuleExecutor {
             `${gapAnalysis.totalGapVolume.toLocaleString()} monthly search volume opportunity`,
             `Average difficulty: ${gapAnalysis.avgDifficulty}%`
           ],
-          dataQuality: 'high',
+          dataQuality: checkCredentialsConfigured() ? 'high' : 'medium',
           analysisDepth: 'comprehensive',
           additionalContext: {
             topOpportunities: gapAnalysis.topGapKeywords.slice(0, 5)

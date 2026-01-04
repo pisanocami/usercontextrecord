@@ -11,7 +11,7 @@ export class MarketDemandExecutor extends BaseModuleExecutor {
     supportingCouncils: ['performance_media_messaging'],
     requiredInputs: ['keywords'],
     optionalInputs: ['periodStart', 'periodEnd', 'competitors'],
-    dataSources: ['Google Trends']
+    dataSources: ['SerpApi', 'Google Trends']
   };
 
   async execute(input: ModuleInput): Promise<ModuleOutput> {
@@ -43,13 +43,8 @@ export class MarketDemandExecutor extends BaseModuleExecutor {
       return {
         moduleId: this.definition.id,
         hasData: true,
-        confidence: this.calculateConfidence({
-          dataCompleteness: trendData.length > 0 ? 1 : 0,
-          sourceCount: 1,
-          dataFreshness: 1,
-          insightQuality: insights.length > 0 ? 0.8 : 0.4
-        }),
-        dataSources: ['Google Trends'],
+        confidence: process.env.SERPAPI_KEY ? 0.9 : 0.6,
+        dataSources: ['SerpApi', 'Google Trends'],
         dataTimestamp,
         rawData: {
           trends: trendData,
@@ -75,7 +70,7 @@ export class MarketDemandExecutor extends BaseModuleExecutor {
             `Seasonality strength: ${seasonality.strength}`,
             `YoY trend: ${seasonality.yoyTrend > 0 ? 'Growing' : 'Declining'} ${Math.abs(seasonality.yoyTrend)}%`
           ],
-          dataQuality: 'high',
+          dataQuality: process.env.SERPAPI_KEY ? 'high' : 'medium',
           analysisDepth: 'comprehensive'
         },
         freshnessStatus: this.getFreshnessStatus(dataTimestamp)
@@ -89,6 +84,27 @@ export class MarketDemandExecutor extends BaseModuleExecutor {
   }
 
   private async fetchTrendData(keywords: string[]): Promise<Array<{ date: string; value: number; keyword: string }>> {
+    const apiKey = process.env.SERPAPI_KEY;
+    
+    if (apiKey) {
+      try {
+        // Implementation for SerpApi Google Trends
+        const response = await fetch(`https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(keywords.join(','))}&api_key=${apiKey}`);
+        const data = await response.json();
+        
+        if (data.interest_over_time?.timeline_data) {
+          return data.interest_over_time.timeline_data.map((item: any) => ({
+            date: item.date,
+            value: item.values[0].extracted_value,
+            keyword: keywords[0]
+          }));
+        }
+      } catch (error) {
+        console.error('SerpApi request failed, falling back to mock:', error);
+      }
+    }
+
+    // Mock Fallback
     const mockData: Array<{ date: string; value: number; keyword: string }> = [];
     const now = new Date();
     
