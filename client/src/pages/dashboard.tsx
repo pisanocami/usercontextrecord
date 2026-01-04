@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, TrendingUp, AlertTriangle, CheckCircle, RefreshCw, BarChart3, Activity, FileText, ArrowRight, Zap } from 'lucide-react';
+import { Loader2, TrendingUp, AlertTriangle, CheckCircle, RefreshCw, BarChart3, Activity, FileText, ArrowRight, Zap, Settings } from 'lucide-react';
 import { ConfidenceBar } from '@/components/ui/confidence-bar';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { Configuration } from "@shared/schema";
 
 interface ModuleResult {
   moduleId: string;
@@ -35,6 +36,22 @@ export default function Dashboard() {
     queryKey: ['/api/fon/modules']
   });
 
+  const { data: configurations } = useQuery<Configuration[]>({
+    queryKey: ['/api/configurations'],
+  });
+
+  const activeConfig = configurations?.[0];
+  
+  const contextStatus = {
+    hasDomain: !!(activeConfig?.brand?.domain && activeConfig.brand.domain.trim() !== ''),
+    hasCompetitors: !!(activeConfig?.competitors?.direct && activeConfig.competitors.direct.length > 0),
+    brandName: activeConfig?.brand?.name || activeConfig?.name || 'Not configured',
+    domain: activeConfig?.brand?.domain || '',
+    competitors: activeConfig?.competitors?.direct || [],
+  };
+
+  const isContextComplete = contextStatus.hasDomain && contextStatus.hasCompetitors;
+
   const navigateToModule = (moduleId: string) => {
     setLocation(`/modules/${moduleId}`);
   };
@@ -45,10 +62,14 @@ export default function Dashboard() {
 
   const executeMutation = useMutation({
     mutationFn: async (moduleId: string) => {
+      const demandKeywords = activeConfig?.demand_definition?.brand_keywords?.seed_terms || [];
+      const categoryKeywords = activeConfig?.demand_definition?.non_brand_keywords?.category_terms || [];
+      const allKeywords = [...demandKeywords, ...categoryKeywords].slice(0, 10);
+      
       const res = await apiRequest('POST', `/api/fon/modules/${moduleId}/execute`, {
-        domain: 'example.com',
-        competitors: ['competitor1.com', 'competitor2.com', 'competitor3.com'],
-        keywords: ['brand keyword', 'industry keyword']
+        domain: contextStatus.domain,
+        competitors: contextStatus.competitors,
+        keywords: allKeywords.length > 0 ? allKeywords : ['brand keyword']
       });
       return res.json();
     },
@@ -113,7 +134,7 @@ export default function Dashboard() {
           <Button 
             size="lg"
             onClick={executeAllModules} 
-            disabled={executeMutation.isPending} 
+            disabled={executeMutation.isPending || !isContextComplete} 
             data-testid="button-execute-all"
           >
             {executeMutation.isPending ? (
@@ -121,10 +142,54 @@ export default function Dashboard() {
             ) : (
               <Zap className="h-5 w-5 mr-2" />
             )}
-            Generate Intelligence
+            {isContextComplete ? "Generate Intelligence" : "Configure Context First"}
           </Button>
         </div>
       </div>
+
+      {!isContextComplete && (
+        <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-amber-800 dark:text-amber-200">
+                Context Required to Generate Intelligence
+              </p>
+              <p className="text-sm text-amber-700/80 dark:text-amber-300/80">
+                Configure your brand domain and competitors to unlock all intelligence modules.
+                {!contextStatus.hasDomain && " Missing: Brand Domain."}
+                {!contextStatus.hasCompetitors && " Missing: Competitors."}
+              </p>
+            </div>
+            <Link href="/">
+              <Button variant="outline" className="gap-2" data-testid="button-configure-brand">
+                <Settings className="h-4 w-4" />
+                Configure Brand
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {isContextComplete && (
+        <Card className="border-green-500/30 bg-green-50/30 dark:bg-green-950/10">
+          <CardContent className="flex items-center gap-4 py-3">
+            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <div className="flex-1">
+              <p className="text-sm">
+                <span className="font-medium">Active Context:</span>{" "}
+                <Badge variant="outline" className="ml-1">{contextStatus.brandName}</Badge>
+                <span className="mx-2 text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{contextStatus.domain}</span>
+                <span className="mx-2 text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{contextStatus.competitors.length} competitors configured</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="relative overflow-visible" data-testid="card-confidence-score">

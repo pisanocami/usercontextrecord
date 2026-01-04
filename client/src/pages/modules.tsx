@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,8 +9,9 @@ import { ConfidenceBar } from "@/components/ui/confidence-bar";
 import { InsightBlock } from "@/components/ui/insight-block";
 import { RecommendationCard } from "@/components/ui/recommendation-card";
 import { FreshnessIndicator } from "@/components/ui/freshness-indicator";
-import { Loader2, Play, BarChart3, Target, Users, TrendingUp } from "lucide-react";
+import { Loader2, Play, BarChart3, Target, Users, TrendingUp, AlertTriangle, Settings } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import type { Configuration } from "@shared/schema";
 
 interface ModuleDefinition {
   id: string;
@@ -79,6 +80,22 @@ export default function ModulesPage() {
     queryKey: ['/api/fon/modules'],
   });
 
+  const { data: configurations } = useQuery<Configuration[]>({
+    queryKey: ['/api/configurations'],
+  });
+
+  const activeConfig = configurations?.[0];
+  
+  const contextStatus = {
+    hasDomain: !!(activeConfig?.brand?.domain && activeConfig.brand.domain.trim() !== ''),
+    hasCompetitors: !!(activeConfig?.competitors?.direct && activeConfig.competitors.direct.length > 0),
+    brandName: activeConfig?.brand?.name || activeConfig?.name || 'Not configured',
+    domain: activeConfig?.brand?.domain || '',
+    competitors: activeConfig?.competitors?.direct || [],
+  };
+
+  const isContextComplete = contextStatus.hasDomain && contextStatus.hasCompetitors;
+
   useEffect(() => {
     if (params.moduleId && params.moduleId !== selectedModule) {
       setSelectedModule(params.moduleId);
@@ -88,12 +105,16 @@ export default function ModulesPage() {
 
   const executeMutation = useMutation({
     mutationFn: async (moduleId: string) => {
+      const demandKeywords = activeConfig?.demand_definition?.brand_keywords?.seed_terms || [];
+      const categoryKeywords = activeConfig?.demand_definition?.non_brand_keywords?.category_terms || [];
+      const allKeywords = [...demandKeywords, ...categoryKeywords].slice(0, 10);
+      
       const response = await apiRequest('POST', `/api/fon/modules/${moduleId}/execute`, {
-        brandId: 1,
+        brandId: activeConfig?.id || 1,
         tenantId: 1,
-        keywords: ['marketing automation', 'email marketing', 'crm software'],
-        domain: 'example.com',
-        competitors: ['competitor1.com', 'competitor2.com'],
+        keywords: allKeywords.length > 0 ? allKeywords : ['brand keywords'],
+        domain: contextStatus.domain,
+        competitors: contextStatus.competitors,
       });
       return response.json();
     },
@@ -135,6 +156,49 @@ export default function ModulesPage() {
           {modules.length} modules available
         </Badge>
       </div>
+
+      {!isContextComplete && (
+        <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-amber-800 dark:text-amber-200">
+                Context Required
+              </p>
+              <p className="text-sm text-amber-700/80 dark:text-amber-300/80">
+                Configure your brand domain and competitors before running intelligence modules.
+                {!contextStatus.hasDomain && " Missing: Brand Domain."}
+                {!contextStatus.hasCompetitors && " Missing: Competitors."}
+              </p>
+            </div>
+            <Link href="/">
+              <Button variant="outline" className="gap-2" data-testid="button-configure-context">
+                <Settings className="h-4 w-4" />
+                Configure Brand
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {isContextComplete && (
+        <Card className="border-green-500/30 bg-green-50/30 dark:bg-green-950/10">
+          <CardContent className="flex items-center gap-4 py-3">
+            <div className="flex-1">
+              <p className="text-sm">
+                <span className="font-medium">Active Context:</span>{" "}
+                <Badge variant="outline" className="ml-1">{contextStatus.brandName}</Badge>
+                <span className="mx-2 text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{contextStatus.domain}</span>
+                <span className="mx-2 text-muted-foreground">|</span>
+                <span className="text-muted-foreground">{contextStatus.competitors.length} competitors</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
@@ -193,7 +257,7 @@ export default function ModulesPage() {
                   </div>
                   <Button
                     onClick={() => executeMutation.mutate(selectedModule)}
-                    disabled={executeMutation.isPending}
+                    disabled={executeMutation.isPending || !isContextComplete}
                     data-testid="execute-module-button"
                   >
                     {executeMutation.isPending ? (
@@ -201,7 +265,7 @@ export default function ModulesPage() {
                     ) : (
                       <Play className="h-4 w-4 mr-2" />
                     )}
-                    Execute Module
+                    {isContextComplete ? "Execute Module" : "Configure Context First"}
                   </Button>
                 </div>
               </CardHeader>
