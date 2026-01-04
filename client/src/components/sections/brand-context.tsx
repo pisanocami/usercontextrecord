@@ -93,9 +93,24 @@ export function BrandContextSection() {
           if (suggestions.included) form.setValue("category_definition.included", suggestions.included, { shouldDirty: true });
           if (suggestions.excluded) form.setValue("category_definition.excluded", suggestions.excluded, { shouldDirty: true });
         } else if (section === "competitors") {
-          if (suggestions.direct) form.setValue("competitors.direct", suggestions.direct, { shouldDirty: true });
-          if (suggestions.indirect) form.setValue("competitors.indirect", suggestions.indirect, { shouldDirty: true });
-          if (suggestions.marketplaces) form.setValue("competitors.marketplaces", suggestions.marketplaces, { shouldDirty: true });
+          if (suggestions.direct) {
+            const directNames = (suggestions.direct as Array<string | { name: string }>).map(
+              (item) => typeof item === "string" ? item : item.name
+            );
+            form.setValue("competitors.direct", directNames, { shouldDirty: true });
+          }
+          if (suggestions.indirect) {
+            const indirectNames = (suggestions.indirect as Array<string | { name: string }>).map(
+              (item) => typeof item === "string" ? item : item.name
+            );
+            form.setValue("competitors.indirect", indirectNames, { shouldDirty: true });
+          }
+          if (suggestions.marketplaces) {
+            const marketplaceNames = (suggestions.marketplaces as Array<string | { name: string }>).map(
+              (item) => typeof item === "string" ? item : item.name
+            );
+            form.setValue("competitors.marketplaces", marketplaceNames, { shouldDirty: true });
+          }
         } else if (section === "demand") {
           if (suggestions.brand_keywords?.seed_terms) form.setValue("demand_definition.brand_keywords.seed_terms", suggestions.brand_keywords.seed_terms, { shouldDirty: true });
           if (suggestions.non_brand_keywords?.category_terms) form.setValue("demand_definition.non_brand_keywords.category_terms", suggestions.non_brand_keywords.category_terms, { shouldDirty: true });
