@@ -1,0 +1,82 @@
+low Explanation
+Phase 1: Brand Creation
+When a user creates a brand, Django automatically triggers a signal that creates a UserContextRecord with all 8 sections pre-populated with defaults.
+Phase 2: Context Sections
+The 8 sections define everything the AI needs to know:
+Brand Identity: Who you are
+Category Definition: Your market space
+Competitive Set: Your competitors
+Demand Definition: What people search for
+Negative Scope: What to NEVER include :warning:
+Strategic Intent: Your goals
+Channel Context: Your investments
+Governance: Review status
+Phase 3: Validation Gate
+Before any analysis runs, the system validates:
+Are all required fields filled?
+Is Negative Scope populated?
+Has a human reviewed it?
+If incomplete → Human Review UI. If complete → Lock context.
+Phase 4: Pre-Filter Layer
+This is the first safety gate. Before calling any external API:
+Load the locked context
+Check every keyword/competitor/category against Negative Scope
+Block excluded items BEFORE they reach APIs
+Log everything that was filtered
+Phase 5: External APIs
+Only clean, validated data reaches external services:
+Ahrefs for keyword data
+Bright Data for SERP scraping
+Google Trends for trend analysis
+Prophet for forecasting
+Phase 6: AI Councils
+Five specialized AI councils analyze the filtered data:
+Growth Strategy Council
+SEO Visibility Council
+Performance Media Council
+Strategic Intelligence Council
+Product GTM Council
+Phase 7: Post-Validation
+This is the second safety gate. After AI generates output:
+Scan output for any excluded terms
+If found → Reject and regenerate
+If clean → Proceed to Decision Engine
+Phase 8: Decision Engine
+Classifies each opportunity:
+PREPARE: New opportunity, build foundation
+RAMP: Initial traction, scale up
+EXPLOIT: Proven success, maximize
+HOLD: Stable, maintain
+AVOID: Negative ROI or excluded
+Phase 9: Output Generation
+Creates deliverables:
+AI-powered insights
+Actionable recommendations
+Confidence scores
+Filter log (what was blocked and why)
+Phase 10: Frontend Display
+Dashboard shows everything with full transparency. Users can:
+See insights and recommendations
+View what was filtered
+Take action
+Update context (feedback loop)
+Key Takeaways
+Context is required — No module runs without locked context
+Double filtering — Pre-filter before APIs, post-validate after AI
+Full transparency — Users see what was filtered and why
+Feedback loop — Context can be updated based on results
+image.png
+ 
+image.png
+
+
+Camila Pisano
+  10:36 PM
+Hi Susan! I am here, and I see that there are many definitions, which one should I use? The last one , Or should I wait for some confirmation?
+10:36
+https://www.notion.so/force-of-nature/Keyword-Gap-Visibility-Overview-2c53ce1305c5807fbfc8d77d038b5b87?source=copy_link
+Camila Pisano
+  10:46 PM
+Could you please share me this QR? I need to access to the GitHub repo that Rado made
+image.png
+ 

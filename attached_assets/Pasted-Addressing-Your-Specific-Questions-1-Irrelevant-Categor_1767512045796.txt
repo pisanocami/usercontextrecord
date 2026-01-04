@@ -1,0 +1,68 @@
+Addressing Your Specific Questions
+1. Irrelevant Categories Showing Up in Reports
+This is exactly what the NegativeScope section of the Context Record solves. Here's how we prevent category pollution:
+Current Implementation:
+# In UserContextRecord.negative_scope
+{
+    "excluded_keywords": ["cat litter", "pet supplies", "dog food"],
+    "excluded_categories": ["Pet Care", "Animal Products"],
+    "excluded_competitors": ["Chewy", "PetSmart"],
+    "exclusion_reasoning": "Brand focuses on human wellness only"
+}
+Enforcement Points:
+Pre-Filter Gate: Before any API call (Ahrefs, Bright Data), keywords are checked against excluded_keywords and excluded_categories. Violations are blocked before external costs are incurred.
+Post-Validation Gate: After LLM generates insights, a validator scans for excluded terms. If found → regenerate or flag for review.
+Council Oversight: The Council service validates all outputs against the full Context before delivery.
+Why categories leak today (and how we fix it):
+ProblemRoot CauseOur FixSemantic drift"recovery footwear" → AI suggests "orthopedic pet beds"Semantic similarity check against excluded_categoriesKeyword overlap"wellness" appears in pet wellness contentCategory-level exclusion, not just keyword matchingData source noiseAhrefs returns tangential keywordsPre-filter before API response is processed
+2. Keeping Growth Signal CMO-Safe, Defensible, and Consistent
+CMO-Safe = No Surprises
+Our architecture guarantees this through:
+PrincipleImplementationAudit TrailFail ClosedIf context is incomplete or violated → hard stop, not warningAuditLog.action = "BLOCKED" with reasonHuman Override ≠ SilentEvery override requires explicit approval + reasonAuditLog.action = "OVERRIDE" with approverInheritanceAll modules inherit from the same Context RecordSingle source of truth, no module-specific configsVersioningContext changes create new versions, old decisions reference old contextcontext_version field on all outputs
+Defensibility = Explainable Decisions
+Every recommendation includes:
+{
+    "recommendation": "Target 'recovery sandals' keyword",
+    "confidence": 0.87,
+    "reasoning": "High volume (12K/mo), low competition, aligns with BrandIdentity.positioning",
+    "context_version": "v3.2",
+    "filters_applied": ["excluded 'pet recovery' variants", "excluded competitor brand terms"],
+    "data_sources": ["Ahrefs API", "Bright Data SERP"]
+}
+Consistency = Same Input → Same Output
+Context is locked before module execution (state: locked)
+All modules read from the same frozen context snapshot
+No module can modify context mid-execution
+Council validates consistency across module outputs
+3. Feedback on the Schema
+1-Does this schema give you everything you need to build confidently?
+:white_check_mark: Yes, with one addition needed: We should add a context_hash field that creates a deterministic fingerprint of the context state. This allows us to:
+Verify no tampering occurred
+Quickly compare if two executions used identical context
+Enable reproducible debugging
+2-Are there any fields you think should be v2 instead of v1?
+FieldRecommendationReasoningsemantic_exclusionsv2Requires ML model for similarity matchingcompetitor_aliasesv2Needs learning loop from user correctionsconfidence_thresholdsv1Critical for CMO-safe outputsauto_redactv2Complex edge cases, start with human review
+3.Any places where enforcement could be unclear or brittle?
+:warning: Potential Brittleness:
+Semantic matching boundaries: "How similar is too similar?" needs a configurable threshold (default: 0.85 cosine similarity)
+Fix: Add semantic_sensitivity field (low/medium/high)
+Override expiration: Temporary overrides could be forgotten
+Fix: Add override_expires_at with mandatory TTL
+Cross-module consistency: Module A might interpret context differently than Module B
+Fix: Council acts as final validator, all modules must pass Council review
+4. The Contract We Can All Point To
+Here's the Context-First Contract that makes Growth Signal sane, useful, and trusted:
+┌─────────────────────────────────────────────────────────────────┐
+│                    CONTEXT-FIRST CONTRACT                       │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Context is REQUIRED before any module executes               │
+│ 2. Context is INHERITED by all modules (no exceptions)          │
+│ 3. Context is ENFORCED by Council (pre and post validation)     │
+│ 4. Violations FAIL CLOSED (block, don't warn)                   │
+│ 5. Overrides are EXPLICIT (logged, approved, time-limited)      │
+│ 6. Outputs are EXPLAINABLE (sources, reasoning, confidence)     │
+│ 7. Changes are VERSIONED (immutable history)                    │
+│ 8. Bugs are BUGS (violations = defects, not edge cases)         │
+└─────────────────────────────────────────────────────────────────┘
+If anything violates this contract, it's a bug we fix—not a feature we debate.
+—Nani
