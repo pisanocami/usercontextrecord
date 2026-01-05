@@ -278,6 +278,11 @@ export async function getDomainIntersection(
         competition: item.keyword_data.keyword_info?.competition,
       }));
 
+    if (gapKeywords.length === 0) {
+      console.log(`Domain intersection returned 0 gap keywords, trying ranked_keywords fallback for ${cleanCompetitor}`);
+      return getCompetitorKeywordsFallback(cleanBrand, cleanCompetitor, locationCode, languageName, limit);
+    }
+
     return {
       brandDomain: cleanBrand,
       competitorDomain: cleanCompetitor,
@@ -286,6 +291,49 @@ export async function getDomainIntersection(
     };
   } catch (error) {
     console.error(`Error in getDomainIntersection for ${cleanBrand} vs ${cleanCompetitor}:`, error);
+    console.log(`Trying ranked_keywords fallback for ${cleanCompetitor}`);
+    return getCompetitorKeywordsFallback(brandDomain, competitorDomain, locationCode, languageName, limit);
+  }
+}
+
+async function getCompetitorKeywordsFallback(
+  brandDomain: string,
+  competitorDomain: string,
+  locationCode: number,
+  languageName: string,
+  limit: number
+): Promise<DomainIntersectionResult> {
+  const cleanBrand = brandDomain.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+  const cleanCompetitor = competitorDomain.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+
+  try {
+    const [brandResult, competitorResult] = await Promise.all([
+      getRankedKeywords(cleanBrand, locationCode, languageName, limit),
+      getRankedKeywords(cleanCompetitor, locationCode, languageName, limit),
+    ]);
+
+    const brandKeywordSet = new Set(brandResult.items.map(k => k.keyword.toLowerCase()));
+    
+    const gapKeywords: DomainIntersectionKeyword[] = competitorResult.items
+      .filter(k => !brandKeywordSet.has(k.keyword.toLowerCase()))
+      .map(k => ({
+        keyword: k.keyword,
+        searchVolume: k.search_volume || 0,
+        competitorPosition: k.position || 100,
+        cpc: k.cpc,
+        competition: k.competition,
+      }));
+
+    console.log(`Fallback found ${gapKeywords.length} gap keywords for ${cleanCompetitor}`);
+
+    return {
+      brandDomain: cleanBrand,
+      competitorDomain: cleanCompetitor,
+      gapKeywords,
+      totalCount: gapKeywords.length,
+    };
+  } catch (error) {
+    console.error(`Fallback also failed for ${cleanCompetitor}:`, error);
     return {
       brandDomain: cleanBrand,
       competitorDomain: cleanCompetitor,
