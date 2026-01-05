@@ -63,6 +63,36 @@ export function BrandContextSection() {
   const { toast } = useToast();
   const { generate, isGenerating, generateAsync } = useAIGenerate();
   const [optionalFieldsOpen, setOptionalFieldsOpen] = useState(false);
+  
+  // Auto-save mutation for after AI generation
+  const autoSaveMutation = useMutation({
+    mutationFn: async (data: InsertConfiguration) => {
+      const res = await fetch("/api/configurations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to save: ${res.status}`);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Configuration saved",
+        description: "Your AI-generated configuration has been saved automatically.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Auto-save failed",
+        description: error?.message || "Could not save configuration",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Fortune 500 brand generation mutation
   const fortune500Mutation = useMutation({
@@ -251,8 +281,14 @@ export function BrandContextSection() {
 
     toast({
       title: "Profile generation complete",
-      description: "All 8 sections have been configured by AI. Please review the tabs.",
+      description: "All 8 sections have been configured by AI. Saving...",
     });
+    
+    // Auto-save after generation with a small delay to ensure form values are set
+    setTimeout(() => {
+      const formData = form.getValues();
+      autoSaveMutation.mutate(formData);
+    }, 500);
   };
 
   const handleGenerate = () => {
