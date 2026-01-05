@@ -162,6 +162,8 @@ The frontend features:
 - **Phase 3 (Validation Gate)**: Comprehensive validation module (shared/validation.ts) with section-level validation, integrity checksum, approval gates. GET /api/configurations/:id/validate endpoint returns detailed validation results.
 - **Multi-Provider Keyword Gap (Complete)**: Implemented factory pattern with DataForSEO and Ahrefs providers. Ahrefs uses organic-keywords endpoint with 7-day cache, in-memory gap computation. Fixed competitor domain extraction to use UCR `competitors.competitors[]` array (tier1+tier2 only).
 - **Keyword Gap Lite v3.1**: Configurable scoring models with capability boosters/penalties, difficulty/position factors in opportunity score, vertical presets (DTC footwear, retail, B2B SaaS), confidence levels (high/medium/low), Executive Summary Card with estimated value/themes/competitor ownership, and Reason/Confidence/KD columns in tables.
+- **Governance Fallback Fix**: Updated keyword-gap-lite.ts to read scoring_config/capability_model from governance JSONB column when top-level fields are absent. OOFOS test validated: 15% pass rate (41 keywords) with DTC footwear preset vs 0% without.
+- **OOFOS Case Study**: Created OOFOS_CASE_STUDY.md with detailed analysis results showing "recovery shoes" theme as top opportunity (153K score).
 
 ### 10-Phase Growth Signal Architecture
 
