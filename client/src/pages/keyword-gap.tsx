@@ -106,11 +106,15 @@ interface KeywordLiteResult {
   intentType: IntentType;
   capabilityScore: number;
   opportunityScore: number;
+  difficultyFactor?: number;
+  positionFactor?: number;
   reason: string;
   flags: string[];
+  confidence: "high" | "medium" | "low";
   competitorsSeen: string[];
   searchVolume?: number;
   cpc?: number;
+  keywordDifficulty?: number;
   competitorPosition?: number;
   theme: string;
 }
@@ -683,6 +687,61 @@ export default function KeywordGap() {
               )}
             </CardHeader>
             <CardContent>
+              {/* Executive Summary Card */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 rounded-md border bg-muted/30">
+                  <div className="text-sm text-muted-foreground mb-1">Estimated Missing Value</div>
+                  <div className="text-2xl font-bold" data-testid="stat-missing-value">
+                    ${(() => {
+                      const totalValue = liteMutation.data.topOpportunities.reduce((sum, kw) => 
+                        sum + ((kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03), 0);
+                      return totalValue > 1000 
+                        ? `${(totalValue / 1000).toFixed(1)}K` 
+                        : totalValue.toFixed(0);
+                    })()}
+                    <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Based on 3% CTR assumption
+                  </div>
+                </div>
+                <div className="p-4 rounded-md border bg-muted/30">
+                  <div className="text-sm text-muted-foreground mb-1">Top Themes</div>
+                  <div className="flex flex-wrap gap-1" data-testid="stat-top-themes">
+                    {Object.entries(liteMutation.data.grouped || {})
+                      .sort((a, b) => b[1].length - a[1].length)
+                      .slice(0, 4)
+                      .map(([theme, keywords]) => (
+                        <Badge key={theme} variant="outline" className="text-xs">
+                          {theme} ({keywords.length})
+                        </Badge>
+                      ))}
+                  </div>
+                </div>
+                <div className="p-4 rounded-md border bg-muted/30">
+                  <div className="text-sm text-muted-foreground mb-1">Competitor Ownership</div>
+                  <div className="space-y-1" data-testid="stat-competitor-owners">
+                    {(() => {
+                      const competitorCounts: Record<string, number> = {};
+                      liteMutation.data.topOpportunities.forEach(kw => {
+                        kw.competitorsSeen?.forEach(c => {
+                          competitorCounts[c] = (competitorCounts[c] || 0) + 1;
+                        });
+                      });
+                      return Object.entries(competitorCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 3)
+                        .map(([comp, count]) => (
+                          <div key={comp} className="flex items-center justify-between text-xs">
+                            <span className="truncate max-w-[120px]">{comp}</span>
+                            <Badge variant="secondary" className="text-xs">{count}</Badge>
+                          </div>
+                        ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+
               <Tabs defaultValue="opportunities" className="w-full">
                 <TabsList className="mb-4">
                   <TabsTrigger value="opportunities" data-testid="tab-opportunities">
@@ -712,8 +771,11 @@ export default function KeywordGap() {
                             <TableHead>Keyword</TableHead>
                             <TableHead>Intent</TableHead>
                             <TableHead className="text-right">Volume</TableHead>
+                            <TableHead className="text-right">KD</TableHead>
                             <TableHead className="text-right">Score</TableHead>
                             <TableHead className="text-right">Capability</TableHead>
+                            <TableHead>Reason</TableHead>
+                            <TableHead className="text-center">Confidence</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -729,11 +791,25 @@ export default function KeywordGap() {
                                 {kw.searchVolume?.toLocaleString() || "-"}
                               </TableCell>
                               <TableCell className="text-right font-mono text-xs">
+                                {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs">
                                 {Math.round(kw.opportunityScore).toLocaleString()}
                               </TableCell>
                               <TableCell className="text-right">
                                 <Badge variant={kw.capabilityScore >= 0.7 ? "default" : "secondary"} className="text-xs">
                                   {Math.round(kw.capabilityScore * 100)}%
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={kw.reason}>
+                                {kw.reason}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant={kw.confidence === "high" ? "default" : kw.confidence === "medium" ? "secondary" : "outline"}
+                                  className="text-xs capitalize"
+                                >
+                                  {kw.confidence || "medium"}
                                 </Badge>
                               </TableCell>
                             </TableRow>
@@ -760,8 +836,10 @@ export default function KeywordGap() {
                             <TableHead>Keyword</TableHead>
                             <TableHead>Intent</TableHead>
                             <TableHead className="text-right">Volume</TableHead>
-                            <TableHead>Reason</TableHead>
+                            <TableHead className="text-right">KD</TableHead>
                             <TableHead className="text-right">Capability</TableHead>
+                            <TableHead>Reason</TableHead>
+                            <TableHead className="text-center">Confidence</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -776,12 +854,23 @@ export default function KeywordGap() {
                               <TableCell className="text-right">
                                 {kw.searchVolume?.toLocaleString() || "-"}
                               </TableCell>
-                              <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={kw.reason}>
-                                {kw.reason}
+                              <TableCell className="text-right font-mono text-xs">
+                                {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
                               </TableCell>
                               <TableCell className="text-right">
                                 <Badge variant="secondary" className="text-xs">
                                   {Math.round(kw.capabilityScore * 100)}%
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={kw.reason}>
+                                {kw.reason}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant={kw.confidence === "high" ? "default" : kw.confidence === "medium" ? "secondary" : "outline"}
+                                  className="text-xs capitalize"
+                                >
+                                  {kw.confidence || "medium"}
                                 </Badge>
                               </TableCell>
                             </TableRow>

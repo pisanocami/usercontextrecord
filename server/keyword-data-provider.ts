@@ -6,6 +6,7 @@ export interface GapKeyword {
   competitorPosition: number;
   cpc?: number;
   competition?: number;
+  keywordDifficulty?: number;
 }
 
 export interface GapResult {

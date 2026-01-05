@@ -1,9 +1,11 @@
 import pLimit from "p-limit";
-import type { Configuration } from "@shared/schema";
+import type { Configuration, CapabilityModel, ScoringConfig } from "@shared/schema";
 import type { KeywordDataProvider, GapKeyword } from "./keyword-data-provider";
 import { getProvider } from "./providers";
+import { getCapabilityPreset, getScoringPreset } from "./capability-presets";
 
 export type KeywordStatus = "pass" | "review" | "out_of_play";
+export type ConfidenceLevel = "high" | "medium" | "low";
 
 export type IntentType = 
   | "category_capture"
@@ -21,11 +23,15 @@ export interface KeywordResult {
   intentType: IntentType;
   capabilityScore: number;
   opportunityScore: number;
+  difficultyFactor: number;
+  positionFactor: number;
   reason: string;
   flags: string[];
+  confidence: ConfidenceLevel;
   competitorsSeen: string[];
   searchVolume: number;
   cpc?: number;
+  keywordDifficulty?: number;
   competitorPosition: number;
   theme: string;
 }
@@ -282,28 +288,57 @@ export function classifyIntent(keyword: string, config: Configuration): { intent
   return { intentType: "other", flags };
 }
 
+function getEffectiveCapabilityModel(config: Configuration): CapabilityModel {
+  if (config.capability_model && (config.capability_model.boosters?.length || config.capability_model.penalties?.length)) {
+    return config.capability_model as CapabilityModel;
+  }
+  const presetName = config.scoring_config?.vertical_preset;
+  return getCapabilityPreset(presetName);
+}
+
+function getEffectiveScoringConfig(config: Configuration): ScoringConfig {
+  if (config.scoring_config) {
+    return config.scoring_config as ScoringConfig;
+  }
+  return getScoringPreset();
+}
+
 export function computeCapabilityScore(keyword: string, config: Configuration): number {
   const normalizedKw = normalizeKeyword(keyword);
-  let score = 0.5;
+  const capabilityModel = getEffectiveCapabilityModel(config);
+  let score = capabilityModel.base_score ?? 0.5;
   
-  if (/\b(recovery|recover|post.?workout|after.?run|post.?run)\b/i.test(normalizedKw)) score += 0.55;
-  if (/\b(sandals?|slides?|flip.?flops?|clogs?|slippers?)\b/i.test(normalizedKw)) score += 0.25;
-  if (/\b(plantar fasciitis|arch support|foot pain|heel pain|bunions?|flat feet)\b/i.test(normalizedKw)) score += 0.4;
-  if (/\b(comfort|comfortable|cushion|soft)\b/i.test(normalizedKw)) score += 0.2;
-  if (/\b(oofos|oofoam)\b/i.test(normalizedKw)) score += 0.5;
-  if (/\b(nurses?|nursing|doctors?|healthcare|hospital|standing all day)\b/i.test(normalizedKw)) score += 0.25;
-  if (/\b(orthopedic|ortho|supportive|therapeutic)\b/i.test(normalizedKw)) score += 0.3;
-  if (/\b(shower shoes?|pool shoes?|water.?proof|beach|spa)\b/i.test(normalizedKw)) score += 0.2;
-  if (/\b(eva foam|eva material|foam shoes?)\b/i.test(normalizedKw)) score += 0.15;
+  for (const booster of capabilityModel.boosters || []) {
+    try {
+      const regex = new RegExp(`\\b(${booster.pattern})\\b`, 'i');
+      if (regex.test(normalizedKw)) {
+        score += booster.weight;
+      }
+    } catch {
+      if (normalizedKw.includes(booster.pattern.toLowerCase())) {
+        score += booster.weight;
+      }
+    }
+  }
   
-  if (/\b(running shoes?|hiking boots?|marathon training|trail running)\b/i.test(normalizedKw)) score -= 0.6;
-  if (/\b(basketball|soccer|football|tennis|golf|climbing)\b/i.test(normalizedKw)) score -= 0.55;
-  if (/\b(steel toe|work boots?|safety shoes?)\b/i.test(normalizedKw)) score -= 0.45;
-  if (/\b(dress shoes?|heels|formal|loafers?|oxfords?)\b/i.test(normalizedKw)) score -= 0.45;
-  if (/\b(kids?|children|baby|infant|toddler)\b/i.test(normalizedKw)) score -= 0.2;
+  for (const penalty of capabilityModel.penalties || []) {
+    try {
+      const regex = new RegExp(`\\b(${penalty.pattern})\\b`, 'i');
+      if (regex.test(normalizedKw)) {
+        score += penalty.weight;
+      }
+    } catch {
+      if (normalizedKw.includes(penalty.pattern.toLowerCase())) {
+        score += penalty.weight;
+      }
+    }
+  }
   
   const competitorBrands = getCompetitorBrandTerms(config);
-  for (const brand of competitorBrands) {
+  const commonBrands = capabilityModel.common_brands || [];
+  const allBrands = Array.from(new Set([...competitorBrands, ...commonBrands]));
+  
+  for (const brand of allBrands) {
     if (normalizedKw.includes(brand)) {
       score -= 0.6;
       break;
@@ -322,70 +357,130 @@ const INTENT_WEIGHTS: Record<IntentType, number> = {
   other: 0.1,
 };
 
+export function computeDifficultyFactor(
+  keywordDifficulty: number | undefined,
+  difficultyWeight: number = 0.5
+): number {
+  if (keywordDifficulty === undefined || keywordDifficulty === null) {
+    return 1.0;
+  }
+  const kd = Math.max(0, Math.min(100, keywordDifficulty));
+  const rawFactor = 1 - (kd / 100);
+  return 1 - (difficultyWeight * (1 - rawFactor));
+}
+
+export function computePositionFactor(
+  competitorPosition: number | undefined,
+  positionWeight: number = 0.5
+): number {
+  if (competitorPosition === undefined || competitorPosition === null || competitorPosition <= 0) {
+    return 1.0;
+  }
+  let rawFactor: number;
+  if (competitorPosition <= 3) {
+    rawFactor = 0.6;
+  } else if (competitorPosition <= 10) {
+    rawFactor = 1.0;
+  } else if (competitorPosition <= 20) {
+    rawFactor = 0.8;
+  } else {
+    rawFactor = 0.5;
+  }
+  return 1 - (positionWeight * (1 - rawFactor));
+}
+
 export function computeOpportunityScore(
   searchVolume: number,
   cpc: number | undefined,
   intentType: IntentType,
-  capabilityScore: number
+  capabilityScore: number,
+  keywordDifficulty?: number,
+  competitorPosition?: number,
+  scoringConfig?: ScoringConfig
 ): number {
   const volume = searchVolume || 0;
   const cpcValue = cpc || 1;
   const intentWeight = INTENT_WEIGHTS[intentType];
   
-  return volume * cpcValue * intentWeight * capabilityScore;
+  const difficultyWeight = scoringConfig?.difficulty_weight ?? 0.5;
+  const positionWeight = scoringConfig?.position_weight ?? 0.5;
+  
+  const difficultyFactor = computeDifficultyFactor(keywordDifficulty, difficultyWeight);
+  const positionFactor = computePositionFactor(competitorPosition, positionWeight);
+  
+  return volume * cpcValue * intentWeight * capabilityScore * difficultyFactor * positionFactor;
+}
+
+export interface KeywordEvaluation {
+  status: KeywordStatus;
+  statusIcon: string;
+  intentType: IntentType;
+  capabilityScore: number;
+  opportunityScore: number;
+  difficultyFactor: number;
+  positionFactor: number;
+  reason: string;
+  flags: string[];
+  confidence: ConfidenceLevel;
 }
 
 export function evaluateKeyword(
   keyword: string,
   config: Configuration,
   searchVolume: number = 0,
-  cpc?: number
-): {
-  status: KeywordStatus;
-  statusIcon: string;
-  intentType: IntentType;
-  capabilityScore: number;
-  opportunityScore: number;
-  reason: string;
-  flags: string[];
-} {
+  cpc?: number,
+  keywordDifficulty?: number,
+  competitorPosition?: number
+): KeywordEvaluation {
+  const scoringConfig = getEffectiveScoringConfig(config);
+  const passThreshold = scoringConfig.pass_threshold;
+  const reviewThreshold = scoringConfig.review_threshold;
+  
   const { intentType, flags } = classifyIntent(keyword, config);
   const capabilityScore = computeCapabilityScore(keyword, config);
-  const opportunityScore = computeOpportunityScore(searchVolume, cpc, intentType, capabilityScore);
+  const difficultyFactor = computeDifficultyFactor(keywordDifficulty, scoringConfig.difficulty_weight);
+  const positionFactor = computePositionFactor(competitorPosition, scoringConfig.position_weight);
+  const opportunityScore = computeOpportunityScore(
+    searchVolume, cpc, intentType, capabilityScore,
+    keywordDifficulty, competitorPosition, scoringConfig
+  );
+  
+  const baseResult = {
+    intentType,
+    capabilityScore,
+    opportunityScore,
+    difficultyFactor,
+    positionFactor,
+    flags,
+  };
   
   if (flags.includes("competitor_brand")) {
     return {
+      ...baseResult,
       status: "out_of_play",
       statusIcon: "💤",
-      intentType,
-      capabilityScore,
-      opportunityScore,
       reason: "Competitor brand term",
-      flags,
+      confidence: "high",
     };
   }
   
   if (intentType === "variant_or_size") {
     return {
+      ...baseResult,
       status: "out_of_play",
       statusIcon: "💤",
-      intentType,
-      capabilityScore,
-      opportunityScore,
       reason: "Size/variant query",
-      flags,
+      confidence: "high",
     };
   }
   
-  if (capabilityScore < 0.3) {
+  if (capabilityScore < reviewThreshold) {
     return {
+      ...baseResult,
       status: "out_of_play",
       statusIcon: "💤",
-      intentType,
-      capabilityScore,
-      opportunityScore,
       reason: "Low capability fit",
-      flags,
+      confidence: "high",
     };
   }
   
@@ -399,13 +494,12 @@ export function evaluateKeyword(
   const exclusionResult = checkExclusions(keyword, exclusions);
   if (exclusionResult.hasMatch) {
     return {
+      ...baseResult,
       status: "out_of_play",
       statusIcon: "💤",
-      intentType,
-      capabilityScore,
-      opportunityScore,
       reason: exclusionResult.reason,
       flags: [...flags, "excluded"],
+      confidence: "high",
     };
   }
   
@@ -423,38 +517,33 @@ export function evaluateKeyword(
   
   const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes);
   
-  if (capabilityScore >= 0.6 && fenceResult.inFence) {
+  if (capabilityScore >= passThreshold && fenceResult.inFence) {
     return {
+      ...baseResult,
       status: "pass",
       statusIcon: "✅",
-      intentType,
-      capabilityScore,
-      opportunityScore,
       reason: fenceResult.reason,
-      flags,
+      confidence: "high",
     };
   }
   
-  if (capabilityScore >= 0.3) {
+  if (capabilityScore >= reviewThreshold) {
+    const confidence: ConfidenceLevel = capabilityScore >= (passThreshold - 0.1) ? "medium" : "low";
     return {
+      ...baseResult,
       status: "review",
       statusIcon: "⚠️",
-      intentType,
-      capabilityScore,
-      opportunityScore,
       reason: fenceResult.inFence ? "Medium capability" : fenceResult.reason,
-      flags,
+      confidence,
     };
   }
   
   return {
+    ...baseResult,
     status: "out_of_play",
     statusIcon: "💤",
-    intentType,
-    capabilityScore,
-    opportunityScore,
     reason: "Low relevance",
-    flags,
+    confidence: "high",
   };
 }
 
@@ -601,7 +690,10 @@ export async function computeKeywordGap(
   let variantCount = 0;
   
   allKeywordsMap.forEach(({ keyword: kw, competitors }) => {
-    const evaluation = evaluateKeyword(kw.keyword, config, kw.searchVolume, kw.cpc);
+    const evaluation = evaluateKeyword(
+      kw.keyword, config, kw.searchVolume, kw.cpc,
+      kw.keywordDifficulty, kw.competitorPosition
+    );
     const theme = assignTheme(kw.keyword, config);
     
     results.push({
@@ -612,11 +704,15 @@ export async function computeKeywordGap(
       intentType: evaluation.intentType,
       capabilityScore: evaluation.capabilityScore,
       opportunityScore: evaluation.opportunityScore,
+      difficultyFactor: evaluation.difficultyFactor,
+      positionFactor: evaluation.positionFactor,
       reason: evaluation.reason,
       flags: evaluation.flags,
+      confidence: evaluation.confidence,
       competitorsSeen: competitors,
       searchVolume: kw.searchVolume,
       cpc: kw.cpc,
+      keywordDifficulty: kw.keywordDifficulty,
       competitorPosition: kw.competitorPosition,
       theme,
     });

@@ -198,6 +198,7 @@ export class AhrefsProvider implements KeywordDataProvider {
         competitorPosition: compKw.best_position,
         cpc: compKw.cpc,
         competition: compKw.keyword_difficulty / 100,
+        keywordDifficulty: compKw.keyword_difficulty,
       });
     }
 

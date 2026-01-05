@@ -154,6 +154,7 @@ export class DataForSEOProvider implements KeywordDataProvider {
                              item.second_domain_serp_element?.serp_item?.rank_group ?? 100,
           cpc: item.keyword_data.keyword_info?.cpc,
           competition: item.keyword_data.keyword_info?.competition,
+          keywordDifficulty: item.keyword_data.keyword_info?.competition ? item.keyword_data.keyword_info.competition * 100 : undefined,
         }));
 
       if (gapKeywords.length === 0) {
@@ -195,6 +196,7 @@ export class DataForSEOProvider implements KeywordDataProvider {
           competitorPosition: k.position || 100,
           cpc: k.cpc,
           competition: k.competition,
+          keywordDifficulty: k.competition ? k.competition * 100 : undefined,
         }));
 
       console.log(`[DataForSEO] Fallback found ${gapKeywords.length} gap keywords for ${competitorDomain}`);
