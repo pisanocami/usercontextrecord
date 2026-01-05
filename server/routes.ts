@@ -1261,8 +1261,31 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
         return res.status(500).json({ error: "No response from AI" });
       }
 
-      const suggestions = JSON.parse(content);
-      res.json({ suggestions, model_suggested: true });
+      // Clean up potential JSON issues from AI response
+      let cleanedContent = content.trim();
+      // Remove markdown code blocks if present
+      if (cleanedContent.startsWith("```json")) {
+        cleanedContent = cleanedContent.slice(7);
+      }
+      if (cleanedContent.startsWith("```")) {
+        cleanedContent = cleanedContent.slice(3);
+      }
+      if (cleanedContent.endsWith("```")) {
+        cleanedContent = cleanedContent.slice(0, -3);
+      }
+      cleanedContent = cleanedContent.trim();
+
+      try {
+        const suggestions = JSON.parse(cleanedContent);
+        res.json({ suggestions, model_suggested: true });
+      } catch (parseError) {
+        console.error("JSON parse error, raw content:", content.substring(0, 500));
+        // Return partial suggestions if possible
+        res.status(500).json({ 
+          error: "AI returned invalid JSON format", 
+          partial_content: content.substring(0, 200) 
+        });
+      }
     } catch (error) {
       console.error("Error generating AI suggestions:", error);
       res.status(500).json({ error: "Failed to generate suggestions" });
@@ -1444,7 +1467,14 @@ IMPORTANT:
       const versions = await storage.getConfigurationVersions(configurationId, userId);
       const contextVersion = versions?.length || 1;
 
-      const validationResult = validateContext(config, contextVersion);
+      // Convert DbConfiguration to Configuration type for validation
+      const configForValidation = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString(),
+      };
+      const validationResult = validateContext(configForValidation, contextVersion);
 
       res.json(validationResult);
     } catch (error: any) {
@@ -1478,14 +1508,14 @@ IMPORTANT:
       };
 
       await storage.updateConfiguration(configurationId, userId, {
+        ...config,
         governance: updatedGovernance,
-      });
+      } as any, "Context approved by user");
 
       // Create a version snapshot for audit trail
       await storage.createConfigurationVersion(
         configurationId,
         userId,
-        { ...config, governance: updatedGovernance },
         "Context approved by user"
       );
 
@@ -1723,7 +1753,15 @@ IMPORTANT:
         },
       };
 
-      const result = await computeKeywordGap(config, dataforseoClient, {
+      // Convert DbConfiguration to Configuration type for keyword gap analysis
+      const configForAnalysis = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString(),
+      };
+      
+      const result = await computeKeywordGap(configForAnalysis, dataforseoClient, {
         limitPerDomain,
         locationCode,
         languageCode,
