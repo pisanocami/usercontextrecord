@@ -1,16 +1,19 @@
+import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TagInput } from "@/components/tag-input";
 import { AIGenerateButton } from "@/components/ai-generate-button";
 import { useAIGenerate } from "@/hooks/use-ai-generate";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Building2, Info, Sparkles, Loader2 } from "lucide-react";
+import { Building2, Info, Sparkles, Loader2, ChevronDown, Wand2 } from "lucide-react";
 import type { InsertConfiguration } from "@shared/schema";
 
 const BUSINESS_MODELS = ["B2B", "DTC", "Marketplace", "Hybrid"] as const;
@@ -59,6 +62,7 @@ export function BrandContextSection() {
   const form = useFormContext<InsertConfiguration>();
   const { toast } = useToast();
   const { generate, isGenerating, generateAsync } = useAIGenerate();
+  const [optionalFieldsOpen, setOptionalFieldsOpen] = useState(false);
 
   // Fortune 500 brand generation mutation
   const fortune500Mutation = useMutation({
@@ -294,207 +298,248 @@ export function BrandContextSection() {
             </p>
           </div>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            variant="outline"
-            onClick={() => fortune500Mutation.mutate()}
-            disabled={fortune500Mutation.isPending}
-            data-testid="button-generate-fortune500"
-          >
-            {fortune500Mutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            Fortune 500
-          </Button>
-          <AIGenerateButton
-            onClick={handleGenerate}
-            isGenerating={isGenerating}
-            disabled={!form.getValues("brand.name") && !form.getValues("brand.domain")}
-          />
-        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Company Information</CardTitle>
-          <CardDescription>Enter your domain manually or generate a Fortune 500 brand for testing</CardDescription>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg">Start Here</CardTitle>
+            <Badge variant="outline" className="text-xs">Required</Badge>
+          </div>
+          <CardDescription>Enter your domain and click Generate - AI will complete all other fields automatically</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="brand.domain"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Domain *</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="acme.com"
-                      data-testid="input-brand-domain"
-                    />
-                  </FormControl>
-                  <FormDescription>Required - Your brand's website domain</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="brand.name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Brand Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Acme Corporation (auto-generated from domain)"
-                      data-testid="input-brand-name"
-                    />
-                  </FormControl>
-                  <FormDescription>Optional - AI can infer from domain</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="brand.industry"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Industry</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-brand-industry">
-                        <SelectValue placeholder="Select industry (AI will suggest)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {INDUSTRIES.map((industry) => (
-                        <SelectItem key={industry} value={industry}>
-                          {industry}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>Optional - AI can infer from domain</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="brand.business_model"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Business Model</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-business-model">
-                        <SelectValue placeholder="Select model" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {BUSINESS_MODELS.map((model) => (
-                        <SelectItem key={model} value={model}>
-                          {model}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>Optional - Default is B2B</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="brand.revenue_band"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Revenue Band</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-revenue-band">
-                        <SelectValue placeholder="Select revenue range (optional)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {REVENUE_BANDS.map((band) => (
-                        <SelectItem key={band} value={band}>
-                          {band}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>Optional - Helps with competitor sizing</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="brand.target_market"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Target Market</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-target-market">
-                        <SelectValue placeholder="Select target market" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {TARGET_MARKETS.map((market) => (
-                        <SelectItem key={market} value={market}>
-                          {market}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Primary geographic market for fail-closed validation
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
+        <CardContent className="space-y-4">
           <FormField
             control={form.control}
-            name="brand.primary_geography"
+            name="brand.domain"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Primary Geography</FormLabel>
+                <FormLabel className="flex items-center gap-2">
+                  Domain
+                  <Badge variant="destructive" className="text-xs">Required</Badge>
+                </FormLabel>
                 <FormControl>
-                  <TagInput
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Add region (e.g., North America, EMEA)"
-                    testId="tag-geography"
+                  <Input
+                    {...field}
+                    placeholder="acme.com"
+                    className="text-lg"
+                    data-testid="input-brand-domain"
                   />
                 </FormControl>
-                <FormDescription>
-                  Optional - Enter the primary regions where your brand operates
-                </FormDescription>
+                <FormDescription>Your brand's website domain - this is the only field you need to enter</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+          
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fortune500Mutation.mutate()}
+              disabled={fortune500Mutation.isPending}
+              data-testid="button-generate-fortune500-inline"
+            >
+              {fortune500Mutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Load Fortune 500 Example
+            </Button>
+            <span className="text-sm text-muted-foreground">or</span>
+            <AIGenerateButton
+              onClick={handleGenerate}
+              isGenerating={isGenerating}
+              disabled={!form.getValues("brand.domain")}
+            />
+          </div>
         </CardContent>
       </Card>
+
+      <Collapsible open={optionalFieldsOpen} onOpenChange={setOptionalFieldsOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover-elevate">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg">Additional Details</CardTitle>
+                  <Badge variant="secondary" className="text-xs">
+                    <Wand2 className="mr-1 h-3 w-3" />
+                    Auto-generated
+                  </Badge>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${optionalFieldsOpen ? "rotate-180" : ""}`} />
+              </div>
+              <CardDescription>These fields are automatically populated by AI - expand to review or override</CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6 pt-0">
+              <div className="grid gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="brand.name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        Brand Name
+                        <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Auto-generated from domain"
+                          data-testid="input-brand-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="brand.industry"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        Industry
+                        <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-brand-industry">
+                            <SelectValue placeholder="Auto-detected from domain" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {INDUSTRIES.map((industry) => (
+                            <SelectItem key={industry} value={industry}>
+                              {industry}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="brand.business_model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        Business Model
+                        <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-business-model">
+                            <SelectValue placeholder="Auto-detected" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {BUSINESS_MODELS.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="brand.revenue_band"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        Revenue Band
+                        <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-revenue-band">
+                            <SelectValue placeholder="Auto-estimated" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {REVENUE_BANDS.map((band) => (
+                            <SelectItem key={band} value={band}>
+                              {band}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="brand.target_market"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        Target Market
+                        <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-target-market">
+                            <SelectValue placeholder="Auto-detected" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {TARGET_MARKETS.map((market) => (
+                            <SelectItem key={market} value={market}>
+                              {market}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="brand.primary_geography"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        Primary Geography
+                        <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                      </FormLabel>
+                      <FormControl>
+                        <TagInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Add region (e.g., North America, EMEA)"
+                          testId="tag-geography"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/50">
         <Info className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
