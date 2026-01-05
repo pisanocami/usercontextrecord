@@ -575,8 +575,8 @@ export async function registerRoutes(
   // Create new configuration
   app.post("/api/configurations", async (req: any, res) => {
     try {
-      const tenantId = 1; // Default tenant
-      const userId = "anonymous-user";
+      const tenantId = getTenantId(req) || 1;
+      const userId = (req.user as any)?.claims?.sub || "dev-user-local";
       
       const result = insertConfigurationSchema.safeParse(req.body);
       
@@ -587,7 +587,10 @@ export async function registerRoutes(
       
       const validation = validateConfiguration(result.data);
       
-      if (!validation.isValid) {
+      // Allow saving draft configurations - validation status stored for UI feedback
+      // Only block if strict=true query param is set
+      const strictMode = req.query.strict === 'true';
+      if (strictMode && !validation.isValid) {
         return res.status(422).json({ 
           error: "Fail-closed validation failed", 
           blockedReasons: validation.blockedReasons, 
@@ -653,7 +656,9 @@ export async function registerRoutes(
       
       const validation = validateConfiguration(result.data);
       
-      if (!validation.isValid) {
+      // Allow saving draft configurations - validation status stored for UI feedback
+      const strictMode = req.query.strict === 'true';
+      if (strictMode && !validation.isValid) {
         return res.status(422).json({ 
           error: "Fail-closed validation failed", 
           blockedReasons: validation.blockedReasons, 

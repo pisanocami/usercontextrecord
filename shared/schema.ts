@@ -402,20 +402,20 @@ export const aiBehaviorContractSchema = z.object({
 
 // Governance Schema
 export const governanceSchema = z.object({
-  model_suggested: z.boolean(),
+  model_suggested: z.boolean().default(true),
   human_overrides: z.object({
-    competitors: z.array(z.string()),
-    keywords: z.array(z.string()),
-    categories: z.array(z.string()),
-  }),
+    competitors: z.array(z.string()).default([]),
+    keywords: z.array(z.string()).default([]),
+    categories: z.array(z.string()).default([]),
+  }).default({ competitors: [], keywords: [], categories: [] }),
   context_confidence: z.object({
-    level: caseInsensitiveEnum(["high", "medium", "low"]),
-    notes: z.string(),
-  }),
-  last_reviewed: z.string(),
-  reviewed_by: z.string(),
-  context_valid_until: z.string(),
-  cmo_safe: z.boolean(),
+    level: caseInsensitiveEnum(["high", "medium", "low"]).default("medium"),
+    notes: z.string().default(""),
+  }).default({ level: "medium", notes: "" }),
+  last_reviewed: z.string().default(new Date().toISOString().split("T")[0]),
+  reviewed_by: z.string().default(""),
+  context_valid_until: z.string().default(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]),
+  cmo_safe: z.boolean().default(false),
   // Phase 1: Validation & Versioning
   context_hash: z.string().default(""), // Deterministic fingerprint for reproducibility
   context_version: z.number().default(1), // Incrementing version number
