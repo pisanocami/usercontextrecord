@@ -1,7 +1,8 @@
 import pLimit from "p-limit";
 import type { Configuration } from "@shared/schema";
+import { getDomainIntersection, type DomainIntersectionKeyword } from "./dataforseo";
 
-export type GuardrailStatus = "pass" | "warn" | "block";
+export type GuardrailStatus = "pass" | "warn";
 
 export interface KeywordResult {
   keyword: string;
@@ -10,7 +11,8 @@ export interface KeywordResult {
   statusIcon: string;
   reason: string;
   competitorsSeen: string[];
-  searchVolume?: number;
+  searchVolume: number;
+  competitorPosition: number;
   theme: string;
 }
 
@@ -20,10 +22,10 @@ export interface KeywordGapResult {
   totalGapKeywords: number;
   results: KeywordResult[];
   grouped: Record<string, KeywordResult[]>;
-  borderline: KeywordResult[];
+  needsReview: KeywordResult[];
   stats: {
     passed: number;
-    blocked: number;
+    needsReview: number;
   };
   filtersApplied: {
     excludedCategories: number;
@@ -36,7 +38,7 @@ export interface KeywordGapResult {
 }
 
 interface CacheEntry {
-  data: string[];
+  data: DomainIntersectionKeyword[];
   timestamp: number;
 }
 
@@ -58,11 +60,15 @@ export function normalizeKeyword(keyword: string): string {
     .replace(/\s+/g, " ");
 }
 
-function getCacheKey(domain: string, locationCode: number, languageCode: string, limit: number): string {
-  return `${normalizeDomain(domain)}|${locationCode}|${languageCode}|${limit}`;
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getFromCache(key: string): string[] | null {
+function getCacheKey(brandDomain: string, competitorDomain: string, locationCode: number, languageCode: string): string {
+  return `${normalizeDomain(brandDomain)}|${normalizeDomain(competitorDomain)}|${locationCode}|${languageCode}`;
+}
+
+function getFromCache(key: string): DomainIntersectionKeyword[] | null {
   const entry = keywordCache.get(key);
   if (!entry) return null;
   
@@ -74,14 +80,14 @@ function getFromCache(key: string): string[] | null {
   return entry.data;
 }
 
-function setCache(key: string, data: string[]): void {
+function setCache(key: string, data: DomainIntersectionKeyword[]): void {
   keywordCache.set(key, {
     data,
     timestamp: Date.now(),
   });
 }
 
-export function applyExclusions(
+export function checkExclusions(
   keyword: string,
   exclusions: {
     excludedCategories?: string[];
@@ -89,7 +95,7 @@ export function applyExclusions(
     excludedUseCases?: string[];
     excludedCompetitors?: string[];
   }
-): { blocked: boolean; reason: string } {
+): { hasMatch: boolean; reason: string } {
   const normalizedKw = normalizeKeyword(keyword);
   
   const allExclusions = [
@@ -97,45 +103,59 @@ export function applyExclusions(
     ...(exclusions.excludedKeywords || []),
     ...(exclusions.excludedUseCases || []),
     ...(exclusions.excludedCompetitors || []),
-  ].map(e => normalizeKeyword(e));
+  ].filter(Boolean);
   
   for (const exclusion of allExclusions) {
-    if (normalizedKw.includes(exclusion) || exclusion.includes(normalizedKw)) {
-      return { blocked: true, reason: `Matches exclusion: "${exclusion}"` };
+    const normalizedExclusion = normalizeKeyword(exclusion);
+    if (!normalizedExclusion) continue;
+    
+    try {
+      const regex = new RegExp(`\\b${escapeRegex(normalizedExclusion)}\\b`, 'i');
+      if (regex.test(normalizedKw)) {
+        return { hasMatch: true, reason: `Matches exclusion: "${exclusion}"` };
+      }
+    } catch {
+      if (normalizedKw.includes(normalizedExclusion)) {
+        return { hasMatch: true, reason: `Matches exclusion: "${exclusion}"` };
+      }
     }
   }
   
-  return { blocked: false, reason: "" };
+  return { hasMatch: false, reason: "" };
 }
 
 export function fenceCheck(
   keyword: string,
   inScopeConcepts: string[],
   demandThemes: string[]
-): { status: GuardrailStatus; reason: string } {
+): { inFence: boolean; reason: string } {
   const normalizedKw = normalizeKeyword(keyword);
   
   const allConcepts = [
     ...inScopeConcepts.map(c => normalizeKeyword(c)),
     ...demandThemes.map(t => normalizeKeyword(t)),
-  ];
+  ].filter(Boolean);
+  
+  if (allConcepts.length === 0) {
+    return { inFence: true, reason: "No fence defined - auto-pass" };
+  }
   
   for (const concept of allConcepts) {
-    const conceptTokens = concept.split(" ");
+    const conceptTokens = concept.split(" ").filter(t => t.length > 2);
     const keywordTokens = normalizedKw.split(" ");
     
     const hasMatch = conceptTokens.some(token => 
-      token.length > 2 && keywordTokens.some(kwToken => 
+      keywordTokens.some(kwToken => 
         kwToken.includes(token) || token.includes(kwToken)
       )
     );
     
     if (hasMatch) {
-      return { status: "pass", reason: `Matches in-scope concept: "${concept}"` };
+      return { inFence: true, reason: `Matches: "${concept}"` };
     }
   }
   
-  return { status: "block", reason: "Outside category fence - no match to in-scope concepts" };
+  return { inFence: false, reason: "Outside category fence - needs review" };
 }
 
 export function evaluateKeyword(
@@ -149,9 +169,9 @@ export function evaluateKeyword(
     excludedCompetitors: config.negative_scope?.excluded_competitors || [],
   };
   
-  const exclusionResult = applyExclusions(keyword, exclusions);
-  if (exclusionResult.blocked) {
-    return { status: "block", statusIcon: "⛔", reason: exclusionResult.reason };
+  const exclusionResult = checkExclusions(keyword, exclusions);
+  if (exclusionResult.hasMatch) {
+    return { status: "warn", statusIcon: "⚠️", reason: exclusionResult.reason };
   }
   
   const inScopeConcepts = [
@@ -168,11 +188,11 @@ export function evaluateKeyword(
   
   const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes);
   
-  if (fenceResult.status === "pass") {
+  if (fenceResult.inFence) {
     return { status: "pass", statusIcon: "✅", reason: fenceResult.reason };
   }
   
-  return { status: "block", statusIcon: "⛔", reason: fenceResult.reason };
+  return { status: "warn", statusIcon: "⚠️", reason: fenceResult.reason };
 }
 
 export function assignTheme(keyword: string, config: Configuration): string {
@@ -199,19 +219,8 @@ export function assignTheme(keyword: string, config: Configuration): string {
   return "Other";
 }
 
-interface DataForSEOClient {
-  getRankedKeywords(domain: string, locationCode?: number, languageCode?: string, limit?: number): Promise<Array<{
-    keyword: string;
-    position: number;
-    searchVolume: number;
-    url: string;
-    trafficShare: number;
-  }>>;
-}
-
 export async function computeKeywordGap(
   config: Configuration,
-  dataforseoClient: DataForSEOClient,
   options: {
     limitPerDomain?: number;
     locationCode?: number;
@@ -222,117 +231,132 @@ export async function computeKeywordGap(
   const {
     limitPerDomain = 200,
     locationCode = 2840,
-    languageCode = "en",
+    languageCode = "English",
     maxCompetitors = 5,
   } = options;
   
   const brandDomain = normalizeDomain(config.brand?.domain || "");
+  
   const directCompetitors = (config.competitors?.direct || [])
     .slice(0, maxCompetitors)
-    .map(c => typeof c === "string" ? c : c);
+    .map(c => {
+      if (typeof c === "string") return c;
+      if (c && typeof c === "object" && "domain" in c) return (c as { domain: string }).domain;
+      return "";
+    })
+    .filter(Boolean);
   
-  const limit = pLimit(5);
-  
-  const brandCacheKey = getCacheKey(brandDomain, locationCode, languageCode, limitPerDomain);
-  let brandKeywords = getFromCache(brandCacheKey);
-  
-  if (!brandKeywords) {
-    try {
-      const brandResults = await dataforseoClient.getRankedKeywords(
-        brandDomain,
-        locationCode,
-        languageCode,
-        limitPerDomain
-      );
-      brandKeywords = brandResults.map(r => normalizeKeyword(r.keyword));
-      setCache(brandCacheKey, brandKeywords);
-    } catch (error) {
-      console.error(`Error fetching brand keywords for ${brandDomain}:`, error);
-      brandKeywords = [];
-    }
+  if (!brandDomain || directCompetitors.length === 0) {
+    return {
+      brandDomain,
+      competitors: directCompetitors,
+      totalGapKeywords: 0,
+      results: [],
+      grouped: {},
+      needsReview: [],
+      stats: { passed: 0, needsReview: 0 },
+      filtersApplied: {
+        excludedCategories: 0,
+        excludedKeywords: 0,
+        excludedUseCases: 0,
+        totalFilters: 0,
+      },
+      contextVersion: 1,
+      configurationName: config.name || "Unknown",
+    };
   }
   
-  const brandKeywordsSet = new Set(brandKeywords);
+  const limit = pLimit(3);
   
-  const competitorKeywordsMap = new Map<string, Set<string>>();
+  const allKeywordsMap = new Map<string, {
+    keyword: DomainIntersectionKeyword;
+    competitors: string[];
+  }>();
   
   await Promise.all(
     directCompetitors.map(competitor =>
       limit(async () => {
         const competitorDomain = normalizeDomain(competitor);
-        const cacheKey = getCacheKey(competitorDomain, locationCode, languageCode, limitPerDomain);
+        const cacheKey = getCacheKey(brandDomain, competitorDomain, locationCode, languageCode);
         let cachedKeywords = getFromCache(cacheKey);
         
         if (!cachedKeywords) {
           try {
-            const results = await dataforseoClient.getRankedKeywords(
+            console.log(`Fetching domain intersection: ${brandDomain} vs ${competitorDomain}`);
+            const result = await getDomainIntersection(
+              brandDomain,
               competitorDomain,
               locationCode,
               languageCode,
               limitPerDomain
             );
-            cachedKeywords = results.map(r => normalizeKeyword(r.keyword));
+            cachedKeywords = result.gapKeywords;
             setCache(cacheKey, cachedKeywords);
+            console.log(`Got ${cachedKeywords.length} gap keywords from ${competitorDomain}`);
           } catch (error) {
-            console.error(`Error fetching keywords for ${competitorDomain}:`, error);
+            console.error(`Error fetching intersection for ${competitorDomain}:`, error);
             cachedKeywords = [];
           }
         }
         
-        competitorKeywordsMap.set(competitorDomain, new Set(cachedKeywords));
+        for (const kw of cachedKeywords) {
+          const normalizedKw = normalizeKeyword(kw.keyword);
+          const existing = allKeywordsMap.get(normalizedKw);
+          
+          if (existing) {
+            existing.competitors.push(competitorDomain);
+            if (kw.searchVolume > existing.keyword.searchVolume) {
+              existing.keyword = kw;
+            }
+          } else {
+            allKeywordsMap.set(normalizedKw, {
+              keyword: kw,
+              competitors: [competitorDomain],
+            });
+          }
+        }
       })
     )
   );
   
-  const allCompetitorKeywords = new Map<string, string[]>();
-  
-  competitorKeywordsMap.forEach((keywords, competitor) => {
-    keywords.forEach(kw => {
-      if (!brandKeywordsSet.has(kw)) {
-        const existing = allCompetitorKeywords.get(kw) || [];
-        existing.push(competitor);
-        allCompetitorKeywords.set(kw, existing);
-      }
-    });
-  });
-  
   const results: KeywordResult[] = [];
-  const stats = { passed: 0, blocked: 0 };
+  const stats = { passed: 0, needsReview: 0 };
   
-  allCompetitorKeywords.forEach((competitors, keyword) => {
-    const evaluation = evaluateKeyword(keyword, config);
-    const theme = assignTheme(keyword, config);
+  allKeywordsMap.forEach(({ keyword: kw, competitors }) => {
+    const evaluation = evaluateKeyword(kw.keyword, config);
+    const theme = assignTheme(kw.keyword, config);
     
     results.push({
-      keyword,
-      normalizedKeyword: normalizeKeyword(keyword),
+      keyword: kw.keyword,
+      normalizedKeyword: normalizeKeyword(kw.keyword),
       status: evaluation.status,
       statusIcon: evaluation.statusIcon,
       reason: evaluation.reason,
       competitorsSeen: competitors,
+      searchVolume: kw.searchVolume,
+      competitorPosition: kw.competitorPosition,
       theme,
     });
     
     if (evaluation.status === "pass") stats.passed++;
-    else stats.blocked++;
+    else stats.needsReview++;
   });
   
   results.sort((a, b) => {
-    const statusOrder = { pass: 0, warn: 1, block: 2 };
-    if (statusOrder[a.status] !== statusOrder[b.status]) {
-      return statusOrder[a.status] - statusOrder[b.status];
+    if (a.status !== b.status) {
+      return a.status === "pass" ? -1 : 1;
     }
-    return b.competitorsSeen.length - a.competitorsSeen.length;
+    return (b.searchVolume || 0) - (a.searchVolume || 0);
   });
   
   const passedResults = results.filter(r => r.status === "pass");
-  const blockedResults = results.filter(r => r.status === "block");
+  const warnResults = results.filter(r => r.status === "warn");
   
-  const top30 = passedResults.slice(0, 30);
-  const borderline = blockedResults.slice(0, 10);
+  const top50 = passedResults.slice(0, 50);
+  const needsReview = warnResults.slice(0, 20);
   
   const grouped: Record<string, KeywordResult[]> = {};
-  top30.forEach(result => {
+  top50.forEach(result => {
     if (!grouped[result.theme]) {
       grouped[result.theme] = [];
     }
@@ -348,9 +372,9 @@ export async function computeKeywordGap(
     brandDomain,
     competitors: directCompetitors,
     totalGapKeywords: results.length,
-    results: top30,
+    results: top50,
     grouped,
-    borderline,
+    needsReview,
     stats,
     filtersApplied: {
       excludedCategories,

@@ -173,6 +173,128 @@ export async function getRankedKeywords(
   };
 }
 
+export interface DomainIntersectionKeyword {
+  keyword: string;
+  searchVolume: number;
+  competitorPosition: number;
+  cpc?: number;
+  competition?: number;
+}
+
+export interface DomainIntersectionResult {
+  brandDomain: string;
+  competitorDomain: string;
+  gapKeywords: DomainIntersectionKeyword[];
+  totalCount: number;
+}
+
+export async function getDomainIntersection(
+  brandDomain: string,
+  competitorDomain: string,
+  locationCode: number = 2840,
+  languageName: string = "English",
+  limit: number = 200
+): Promise<DomainIntersectionResult> {
+  const cleanBrand = brandDomain
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0];
+    
+  const cleanCompetitor = competitorDomain
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0];
+
+  const body = [
+    {
+      target1: cleanBrand,
+      target2: cleanCompetitor,
+      language_name: languageName,
+      location_code: locationCode,
+      intersections: false,
+      limit: Math.min(limit, 1000),
+      order_by: ["keyword_data.keyword_info.search_volume,desc"],
+    },
+  ];
+
+  try {
+    const response = await makeRequest<{
+      tasks: Array<{
+        result: Array<{
+          total_count: number;
+          items_count: number;
+          items: Array<{
+            keyword_data: {
+              keyword: string;
+              keyword_info: {
+                search_volume?: number;
+                cpc?: number;
+                competition?: number;
+              };
+            };
+            first_domain_serp_element?: {
+              serp_item?: {
+                rank_absolute?: number;
+                rank_group?: number;
+              };
+            };
+            second_domain_serp_element?: {
+              serp_item?: {
+                rank_absolute?: number;
+                rank_group?: number;
+              };
+            };
+          }>;
+        }>;
+      }>;
+    }>("/dataforseo_labs/google/domain_intersection/live", body);
+
+    const result = response.tasks?.[0]?.result?.[0];
+    
+    if (!result || !result.items) {
+      console.log(`No intersection results for ${cleanBrand} vs ${cleanCompetitor}`);
+      return {
+        brandDomain: cleanBrand,
+        competitorDomain: cleanCompetitor,
+        gapKeywords: [],
+        totalCount: 0,
+      };
+    }
+
+    const gapKeywords: DomainIntersectionKeyword[] = result.items
+      .filter(item => {
+        const brandPos = item.first_domain_serp_element?.serp_item?.rank_absolute ?? 
+                        item.first_domain_serp_element?.serp_item?.rank_group;
+        const compPos = item.second_domain_serp_element?.serp_item?.rank_absolute ?? 
+                       item.second_domain_serp_element?.serp_item?.rank_group;
+        return !brandPos && compPos;
+      })
+      .map(item => ({
+        keyword: item.keyword_data.keyword,
+        searchVolume: item.keyword_data.keyword_info?.search_volume || 0,
+        competitorPosition: item.second_domain_serp_element?.serp_item?.rank_absolute ?? 
+                           item.second_domain_serp_element?.serp_item?.rank_group ?? 100,
+        cpc: item.keyword_data.keyword_info?.cpc,
+        competition: item.keyword_data.keyword_info?.competition,
+      }));
+
+    return {
+      brandDomain: cleanBrand,
+      competitorDomain: cleanCompetitor,
+      gapKeywords,
+      totalCount: result.total_count,
+    };
+  } catch (error) {
+    console.error(`Error in getDomainIntersection for ${cleanBrand} vs ${cleanCompetitor}:`, error);
+    return {
+      brandDomain: cleanBrand,
+      competitorDomain: cleanCompetitor,
+      gapKeywords: [],
+      totalCount: 0,
+    };
+  }
+}
+
 export async function getKeywordGap(
   brandDomain: string,
   competitorDomain: string,

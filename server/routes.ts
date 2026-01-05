@@ -1908,24 +1908,6 @@ IMPORTANT:
         return res.status(400).json({ error: "No direct competitors defined in configuration" });
       }
 
-      const dataforseoClient = {
-        getRankedKeywords: async (domain: string, locCode?: number, langCode?: string, limit?: number) => {
-          const result = await getRankedKeywords(
-            domain,
-            locCode || locationCode,
-            langCode === "en" ? "English" : langCode || "English",
-            limit || limitPerDomain
-          );
-          return result.items.map(item => ({
-            keyword: item.keyword,
-            position: item.position || 0,
-            searchVolume: item.search_volume || 0,
-            url: "",
-            trafficShare: 0,
-          }));
-        },
-      };
-
       // Convert DbConfiguration to Configuration type for keyword gap analysis
       const configForAnalysis = {
         ...config,
@@ -1934,10 +1916,10 @@ IMPORTANT:
         updated_at: config.updated_at.toISOString(),
       };
       
-      const result = await computeKeywordGap(configForAnalysis, dataforseoClient, {
+      const result = await computeKeywordGap(configForAnalysis, {
         limitPerDomain,
         locationCode,
-        languageCode,
+        languageCode: languageCode === "en" ? "English" : languageCode,
         maxCompetitors,
       });
 
