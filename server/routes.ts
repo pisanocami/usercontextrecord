@@ -5,24 +5,36 @@ import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, 
 import { fromZodError } from "zod-validation-error";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleGenAI } from "@google/genai";
 import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
 import { validateContext, type ContextValidationResult } from "./context-validator";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let openai: OpenAI | null = null;
+let gemini: GoogleGenerativeAI | null = null;
 
-const gemini = new GoogleGenAI({
-  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    apiVersion: "",
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-  },
-});
+try {
+  // Try to initialize OpenAI first
+  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  
+  // Try to initialize Gemini if OpenAI is not available
+  if (!openai && process.env.GEMINI_API_KEY) {
+    gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  }
+  
+  if (!openai && !gemini) {
+    console.warn("⚠️ No AI API Key found. AI features will be disabled. Please set either OPENAI_API_KEY or GEMINI_API_KEY in .env");
+  }
+} catch (error) {
+  console.error("❌ Failed to initialize AI client:", error);
+}
 
 interface ValidationResult {
   status: "complete" | "needs_review" | "blocked" | "incomplete";
@@ -49,6 +61,59 @@ function generateContextHash(config: InsertConfiguration): string {
   };
   const canonicalJson = JSON.stringify(safetyFields, Object.keys(safetyFields).sort());
   return Buffer.from(canonicalJson).toString('base64').slice(0, 32);
+}
+
+// Helper function to generate AI responses using either OpenAI or Gemini
+async function generateAIResponse(systemPrompt: string, userPrompt: string, maxTokens: number = 1000): Promise<string> {
+  // Try OpenAI first
+  if (openai) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: maxTokens,
+      });
+      
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        return content;
+      }
+    } catch (error) {
+      console.error("OpenAI generation error:", error);
+    }
+  }
+  
+  // Fallback to Gemini
+  if (gemini) {
+    try {
+      const model = gemini.getGenerativeModel({ model: "gemini-1.5-pro" });
+      
+      const result = await model.generateContent([
+        systemPrompt,
+        userPrompt
+      ]);
+      
+      const response = await result.response;
+      const text = response.text();
+      
+      if (text) {
+        // Try to extract JSON from the response
+        const jsonMatch = text.match(/\{[^]*\}/);
+        if (jsonMatch) {
+          return jsonMatch[0];
+        }
+        return text;
+      }
+    } catch (error) {
+      console.error("Gemini generation error:", error);
+    }
+  }
+  
+  throw new Error("No AI provider available or all providers failed");
 }
 
 function validateConfiguration(config: InsertConfiguration): ValidationResult {
@@ -313,17 +378,8 @@ Use your knowledge to identify:
 
 Return a complete JSON object with ALL sections filled.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt }
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 4000,
-  });
-
-  const content = response.choices[0]?.message?.content;
+  const content = await generateAIResponse(systemPrompt, userPrompt, 4000);
+  
   if (!content) {
     throw new Error("No response from AI");
   }
@@ -855,36 +911,48 @@ Suggest strategic intent:
 - Secondary goals (array)
 - Things to avoid (array)
 Return JSON with keys: growth_priority, risk_tolerance, primary_goal, secondary_goals, avoid`,
-        
-        channel: `Based on the business model "${context?.business_model || 'B2B'}" and industry "${context?.industry || 'unknown'}":
+      
+      channel: `Based on the business model "${context?.business_model || 'B2B'}" and industry "${context?.industry || 'unknown'}":
 Recommend channel context settings:
 - Should paid media be active? (boolean)
 - SEO investment level (low, medium, high)
 - Marketplace dependence level (low, medium, high)
 Return JSON with keys: paid_media_active, seo_investment_level, marketplace_dependence`,
-        
-        negative: `For a "${context?.business_model || 'B2B'}" company in "${context?.industry || 'unknown'}":
+      
+      negative: `For a "${context?.business_model || 'B2B'}" company in "${context?.industry || 'unknown'}":
 Suggest negative scope exclusions:
 - Categories to exclude (array)
 - Keywords to exclude (array)
 - Use cases to exclude (array)
 - Competitor-related exclusions (array)
 Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_cases, excluded_competitors`,
+    };
+
+    const userPrompt = prompts[section] || `Generate configuration suggestions for the ${section} section.`;
+
+    // Check if either OpenAI or Gemini is configured
+    if (!openai && !gemini) {
+      // Return mock data when no AI provider is configured
+      const mockSuggestions: Record<string, any> = {
+        brand: { industry: "Technology", business_model: "B2B", primary_geography: ["US"], revenue_band: "$1M - $10M" },
+        category: { primary_category: "Software", included: ["SaaS", "Cloud Services"], excluded: ["Hardware"] },
+        competitors: { direct: ["Competitor A", "Competitor B"], indirect: ["Indirect A"], marketplaces: [] },
+        demand: { brand_keywords: { seed_terms: ["brand name", "product"] }, non_brand_keywords: { category_terms: ["software", "solution"], problem_terms: ["automation", "efficiency"] } },
+        strategic: { growth_priority: "Market Expansion", risk_tolerance: "medium", primary_goal: "Increase Revenue", secondary_goals: ["Brand Awareness"], avoid: ["Price Wars"] },
+        channel: { paid_media_active: true, seo_investment_level: "medium", marketplace_dependence: "low" },
+        negative: { excluded_categories: [], excluded_keywords: [], excluded_use_cases: [], excluded_competitors: [] },
       };
-
-      const userPrompt = prompts[section] || `Generate configuration suggestions for the ${section} section.`;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 1000,
+      return res.json({ 
+        suggestions: mockSuggestions[section] || {}, 
+        model_suggested: false, 
+        mock: true,
+        warning: "No AI provider configured - using mock data"
       });
+    }
 
-      const content = response.choices[0]?.message?.content;
+    try {
+      const content = await generateAIResponse(systemPrompt, userPrompt, 1000);
+      
       if (!content) {
         return res.status(500).json({ error: "No response from AI" });
       }
@@ -892,10 +960,29 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
       const suggestions = JSON.parse(content);
       res.json({ suggestions, model_suggested: true });
     } catch (error) {
-      console.error("Error generating AI suggestions:", error);
-      res.status(500).json({ error: "Failed to generate suggestions" });
+      console.error("AI generation error:", error);
+      // Fallback to mock data if AI generation fails
+      const mockSuggestions: Record<string, any> = {
+        brand: { industry: "Technology", business_model: "B2B", primary_geography: ["US"], revenue_band: "$1M - $10M" },
+        category: { primary_category: "Software", included: ["SaaS", "Cloud Services"], excluded: ["Hardware"] },
+        competitors: { direct: ["Competitor A", "Competitor B"], indirect: ["Indirect A"], marketplaces: [] },
+        demand: { brand_keywords: { seed_terms: ["brand name", "product"] }, non_brand_keywords: { category_terms: ["software", "solution"], problem_terms: ["automation", "efficiency"] } },
+        strategic: { growth_priority: "Market Expansion", risk_tolerance: "medium", primary_goal: "Increase Revenue", secondary_goals: ["Brand Awareness"], avoid: ["Price Wars"] },
+        channel: { paid_media_active: true, seo_investment_level: "medium", marketplace_dependence: "low" },
+        negative: { excluded_categories: [], excluded_keywords: [], excluded_use_cases: [], excluded_competitors: [] },
+      };
+      return res.json({ 
+        suggestions: mockSuggestions[section] || {}, 
+        model_suggested: false, 
+        mock: true,
+        warning: "AI generation failed - using mock data as fallback"
+      });
     }
-  });
+  } catch (error) {
+    console.error("Error generating AI suggestions:", error);
+    res.status(500).json({ error: "Failed to generate suggestions" });
+  }
+});
 
   // Generate complete configuration from domain and category
   app.post("/api/ai/generate-complete", async (req: any, res: Response) => {
