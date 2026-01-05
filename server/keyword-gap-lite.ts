@@ -136,7 +136,7 @@ export function fenceCheck(
     }
   }
   
-  return { status: "warn", reason: "No direct match to in-scope concepts" };
+  return { status: "block", reason: "Outside category fence - no match to in-scope concepts" };
 }
 
 export function evaluateKeyword(
@@ -173,7 +173,7 @@ export function evaluateKeyword(
     return { status: "pass", statusIcon: "✅", reason: fenceResult.reason };
   }
   
-  return { status: "warn", statusIcon: "⚠️", reason: fenceResult.reason };
+  return { status: "block", statusIcon: "⛔", reason: fenceResult.reason };
 }
 
 export function assignTheme(keyword: string, config: Configuration): string {
@@ -328,10 +328,10 @@ export async function computeKeywordGap(
   });
   
   const passedResults = results.filter(r => r.status === "pass");
-  const warnResults = results.filter(r => r.status === "warn");
+  const blockedResults = results.filter(r => r.status === "block");
   
   const top30 = passedResults.slice(0, 30);
-  const borderline = warnResults.slice(0, 10);
+  const borderline = blockedResults.slice(0, 10);
   
   const grouped: Record<string, KeywordResult[]> = {};
   top30.forEach(result => {
