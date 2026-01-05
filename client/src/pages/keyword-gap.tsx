@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -781,7 +782,26 @@ export default function KeywordGap() {
                         <TableBody>
                           {liteMutation.data.topOpportunities.slice(0, 50).map((kw, i) => (
                             <TableRow key={i} data-testid={`row-opportunity-${i}`}>
-                              <TableCell className="font-medium">{kw.keyword}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <span>{kw.keyword}</span>
+                                  {kw.flags?.includes("outside_fence") && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                                            <AlertTriangle className="h-3 w-3 mr-1" />
+                                            Fence
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-xs max-w-[200px]">Strong keyword opportunity, but not included in current category scope. Verify alignment.</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="text-xs capitalize">
                                   {kw.intentType.replace(/_/g, " ")}

@@ -100,14 +100,76 @@ where:
 
 Using `vertical_preset: "dtc_footwear"`:
 
-| Metric | Before Preset | After Preset |
-|--------|---------------|--------------|
-| Pass Rate | 0% | **15%** |
-| Review Rate | 75% | 60% |
-| Out of Play | 25% | 25% |
+| Metric | Before Preset | After SPEC 3.1 |
+|--------|---------------|----------------|
+| Pass Rate | 0% | **23% (62 keywords)** |
+| Review Rate | 75% | 52% (140 keywords) |
+| Out of Play | 25% | 25% (67 keywords) |
 | Top Keywords | none | "recovery shoes" (153K score) |
 
 See `OOFOS_CASE_STUDY.md` for detailed analysis.
+
+---
+
+## SPEC 3.1 — Fence Override Fix
+
+### Problema Resuelto
+
+Keywords con alta capability (ej: 75%) caían en **Review** por estar "fuera del fence" aunque el scoring indicaba que eran oportunidades ganadoras.
+
+### Nuevo Comportamiento
+
+**Capability manda. Fence solo flaggea.**
+
+| Capability Score | Fence Status | Resultado | Flags |
+|------------------|--------------|-----------|-------|
+| ≥ pass_threshold | In Fence | **PASS** | - |
+| ≥ pass_threshold | Outside Fence | **PASS** | `["outside_fence"]` |
+| review_threshold - pass_threshold | Any | **REVIEW** | `["outside_fence"]` si aplica |
+| < review_threshold | Any | **OUT_OF_PLAY** | - |
+
+### Lógica de Evaluación (pseudocódigo)
+
+```typescript
+const fence = fenceCheck(keyword, config);
+const capability = computeCapabilityScore(keyword, config);
+const flags = [];
+
+if (!fence.inFence) {
+  flags.push("outside_fence");
+}
+
+if (isCompetitorBrand(keyword, config)) {
+  return outOfPlay("competitor_brand", flags);
+}
+
+if (intentType === "variant_or_size") {
+  return outOfPlay("variant_or_size", flags);
+}
+
+if (capability < review_threshold) {
+  return outOfPlay("low_capability", flags);
+}
+
+if (capability < pass_threshold) {
+  return review("medium_capability", flags);
+}
+
+// capability >= pass_threshold
+return pass("strong_capability", flags);
+```
+
+### UI: Badge "Outside Fence"
+
+En la tabla de Top Opportunities, los keywords con flag `outside_fence` muestran:
+- **Badge**: ⚠️ Fence (color amber)
+- **Tooltip**: "Strong keyword opportunity, but not included in current category scope. Verify alignment."
+
+### Ejemplo
+
+**Keyword**: `clogs women`
+- **Antes**: Status = Review, Reason = "Outside category fence - needs review"
+- **Después**: Status = **Pass**, Flags = `["outside_fence"]`, Reason = "Strong capability fit — verify category alignment"
 
 ---
 

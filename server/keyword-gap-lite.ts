@@ -525,24 +525,37 @@ export function evaluateKeyword(
   ];
   
   const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes);
+  const resultFlags = [...flags];
   
-  if (capabilityScore >= passThreshold && fenceResult.inFence) {
+  if (!fenceResult.inFence) {
+    resultFlags.push("outside_fence");
+  }
+  
+  if (capabilityScore >= passThreshold) {
+    const reason = fenceResult.inFence 
+      ? fenceResult.reason 
+      : "Strong capability fit — verify category alignment";
     return {
       ...baseResult,
       status: "pass",
       statusIcon: "✅",
-      reason: fenceResult.reason,
+      reason,
+      flags: resultFlags,
       confidence: "high",
     };
   }
   
   if (capabilityScore >= reviewThreshold) {
     const confidence: ConfidenceLevel = capabilityScore >= (passThreshold - 0.1) ? "medium" : "low";
+    const reason = fenceResult.inFence 
+      ? "Medium capability" 
+      : "Medium capability — outside fence";
     return {
       ...baseResult,
       status: "review",
       statusIcon: "⚠️",
-      reason: fenceResult.inFence ? "Medium capability" : fenceResult.reason,
+      reason,
+      flags: resultFlags,
       confidence,
     };
   }
