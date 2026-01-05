@@ -63,6 +63,7 @@ export interface IStorage {
   // Configuration operations
   getConfiguration(userId: string): Promise<DbConfiguration | undefined>;
   getConfigurationById(id: number, userId?: string): Promise<DbConfiguration | undefined>;
+  getConfigurationByDomain(userId: string, domain: string): Promise<DbConfiguration | undefined>;
   getAllConfigurations(userId: string): Promise<DbConfiguration[]>;
   saveConfiguration(userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
   createConfiguration(userId: string, config: InsertConfiguration): Promise<DbConfiguration>;
@@ -397,6 +398,40 @@ export class DatabaseStorage implements IStorage {
       created_at: config.created_at,
       updated_at: config.updated_at,
     }));
+  }
+
+  async getConfigurationByDomain(userId: string, domain: string): Promise<DbConfiguration | undefined> {
+    const normalizedDomain = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
+    
+    const allConfigs = await db
+      .select()
+      .from(configurations)
+      .where(eq(configurations.userId, userId));
+    
+    const found = allConfigs.find(c => {
+      const configBrand = c.brand as Brand;
+      if (!configBrand?.domain) return false;
+      const cDomain = configBrand.domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
+      return cDomain === normalizedDomain;
+    });
+    
+    if (!found) return undefined;
+    
+    return {
+      id: found.id,
+      userId: found.userId,
+      name: found.name,
+      brand: found.brand as Brand,
+      category_definition: found.category_definition as CategoryDefinition,
+      competitors: found.competitors as Competitors,
+      demand_definition: found.demand_definition as DemandDefinition,
+      strategic_intent: found.strategic_intent as StrategicIntent,
+      channel_context: found.channel_context as ChannelContext,
+      negative_scope: found.negative_scope as NegativeScope,
+      governance: found.governance as Governance,
+      created_at: found.created_at,
+      updated_at: found.updated_at,
+    };
   }
 
   async createConfiguration(userId: string, insertConfig: InsertConfiguration): Promise<DbConfiguration> {
