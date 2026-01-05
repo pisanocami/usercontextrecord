@@ -129,16 +129,17 @@ export class DatabaseStorage implements IStorage {
 
   async getBrandByDomain(userId: string, domain: string): Promise<DbBrand | undefined> {
     const normalizedDomain = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
-    const [brand] = await db
+    
+    // Get all brands for user and find matching domain (case-insensitive, normalized)
+    const allBrands = await db
       .select()
       .from(brands)
-      .where(eq(brands.userId, userId))
-      .limit(100);
+      .where(eq(brands.userId, userId));
     
-    const found = brand ? [brand].find(b => {
+    const found = allBrands.find(b => {
       const bDomain = b.domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
       return bDomain === normalizedDomain;
-    }) : undefined;
+    });
     
     if (!found) return undefined;
     

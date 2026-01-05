@@ -580,7 +580,7 @@ export async function registerRoutes(
     }
   });
 
-  // Create new brand
+  // Create or update brand (upsert by domain)
   app.post("/api/brands", async (req: any, res) => {
     try {
       const userId = "anonymous-user";
@@ -590,14 +590,25 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Domain is required" });
       }
       
-      // Check if brand with this domain already exists
-      const existing = await storage.getBrandByDomain(userId, domain);
+      const normalizedDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
+      
+      // Check if brand with this domain already exists - if so, update it
+      const existing = await storage.getBrandByDomain(userId, normalizedDomain);
       if (existing) {
-        return res.status(409).json({ error: "Brand with this domain already exists", existingBrand: existing });
+        const updated = await storage.updateBrand(existing.id, userId, {
+          domain: normalizedDomain,
+          name: name || existing.name,
+          industry: industry || existing.industry,
+          business_model: business_model || existing.business_model,
+          primary_geography: primary_geography || existing.primary_geography,
+          revenue_band: revenue_band || existing.revenue_band,
+          target_market: target_market || existing.target_market,
+        });
+        return res.status(200).json({ ...updated, updated: true });
       }
       
       const brand = await storage.createBrand(userId, {
-        domain: domain.trim(),
+        domain: normalizedDomain,
         name: name || "",
         industry: industry || "",
         business_model: business_model || "B2B",
@@ -608,8 +619,8 @@ export async function registerRoutes(
       
       res.status(201).json(brand);
     } catch (error) {
-      console.error("Error creating brand:", error);
-      res.status(500).json({ error: "Failed to create brand" });
+      console.error("Error creating/updating brand:", error);
+      res.status(500).json({ error: "Failed to create/update brand" });
     }
   });
 
