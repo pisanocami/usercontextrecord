@@ -68,6 +68,114 @@ function generateNameFromDomain(domain: string): string {
   return `${name} Context`;
 }
 
+interface CompetitorWithReason {
+  name: string;
+  domain: string;
+  tier: "tier1" | "tier2" | "tier3";
+  why: string;
+}
+
+interface CompetitorSearchResult {
+  competitors_list: CompetitorWithReason[];
+  direct: string[];
+  indirect: string[];
+  marketplaces: string[];
+  search_sources?: string[];
+}
+
+async function searchCompetitorsWithGemini(
+  domain: string,
+  brandName: string | undefined,
+  primaryCategory: string
+): Promise<CompetitorSearchResult> {
+  const cleanDomain = domain
+    .toLowerCase()
+    .replace(/^(https?:\/\/)?(www\.)?/, "")
+    .replace(/\/$/, "");
+
+  const prompt = `Research and identify the real competitors for this brand:
+
+Brand: ${brandName || cleanDomain}
+Domain: ${cleanDomain}
+Category: ${primaryCategory}
+
+Search the web to find:
+1. Direct competitors (same product/service, same market)
+2. Indirect competitors (similar products, adjacent markets)
+3. Marketplace competitors (platforms where they compete)
+
+For each competitor provide:
+- Company name
+- Domain (e.g., competitor.com)
+- Tier: tier1 (direct), tier2 (indirect/adjacent), tier3 (aspirational/large players)
+- Why they are a competitor (brief explanation based on your search findings)
+
+Return ONLY valid JSON in this exact format:
+{
+  "competitors_list": [
+    {"name": "Company Name", "domain": "company.com", "tier": "tier1", "why": "Reason from search"}
+  ],
+  "direct": ["competitor1.com", "competitor2.com"],
+  "indirect": ["indirect1.com", "indirect2.com"],
+  "marketplaces": ["amazon.com", "other-marketplace.com"]
+}
+
+IMPORTANT: 
+- Use REAL competitor domains you find from searching, not made up ones
+- Provide 4-6 competitors total across all tiers
+- Be specific about WHY they compete based on search results`;
+
+  try {
+    const response = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const content = response.text;
+    if (!content) {
+      throw new Error("No response from Gemini");
+    }
+
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith("```json")) {
+      jsonStr = jsonStr.slice(7);
+    } else if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.slice(3);
+    }
+    if (jsonStr.endsWith("```")) {
+      jsonStr = jsonStr.slice(0, -3);
+    }
+    jsonStr = jsonStr.trim();
+
+    const result = JSON.parse(jsonStr) as CompetitorSearchResult;
+
+    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+    if (groundingMetadata?.groundingChunks) {
+      result.search_sources = groundingMetadata.groundingChunks
+        .filter((chunk: any) => chunk.web?.uri)
+        .map((chunk: any) => chunk.web.uri);
+    }
+
+    console.log(`[Gemini Search] Found ${result.competitors_list?.length || 0} competitors for ${cleanDomain}`);
+    if (result.search_sources?.length) {
+      console.log(`[Gemini Search] Sources used: ${result.search_sources.slice(0, 3).join(", ")}`);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("[Gemini Search] Error searching competitors:", error);
+    return {
+      competitors_list: [],
+      direct: [],
+      indirect: [],
+      marketplaces: [],
+    };
+  }
+}
+
 function validateConfiguration(config: InsertConfiguration): ValidationResult {
   const blockedReasons: string[] = [];
   const warnings: string[] = [];
@@ -374,6 +482,20 @@ Return a complete JSON object with ALL sections filled.`;
 
   const generated = JSON.parse(content);
   
+  // Use Gemini with Google Search grounding to find REAL competitors
+  console.log(`[Config Gen] Searching real competitors for ${domain} with Gemini + Google Search...`);
+  const geminiCompetitors = await searchCompetitorsWithGemini(domain, brandName, primaryCategory);
+  
+  // Merge Gemini's search results with GPT-4o's suggestions, preferring Gemini
+  const hasGeminiResults = geminiCompetitors.competitors_list.length > 0;
+  const competitorData = hasGeminiResults ? geminiCompetitors : generated.competitors;
+  
+  if (hasGeminiResults) {
+    console.log(`[Config Gen] Using ${geminiCompetitors.competitors_list.length} competitors from Gemini web search`);
+  } else {
+    console.log(`[Config Gen] Gemini search returned no results, falling back to GPT-4o suggestions`);
+  }
+  
   const today = new Date().toISOString().split("T")[0];
   const validUntil = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -402,10 +524,10 @@ Return a complete JSON object with ALL sections filled.`;
       alternative_categories: generated.category_definition?.alternative_categories || [],
     },
     competitors: {
-      direct: (generated.competitors?.direct || []).map((d: string) => normalizeDomain(d)),
-      indirect: (generated.competitors?.indirect || []).map((d: string) => normalizeDomain(d)),
-      marketplaces: (generated.competitors?.marketplaces || []).map((d: string) => normalizeDomain(d)),
-      competitors: (generated.competitors?.competitors_list || []).map((c: any) => ({
+      direct: (competitorData?.direct || []).map((d: string) => normalizeDomain(d)),
+      indirect: (competitorData?.indirect || []).map((d: string) => normalizeDomain(d)),
+      marketplaces: (competitorData?.marketplaces || []).map((d: string) => normalizeDomain(d)),
+      competitors: (competitorData?.competitors_list || []).map((c: any) => ({
         name: c.name || "",
         domain: normalizeDomain(c.domain || ""),
         tier: c.tier || "tier1",
@@ -418,7 +540,7 @@ Return a complete JSON object with ALL sections filled.`;
         funding_stage: "unknown" as const,
         geo_overlap: [],
         evidence: {
-          why_selected: c.why || "",
+          why_selected: c.why || (hasGeminiResults ? "[Grounded with Google Search]" : ""),
           top_overlap_keywords: [],
           serp_examples: [],
         },
@@ -428,7 +550,7 @@ Return a complete JSON object with ALL sections filled.`;
       })),
       approved_count: 0,
       rejected_count: 0,
-      pending_review_count: (generated.competitors?.competitors_list || []).length || (generated.competitors?.direct || []).length,
+      pending_review_count: (competitorData?.competitors_list || []).length || (competitorData?.direct || []).length,
     },
     demand_definition: {
       brand_keywords: {
