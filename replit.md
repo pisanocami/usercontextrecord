@@ -130,9 +130,13 @@ The frontend features:
   - **Review** (30-60% capability): Medium-fit keywords for human evaluation
   - **Out of Play** (<30% capability, competitor brands, size variants): Filtered keywords
 - **Intent Classification**: Deterministic regex patterns (category_capture, problem_solution, product_generic, brand_capture, variant_or_size)
-- **Scoring System**: opportunityScore = volume × cpc × intentWeight × capabilityScore
+- **Scoring System (v3.1)**: opportunityScore = volume × cpc × intentWeight × capabilityScore × difficultyFactor × positionFactor
+- **Configurable Capability Model**: UCR can define boosters/penalties arrays for vertical-specific capability scoring
+- **Configurable Scoring Thresholds**: pass_threshold (default 0.60), review_threshold (default 0.30), difficulty_weight, position_weight
+- **Vertical Presets**: capability-presets.ts contains DTC footwear (0.55), retail big box (0.65), B2B SaaS (0.50) configurations
+- **Confidence Levels**: Each keyword result includes high/medium/low confidence based on capability proximity to thresholds
 - **Competitor Brand Detection**: Extracts from UCR competitors + common footwear brands (with stopword filtering)
-- **UI**: 3-tab layout (Top Opportunities, Needs Review, Out of Play with collapsed accordion)
+- **UI (v3.1)**: 3-tab layout with Executive Summary Card (missing value, top themes, competitor ownership), Reason/Confidence/KD columns
 
 ## Recent Changes
 
@@ -157,6 +161,7 @@ The frontend features:
 - **Phase 2 (Context Locking)**: State machine workflow DRAFT_AI → AI_READY → AI_ANALYSIS_RUN → HUMAN_CONFIRMED → LOCKED with validation gates. ContextReviewPanel UI for section-by-section approval. PATCH /api/configurations/:id/status endpoint.
 - **Phase 3 (Validation Gate)**: Comprehensive validation module (shared/validation.ts) with section-level validation, integrity checksum, approval gates. GET /api/configurations/:id/validate endpoint returns detailed validation results.
 - **Multi-Provider Keyword Gap (Complete)**: Implemented factory pattern with DataForSEO and Ahrefs providers. Ahrefs uses organic-keywords endpoint with 7-day cache, in-memory gap computation. Fixed competitor domain extraction to use UCR `competitors.competitors[]` array (tier1+tier2 only).
+- **Keyword Gap Lite v3.1**: Configurable scoring models with capability boosters/penalties, difficulty/position factors in opportunity score, vertical presets (DTC footwear, retail, B2B SaaS), confidence levels (high/medium/low), Executive Summary Card with estimated value/themes/competitor ownership, and Reason/Confidence/KD columns in tables.
 
 ### 10-Phase Growth Signal Architecture
 
