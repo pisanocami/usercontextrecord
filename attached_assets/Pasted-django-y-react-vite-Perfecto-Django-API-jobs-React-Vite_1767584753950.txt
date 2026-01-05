@@ -1,0 +1,639 @@
+django y react vite
+
+Perfecto: Django (API + jobs) + React Vite (UI) es ideal para este ecosistema porque te deja iterar rápido sin perder el “context as contract”.
+
+Abajo te dejo una arquitectura concreta, MVP-first, con:
+
+Apps Django (models + servicios)
+
+Endpoints REST
+
+Jobs (Celery) + caching DataForSEO
+
+Estructura React Vite (pantallas exactas)
+
+Contratos de datos (UCR + KeywordGapRun)
+
+Flujo “100% AI → validar después” (lo que Susan pidió)
+
+1) Arquitectura Django (monolito modular)
+Django apps (mínimas)
+
+user_context
+
+UCR + versiones + governance + negative scope
+
+evidence
+
+clientes (DataForSEO)
+
+cache + rate limit + provenance
+
+modules
+
+keyword_gap (tu módulo)
+
+module_runs (envelope universal)
+
+councils
+
+decisiones (adopt/reject/override)
+
+policy checks (CMO safety)
+
+playbooks (stub MVP)
+
+genera tasks/briefs desde outputs adoptados
+
+En MVP podés fusionar evidence dentro de keyword_gap, pero yo lo separaría al menos en código para que escale.
+
+2) Modelos Django (tablas mínimas)
+UserContextRecord (versionado)
+
+id (uuid)
+
+brand (FK)
+
+version (int)
+
+hash (text)
+
+status enum: DRAFT_AI | AI_READY | HUMAN_CONFIRMED | LOCKED | EXPIRED
+
+confidence enum: low|medium|high
+
+cmo_safe bool
+
+valid_until datetime
+
+data JSONField (schema completo UCR v1)
+
+created_at, updated_at
+
+ModuleRun (envelope universal)
+
+id (uuid)
+
+module (e.g. "keyword_gap_lite")
+
+ucr (FK)
+
+analysis_state enum: AI_GENERATED | HUMAN_CONFIRMED | PROVISIONAL
+
+inputs JSONField
+
+gates JSONField
+
+violations JSONField
+
+proposals JSONField
+
+summary JSONField
+
+status enum: queued|running|success|failed
+
+cost_usd decimal
+
+runtime_ms int
+
+created_at
+
+KeywordGapItem (opcional, si querés query rápido)
+
+run (FK ModuleRun)
+
+keyword
+
+status enum: IN_SCOPE|BORDERLINE|BLOCKED
+
+theme
+
+reason
+
+competitor_ranks JSONField
+
+competitor_count int
+
+volume int nullable
+
+kd float nullable
+
+cpc float nullable
+
+estimated_value float nullable
+
+content_priority_score float nullable
+
+confidence_score float nullable
+
+recommended_action text
+
+CouncilDecision
+
+id
+
+run (FK ModuleRun)
+
+decision enum: ADOPT | REJECT | REQUEST_OVERRIDE
+
+notes text
+
+decided_by (user)
+
+created_at
+
+OverrideEvent (append-only)
+
+id
+
+ucr (FK)
+
+from_version, to_version
+
+changes JSONField (diff o patch)
+
+reason
+
+created_by
+
+created_at
+
+3) Jobs y DataForSEO (barato + escalable)
+Celery + Redis
+
+Celery para ejecutar runs async (keyword gap)
+
+Redis:
+
+cache de DataForSEO por domain+location+lang+limit
+
+rate limit / lock por dominio
+
+Regla MVP: si el usuario corre 3 veces la misma marca, no pagás 3 veces.
+
+4) API Endpoints (REST claros)
+Context
+
+POST /api/ucr/generate-from-domain (100% AI)
+
+output: UCR en DRAFT_AI
+
+POST /api/ucr/{id}/validate
+
+aplica hard gates
+
+si pasa: AI_READY
+
+PATCH /api/ucr/{id}
+
+editar secciones (category fence, competitors, exclusions)
+
+POST /api/ucr/{id}/confirm
+
+set HUMAN_CONFIRMED
+
+Module Runs
+
+POST /api/modules/keyword-gap-lite/run
+
+body: { ucr_id, location_code, language_code, limit }
+
+crea ModuleRun(status=queued, analysis_state=AI_GENERATED)
+
+devuelve run_id
+
+GET /api/module-runs/{run_id}
+
+devuelve run + results
+
+POST /api/module-runs/{run_id}/adopt
+
+crea CouncilDecision(ADOPT)
+
+marca run analysis_state=HUMAN_CONFIRMED y adopted=true
+
+Playbooks (stub)
+
+POST /api/playbooks/create-content-briefs/from-run
+
+requiere run adoptado
+
+crea tasks
+
+5) Gates mínimos para habilitar “Run Keyword Gap”
+
+Para Susan: puede correr en AI_READY.
+
+AI_READY (auto-checks)
+
+competitors direct >= 2 con dominio
+
+category fence no vacío (o fallback fence)
+
+exclusions presentes
+
+governance.confidence != low
+
+Si no pasa:
+
+queda en DRAFT_AI
+
+UI muestra “Fix these 2 things”
+
+6) React Vite UI (3 pantallas MVP)
+Pantalla 1 — UCR (AI-generated)
+
+Route: /ucr/:id
+
+vista por secciones
+
+chips “AI Generated”
+
+botón:
+
+Validate Context (corre gates)
+
+si pasa: Run Keyword Gap (AI-generated)
+
+Pantalla 2 — Keyword Gap Run
+
+Route: /runs/:runId
+
+tabla de keywords
+
+badges: ✅ IN_SCOPE / ⚠️ BORDERLINE / ⛔ BLOCKED
+
+columna: competitors_seen_on (derivado de competitor_ranks)
+
+agrupación por theme
+
+header: “AI-generated — pending adoption”
+
+botón: Adopt Results (council)
+
+Pantalla 3 — Adoption + Playbook stub
+
+Modal o página:
+
+resumen de gates + violations + proposals
+
+botón:
+
+Adopt & Create Briefs (si adoptado)
+
+7) Integración directa con tu output actual (gap item)
+
+Tu gap item ya tiene:
+
+keyword, volume, kd, cpc, competitor_ranks, competitor_count, confidence_score, etc.
+
+Lo único que te falta para “ecosistema”:
+
+status (IN_SCOPE/BORDERLINE/BLOCKED)
+
+reason
+
+theme
+
+y envolver todo en ModuleRun con ucr_ref, gates, violations, proposals.
+
+Eso lo podés hacer sin reescribir scoring.
+
+8) Cómo se ve el flujo “100% IA y validar después”
+
+Genero UCR (AI) → DRAFT_AI
+
+Validate auto → AI_READY
+
+Run Keyword Gap → ModuleRun(AI_GENERATED)
+
+Susan ve resultados → clic Adopt
+
+CouncilDecision → HUMAN_CONFIRMED
+
+Se habilita playbook
+
+9) Estructura de repo recomendada
+backend/
+  apps/
+    user_context/
+    evidence/
+    modules/
+      keyword_gap/
+    councils/
+    playbooks/
+  config/
+  manage.py
+frontend/
+  src/
+    pages/
+      UCRPage.tsx
+      RunPage.tsx
+    components/
+      SectionCard.tsx
+      Badge.tsx
+      RunTable.tsx
+    api/
+      client.ts
+      ucr.ts
+      runs.ts
+
+
+Si querés, te paso también:
+
+schema exacto de ModuleRun response (para que React lo consuma),
+
+y un router + componentes mínimos en React Vite (sin UI fancy) para que tengas demo completa.
+
+si
+
+Genial. Acá tenés el schema exacto del response de ModuleRun (Keyword Gap Lite) para que React lo consuma, más un set mínimo de endpoints y tipos TS listos.
+
+1) Response contract: GET /api/module-runs/:runId
+✅ ModuleRunResponse (v1)
+{
+  "id": "7d2c6d3e-9b6f-4c18-8af0-1f3c2d6c7a11",
+  "module": "keyword_gap_lite",
+  "status": "success",
+  "analysis_state": "AI_GENERATED",
+  "adopted": false,
+
+  "generated_at": "2026-01-05T14:12:01Z",
+  "runtime_ms": 6532,
+  "cost_usd": 0.033,
+
+  "ucr_ref": {
+    "ucr_id": "9a6888bb-c18b-4c56-a51b-be350b94f31a",
+    "ucr_version": 1,
+    "ucr_hash": "eyJhcHByb3ZlZF9jYXRlZ29yaWVzIjpb..."
+  },
+
+  "inputs": {
+    "brand_domain": "oofos.com",
+    "competitor_domains": ["hoka.com", "orthofeet.com"],
+    "location_code": 2840,
+    "language_code": "en",
+    "limit_per_domain": 200,
+    "item_types": ["organic"]
+  },
+
+  "gates": {
+    "ready_for_analysis": true,
+    "fence_present": true,
+    "negative_scope_present": true,
+    "competitors_resolved": true,
+    "exclusions_enforced": true,
+    "gate_failures": []
+  },
+
+  "violations": [
+    {
+      "type": "OUT_OF_SCOPE",
+      "keyword": "black white dress shoes mens",
+      "rule": "category_excluded",
+      "action_taken": "BLOCKED"
+    }
+  ],
+
+  "proposals": [
+    {
+      "type": "SCOPE_EXPANSION",
+      "suggestion": "Add 'post-workout slippers' as adjacent concept",
+      "reason": "High competitor coverage; aligns with recovery intent",
+      "requires_human_approval": true
+    }
+  ],
+
+  "summary": {
+    "total_gap_keywords_raw": 20,
+    "total_gap_keywords_after_filter": 6,
+    "blocked_count": 2,
+    "borderline_count": 3,
+    "in_scope_count": 1,
+    "top_opportunities_count": 6,
+    "pass_rate": 0.3
+  },
+
+  "results": [
+    {
+      "keyword": "best support slippers for women",
+      "status": "IN_SCOPE",
+      "reason": "matches included concept: 'comfort shoes' + 'support slippers'",
+      "theme": "Comfort / Support",
+
+      "competitor_ranks": { "orthofeet.com": 9 },
+      "competitors_seen_on": ["orthofeet.com"],
+      "competitor_count": 1,
+
+      "volume": 1300,
+      "kd": 12,
+      "cpc": 0.84,
+
+      "estimated_value": 109.2,
+      "content_priority_score": 11.4,
+      "confidence_score": 0.78,
+
+      "funnel_stage": "awareness",
+      "recommended_action": "Create Quick Win Content",
+      "risk_level": "low",
+
+      "serp_positions": {}
+    }
+  ],
+
+  "grouped_by_theme": {
+    "Comfort / Support": ["best support slippers for women"]
+  },
+
+  "adoption": {
+    "adopted": false,
+    "adopted_by": null,
+    "adopted_at": null,
+    "council_decision_id": null,
+    "notes": null
+  }
+}
+
+
+Nota: tu gap item actual ya tiene la mayoría de campos; solo agregás status, reason, theme, competitors_seen_on y el envelope del run.
+
+2) Endpoints mínimos (para React)
+Crear un run
+POST /api/modules/keyword-gap-lite/run
+
+Body:
+
+{
+  "ucr_id": "9a6888bb-c18b-4c56-a51b-be350b94f31a",
+  "location_code": 2840,
+  "language_code": "en",
+  "limit_per_domain": 200
+}
+
+
+Response:
+
+{ "run_id": "7d2c6d3e-9b6f-4c18-8af0-1f3c2d6c7a11" }
+
+Leer un run
+
+GET /api/module-runs/:runId → devuelve ModuleRunResponse
+
+Adoptar un run (Council)
+
+POST /api/module-runs/:runId/adopt
+Body:
+
+{ "notes": "Looks in-scope. Adopt for playbooks." }
+
+
+Response (mínimo):
+
+{ "adopted": true }
+
+3) Tipos TypeScript listos (frontend)
+export type AnalysisState = "AI_GENERATED" | "PROVISIONAL" | "HUMAN_CONFIRMED";
+export type RunStatus = "queued" | "running" | "success" | "failed";
+export type GapStatus = "IN_SCOPE" | "BORDERLINE" | "BLOCKED";
+
+export interface UCRRef {
+  ucr_id: string;
+  ucr_version: number;
+  ucr_hash: string;
+}
+
+export interface Gates {
+  ready_for_analysis: boolean;
+  fence_present: boolean;
+  negative_scope_present: boolean;
+  competitors_resolved: boolean;
+  exclusions_enforced: boolean;
+  gate_failures: string[];
+}
+
+export interface Violation {
+  type: string;
+  keyword?: string;
+  rule?: string;
+  action_taken?: string;
+}
+
+export interface Proposal {
+  type: "SCOPE_EXPANSION" | string;
+  suggestion: string;
+  reason: string;
+  requires_human_approval: boolean;
+}
+
+export interface KeywordGapItem {
+  keyword: string;
+  status: GapStatus;
+  reason: string;
+  theme: string;
+
+  competitor_ranks: Record<string, number>;
+  competitors_seen_on: string[];
+  competitor_count: number;
+
+  volume?: number;
+  kd?: number;
+  cpc?: number;
+
+  estimated_value?: number;
+  content_priority_score?: number;
+  confidence_score?: number;
+
+  funnel_stage?: string;
+  recommended_action?: string;
+  risk_level?: string;
+
+  serp_positions?: Record<string, any>;
+}
+
+export interface ModuleRunResponse {
+  id: string;
+  module: string;
+  status: RunStatus;
+  analysis_state: AnalysisState;
+  adopted: boolean;
+
+  generated_at: string;
+  runtime_ms?: number;
+  cost_usd?: number;
+
+  ucr_ref: UCRRef;
+  inputs: Record<string, any>;
+  gates: Gates;
+
+  violations: Violation[];
+  proposals: Proposal[];
+
+  summary: Record<string, any>;
+  results: KeywordGapItem[];
+
+  grouped_by_theme?: Record<string, string[]>;
+  adoption?: {
+    adopted: boolean;
+    adopted_by: string | null;
+    adopted_at: string | null;
+    council_decision_id: string | null;
+    notes: string | null;
+  };
+}
+
+4) React Vite: 2 componentes mínimos que vas a necesitar
+A) RunPage.tsx (alto nivel)
+
+fetch GET /api/module-runs/:runId
+
+render:
+
+banner “AI Generated / Pending Adoption”
+
+gates + violations
+
+results table
+
+botón Adopt
+
+B) RunTable.tsx
+
+columnas:
+
+Keyword
+
+Status badge
+
+Theme
+
+Competitors (chips)
+
+Volume / KD / CPC (si viene)
+
+Recommended action
+
+5) Back-end: mapping mínimo desde tu gap item actual
+
+Tu gap item actual (ejemplo):
+
+competitor_ranks ✅
+
+competitor_count ✅
+
+confidence_score ✅
+
+content_priority_score ✅
+
+etc.
+
+Agregás:
+
+competitors_seen_on = list(competitor_ranks.keys())
+
+theme = ... (heurístico: match against demand themes / included concepts)
+
+status/reason (fence + exclusions)
+
+y lo envolvés en ModuleRun
+
+Si querés, siguiente paso: te escribo el serializer Django (ModuleRunSerializer + KeywordGapItemSerializer) y el endpoint FastAPI-style o DRF exacto (según si estás usando DRF), para que el frontend consuma esto sin inventar nada.
