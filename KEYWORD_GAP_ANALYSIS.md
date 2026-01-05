@@ -210,10 +210,11 @@ En la tabla de Top Opportunities, los keywords con flag `outside_fence` muestran
 │  5. OPPORTUNITY SCORING                                                 │
 │     └── opportunityScore = volume × cpc × intentWeight × capability     │
 │                                                                         │
-│  6. 3-TIER CLASSIFICATION                                               │
-│     ├── ✅ PASS: capability ≥ 0.60 (Top Opportunities)                  │
-│     ├── ⚠️ REVIEW: capability 0.30-0.60 (Needs Human Review)            │
-│     └── 💤 OUT_OF_PLAY: capability < 0.30 OR competitor brand OR size   │
+│  6. 3-TIER CLASSIFICATION (thresholds configurables por vertical)       │
+│     ├── ✅ PASS: capability ≥ pass_threshold (Top Opportunities)        │
+│     │   └── Si outside_fence: status=PASS + flag ["outside_fence"]      │
+│     ├── ⚠️ REVIEW: capability entre review y pass threshold             │
+│     └── 💤 OUT_OF_PLAY: capability < review_threshold OR competitor OR size │
 │                                                                         │
 │  7. OUTPUT: Keywords ordenados por opportunity score dentro de tier     │
 │                                                                         │
@@ -348,7 +349,7 @@ function computeOpportunityScore(
 
 ---
 
-### 5. 3-Tier Classification
+### 5. 3-Tier Classification (v3.1)
 
 ```typescript
 function evaluateKeyword(keyword: string, config: Configuration): {
@@ -358,38 +359,48 @@ function evaluateKeyword(keyword: string, config: Configuration): {
   opportunityScore: number;
   reason: string;
   flags: string[];
+  confidence: "high" | "medium" | "low";
 } {
+  // Thresholds configurables por vertical preset
+  const passThreshold = config.scoring_config?.pass_threshold ?? 0.60;
+  const reviewThreshold = config.scoring_config?.review_threshold ?? 0.30;
+  
   const { intentType, flags } = classifyIntent(keyword, config);
   const capabilityScore = computeCapabilityScore(keyword, config);
-  const opportunityScore = computeOpportunityScore(volume, cpc, intentType, capability);
+  const fenceResult = checkFence(keyword, config);
   
-  // OUT_OF_PLAY: Competitor brands
-  if (flags.includes("competitor_brand")) {
-    return { status: "out_of_play", reason: "Competitor brand term" };
+  // SPEC 3.1: Fence solo flaggea, capability manda
+  const resultFlags = [...flags];
+  if (!fenceResult.inFence) {
+    resultFlags.push("outside_fence");
   }
   
-  // OUT_OF_PLAY: Size/variant queries
+  // OUT_OF_PLAY: Competitor brands (siempre)
+  if (resultFlags.includes("competitor_brand")) {
+    return { status: "out_of_play", reason: "Competitor brand term", flags: resultFlags };
+  }
+  
+  // OUT_OF_PLAY: Size/variant queries (siempre)
   if (intentType === "variant_or_size") {
-    return { status: "out_of_play", reason: "Size/variant query" };
+    return { status: "out_of_play", reason: "Size/variant query", flags: resultFlags };
   }
   
   // OUT_OF_PLAY: Very low capability
-  if (capabilityScore < 0.3) {
-    return { status: "out_of_play", reason: "Low capability fit" };
+  if (capabilityScore < reviewThreshold) {
+    return { status: "out_of_play", reason: "Low capability fit", flags: resultFlags };
   }
   
-  // OUT_OF_PLAY: Negative scope exclusions
-  if (matchesExclusions(keyword, config.negative_scope)) {
-    return { status: "out_of_play", reason: "Excluded by guardrails" };
+  // REVIEW: Medium capability
+  if (capabilityScore < passThreshold) {
+    const reason = fenceResult.inFence ? "Medium capability" : "Medium capability — outside fence";
+    return { status: "review", reason, flags: resultFlags };
   }
   
-  // REVIEW: Medium capability (borderline)
-  if (capabilityScore < 0.6) {
-    return { status: "review", reason: "Medium capability" };
-  }
-  
-  // PASS: High capability
-  return { status: "pass", reason: "Strong category fit" };
+  // PASS: High capability (incluso si outside_fence)
+  const reason = resultFlags.includes("outside_fence") 
+    ? "Strong capability fit — verify category alignment"
+    : "Strong category fit";
+  return { status: "pass", reason, flags: resultFlags };
 }
 ```
 
@@ -440,12 +451,14 @@ interface KeywordResult {
   statusIcon: "✅" | "⚠️" | "💤";
   intentType: IntentType;
   capabilityScore: number;      // 0-1 scale
-  opportunityScore: number;     // volume × cpc × intent × capability
+  opportunityScore: number;     // volume × cpc × intent × capability × difficultyFactor × positionFactor
   reason: string;
-  flags: string[];              // ["competitor_brand", "size_variant", etc.]
+  flags: string[];              // ["competitor_brand", "size_variant", "outside_fence", etc.]
+  confidence: "high" | "medium" | "low";  // Proximity to threshold
   competitorsSeen: string[];
   searchVolume?: number;
   cpc?: number;
+  keywordDifficulty?: number;   // 0-100 scale (Ahrefs KD)
   competitorPosition?: number;
   theme: string;
 }
@@ -453,46 +466,68 @@ interface KeywordResult {
 
 ---
 
-## UI: 3-Tab Layout
+## UI: 3-Tab Layout (v3.1)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  📊 Keyword Gap Lite Results                                    │
-│  oofos.com vs 2 competitors - 400 keywords analyzed             │
-│                                                                 │
-│  [3% Pass (10)] [24% Review (95)] [74% Out (295)]              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  [Top Opportunities] [Needs Review] [Out of Play]               │
-│  ─────────────────────────────────────────────────              │
-│                                                                 │
-│  ✅ TOP OPPORTUNITIES (10)                                      │
-│  High-capability keywords aligned with your category.           │
-│                                                                 │
-│  Keyword                    | Intent          | Vol   | Score   │
-│  ──────────────────────────────────────────────────────────────│
-│  best footwear for nurses   | problem_solution| 33.1K | 56,104  │
-│  best doctors shoes         | problem_solution| 720   | 1,533   │
-│  best healthcare shoes      | problem_solution| 590   | 1,234   │
-│  eva material shoes         | product_generic | 390   | 230     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  📊 Keyword Gap Lite Results                                                │
+│  oofos.com vs 2 competitors - 269 keywords analyzed                        │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────┐      │
+│  │ Executive Summary                                                 │      │
+│  │ Est. Missing Value: $45,230/mo | Top Theme: Recovery Footwear     │      │
+│  │ Competitor Ownership: Hoka 34% | Brooks 28% | Birkenstock 22%     │      │
+│  └──────────────────────────────────────────────────────────────────┘      │
+│                                                                             │
+│  [23% Pass (62)] [52% Review (140)] [25% Out (67)]                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [Top Opportunities] [Needs Review] [Out of Play]                           │
+│  ───────────────────────────────────────────────                            │
+│                                                                             │
+│  ✅ TOP OPPORTUNITIES (62)                                                  │
+│  High-capability keywords aligned with your category.                       │
+│                                                                             │
+│  Keyword                  | Reason          | Conf | KD | Vol  | Score     │
+│  ────────────────────────────────────────────────────────────────────────  │
+│  recovery shoes          ⚠️| Strong fit      | High | 24 |14.8K| 153,247   │
+│  best footwear for nurses | Strong fit      | High | 32 |33.1K| 56,104    │
+│  clogs women         [Fence]| Strong fit-fence| Med  | 18 | 2.4K| 12,340   │
+│  plantar fasciitis sandals| Strong fit      | High | 45 | 8.2K| 28,567    │
+│                                                                             │
+│  [Fence] = Badge ambar con tooltip "Outside category scope"                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Columnas de la Tabla (v3.1)
+
+| Columna | Descripción |
+|---------|-------------|
+| **Keyword** | Término + badge "Fence" si `outside_fence` flag presente |
+| **Reason** | Justificación del status (Strong fit, Medium capability, etc.) |
+| **Conf** | Confidence level (High/Med/Low) basado en proximity a threshold |
+| **KD** | Keyword Difficulty (0-100) - solo disponible con Ahrefs |
+| **Vol** | Search Volume mensual |
+| **Score** | Opportunity Score (volumen × cpc × intent × capability × factors) |
 
 ---
 
-## Comparación: v2 vs v3
+## Comparación: v2 vs v3 vs v3.1
 
-| Aspecto | v2 (Anterior) | v3 (Actual) |
-|---------|---------------|-------------|
-| Status posibles | pass, warn | pass, review, out_of_play |
-| Scoring | Solo search volume | opportunityScore completo |
-| Intent | No | 6 tipos con weights |
-| Capability | No | 0-1 scale con boosters/penalties |
-| Brand detection | Básico | Avanzado con stopwords |
-| Variant detection | Muy amplio (falsos positivos) | Preciso (size X, wide width) |
-| UI | Accordion por theme | 3 tabs (Pass/Review/Out) |
-| Stats | passed/blocked | passed/review/outOfPlay con % |
+| Aspecto | v2 | v3 | v3.1 (Actual) |
+|---------|-----|-----|---------------|
+| Status posibles | pass, warn | pass, review, out_of_play | pass, review, out_of_play |
+| Scoring | Solo search volume | opportunityScore básico | opportunityScore + difficulty + position factors |
+| Intent | No | 6 tipos con weights | 6 tipos con weights |
+| Capability | No | 0-1 fijo | 0-1 configurable por vertical |
+| Thresholds | N/A | Fijos (0.30, 0.60) | Configurables por preset |
+| Brand detection | Básico | Avanzado con stopwords | + extraído de UCR competitors |
+| Fence handling | N/A | Fence determina status | Fence solo flaggea, capability manda |
+| Confidence | No | No | high/medium/low por keyword |
+| Vertical presets | No | No | DTC footwear, retail, B2B SaaS |
+| UI | Accordion | 3 tabs | 3 tabs + Executive Summary + Fence badge |
+| Columnas tabla | Keyword, Vol, Score | + Intent, Capability | + Reason, Confidence, KD |
 
 ---
 
@@ -617,3 +652,39 @@ POST /api/keyword-gap-lite/run
   }
 }
 ```
+
+---
+
+## Changelog
+
+### v3.1 (Enero 2026)
+
+**Nuevas Funcionalidades:**
+- **Configurable Capability Models**: Boosters y penalties definibles por UCR o vertical preset
+- **Vertical Presets**: DTC footwear (0.55), retail big box (0.65), B2B SaaS (0.50)
+- **Enhanced Opportunity Scoring**: Factores de difficulty y position en fórmula
+- **Confidence Levels**: high/medium/low basado en proximity a thresholds
+- **Executive Summary Card**: Missing value, top themes, competitor ownership
+
+**SPEC 3.1 - Fence Override:**
+- Capability score ahora determina status Pass/Review
+- Fence check solo añade flag `outside_fence` sin afectar clasificación
+- Keywords con alta capability pasan aunque estén fuera del fence
+- UI muestra badge "Fence" en ámbar con tooltip explicativo
+
+**UI Enhancements:**
+- Columnas adicionales: Reason, Confidence, KD
+- Badge "Fence" para keywords outside_fence
+- Tooltip con contexto sobre keywords fuera del scope
+
+**Case Study:**
+- OOFOS: Mejora de 15% → 23% pass rate con SPEC 3.1
+- 21 keywords promovidos de Review a Pass con `outside_fence` flag
+
+### v3.0 (Diciembre 2025)
+
+- Sistema de 3 tiers: pass, review, out_of_play
+- Intent classification con 6 tipos y weights
+- Capability scoring 0-1 con boosters/penalties
+- Competitor brand detection con stopwords
+- Multi-provider architecture (DataForSEO + Ahrefs)
