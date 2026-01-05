@@ -115,7 +115,6 @@ interface KeywordGapLiteResult {
   borderline: KeywordLiteResult[];
   stats: {
     passed: number;
-    warned: number;
     blocked: number;
   };
   filtersApplied: {
@@ -607,15 +606,11 @@ export default function KeywordGap() {
                   </Badge>
                   <Badge variant="default" className="flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" />
-                    {liteMutation.data.stats.passed}
-                  </Badge>
-                  <Badge variant="secondary" className="flex items-center gap-1">
-                    <HelpCircle className="h-3 w-3" />
-                    {liteMutation.data.stats.warned}
+                    {liteMutation.data.stats.passed} passed
                   </Badge>
                   <Badge variant="destructive" className="flex items-center gap-1">
                     <XCircle className="h-3 w-3" />
-                    {liteMutation.data.stats.blocked}
+                    {liteMutation.data.stats.blocked} blocked
                   </Badge>
                 </div>
               </div>

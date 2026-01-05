@@ -304,6 +304,17 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
   };
 }
 
+function normalizeDomain(input: string): string {
+  if (!input) return "";
+  let domain = input.trim().toLowerCase();
+  domain = domain.replace(/^(https?:\/\/)?(www\.)?/, "");
+  domain = domain.replace(/\/.*$/, "");
+  if (!domain.includes(".")) {
+    domain = domain.replace(/\s+/g, "").replace(/[^a-z0-9]/g, "") + ".com";
+  }
+  return domain;
+}
+
 async function generateCompleteConfiguration(
   domain: string,
   brandName: string | undefined,
@@ -313,16 +324,23 @@ async function generateCompleteConfiguration(
 
 You must respond with a complete JSON configuration object that includes ALL the following sections filled with real, researched data:
 
-1. brand: name, domain, industry, business_model (B2B/DTC/Marketplace/Hybrid), primary_geography (array of country codes), revenue_band
+1. brand: name, domain, industry, business_model (B2B/DTC/Marketplace/Hybrid), primary_geography (array of country codes), revenue_band, target_market
 2. category_definition: primary_category, included (subcategories array), excluded (categories array)
-3. competitors: direct (array), indirect (array), marketplaces (array)
+3. competitors: For each competitor, provide BOTH name AND domain:
+   - competitors_list: array of {name, domain, tier, why}
+   - direct: array of DOMAIN NAMES (e.g., "nike.com", "adidas.com")
+   - indirect: array of DOMAIN NAMES
+   - marketplaces: array of DOMAIN NAMES
+   
+   IMPORTANT: Competitor "direct", "indirect", "marketplaces" arrays MUST contain domain names (e.g., "hoka.com"), NOT company names (e.g., "Hoka One One").
+   
 4. demand_definition: brand_keywords.seed_terms, brand_keywords.top_n, non_brand_keywords.category_terms, non_brand_keywords.problem_terms, non_brand_keywords.top_n
-5. strategic_intent: growth_priority, risk_tolerance (low/medium/high), primary_goal, secondary_goals (array), avoid (array)
+5. strategic_intent: growth_priority, risk_tolerance (low/medium/high), primary_goal, secondary_goals (array), avoid (array), goal_type (roi/volume/authority/awareness/retention), time_horizon (short/medium/long)
 6. channel_context: paid_media_active (boolean), seo_investment_level (low/medium/high), marketplace_dependence (low/medium/high)
 7. negative_scope: excluded_categories, excluded_keywords, excluded_use_cases, excluded_competitors, enforcement_rules
 8. governance: model_suggested (true), human_overrides, context_confidence, last_reviewed, reviewed_by, context_valid_until, cmo_safe
 
-Be specific and data-driven. Use real competitor names, real industry terms, and realistic business context.`;
+Be specific and data-driven. Use real competitor DOMAINS, real industry terms, and realistic business context.`;
 
   const userPrompt = `Research and generate a complete brand intelligence configuration for:
 - Domain: ${domain}
@@ -331,9 +349,11 @@ Be specific and data-driven. Use real competitor names, real industry terms, and
 
 Use your knowledge to identify:
 - The actual company and what they do
-- Their real competitors in the ${primaryCategory} space
+- Their real competitors in the ${primaryCategory} space - provide DOMAIN NAMES (e.g., competitor.com), not company names
 - Relevant keywords for their industry
 - Strategic recommendations based on their market position
+
+CRITICAL: For competitors arrays (direct, indirect, marketplaces), use DOMAIN NAMES like "hoka.com", "crocs.com", NOT company names like "Hoka One One", "Crocs".
 
 Return a complete JSON object with ALL sections filled.`;
 
@@ -382,9 +402,33 @@ Return a complete JSON object with ALL sections filled.`;
       alternative_categories: generated.category_definition?.alternative_categories || [],
     },
     competitors: {
-      direct: generated.competitors?.direct || [],
-      indirect: generated.competitors?.indirect || [],
-      marketplaces: generated.competitors?.marketplaces || [],
+      direct: (generated.competitors?.direct || []).map((d: string) => normalizeDomain(d)),
+      indirect: (generated.competitors?.indirect || []).map((d: string) => normalizeDomain(d)),
+      marketplaces: (generated.competitors?.marketplaces || []).map((d: string) => normalizeDomain(d)),
+      competitors: (generated.competitors?.competitors_list || []).map((c: any) => ({
+        name: c.name || "",
+        domain: normalizeDomain(c.domain || ""),
+        tier: c.tier || "tier1",
+        status: "pending_review" as const,
+        similarity_score: 50,
+        serp_overlap: 0,
+        size_proximity: 50,
+        revenue_range: "",
+        employee_count: "",
+        funding_stage: "unknown" as const,
+        geo_overlap: [],
+        evidence: {
+          why_selected: c.why || "",
+          top_overlap_keywords: [],
+          serp_examples: [],
+        },
+        added_by: "ai" as const,
+        added_at: today,
+        rejected_reason: "",
+      })),
+      approved_count: 0,
+      rejected_count: 0,
+      pending_review_count: (generated.competitors?.competitors_list || []).length || (generated.competitors?.direct || []).length,
     },
     demand_definition: {
       brand_keywords: {
@@ -403,6 +447,14 @@ Return a complete JSON object with ALL sections filled.`;
       primary_goal: generated.strategic_intent?.primary_goal || "Increase market share",
       secondary_goals: generated.strategic_intent?.secondary_goals || [],
       avoid: generated.strategic_intent?.avoid || [],
+      goal_type: generated.strategic_intent?.goal_type || "roi",
+      time_horizon: generated.strategic_intent?.time_horizon || "medium",
+      constraint_flags: {
+        budget_constrained: false,
+        resource_limited: false,
+        regulatory_sensitive: false,
+        brand_protection_priority: false,
+      },
     },
     channel_context: {
       paid_media_active: generated.channel_context?.paid_media_active ?? true,
@@ -414,11 +466,16 @@ Return a complete JSON object with ALL sections filled.`;
       excluded_keywords: generated.negative_scope?.excluded_keywords || [],
       excluded_use_cases: generated.negative_scope?.excluded_use_cases || [],
       excluded_competitors: generated.negative_scope?.excluded_competitors || [],
+      category_exclusions: [],
+      keyword_exclusions: [],
+      use_case_exclusions: [],
+      competitor_exclusions: [],
       enforcement_rules: {
         hard_exclusion: true,
         allow_model_suggestion: true,
         require_human_override_for_expansion: true,
       },
+      audit_log: [],
     },
     governance: {
       model_suggested: true,
@@ -440,6 +497,41 @@ Return a complete JSON object with ALL sections filled.`;
       validation_status: "needs_review" as const,
       human_verified: false,
       blocked_reasons: [],
+      context_status: "DRAFT_AI" as const,
+      quality_score: {
+        completeness: 0,
+        competitor_confidence: 0,
+        negative_strength: 0,
+        evidence_coverage: 0,
+        overall: 0,
+        grade: "low" as const,
+        breakdown: {
+          completeness_details: "",
+          competitor_details: "",
+          negative_details: "",
+          evidence_details: "",
+        },
+        calculated_at: today,
+      },
+      ai_behavior: {
+        regeneration_count: 0,
+        max_regenerations: 1,
+        redacted_fields: [],
+        auto_approve_threshold: 80,
+        require_human_below: 50,
+        requires_human_review: false,
+        auto_approved: false,
+        violation_detected: false,
+      },
+      section_approvals: {
+        brand_identity: { status: "ai_generated" as const },
+        category_definition: { status: "ai_generated" as const },
+        competitive_set: { status: "ai_generated" as const },
+        demand_definition: { status: "ai_generated" as const },
+        strategic_intent: { status: "ai_generated" as const },
+        channel_context: { status: "ai_generated" as const },
+        negative_scope: { status: "ai_generated" as const },
+      },
     },
   };
 }

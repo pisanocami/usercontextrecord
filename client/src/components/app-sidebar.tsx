@@ -14,6 +14,8 @@ import {
   List,
   Plus,
   FileText,
+  BarChart3,
+  Zap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -224,6 +226,34 @@ export function AppSidebar({
                     <Sparkles className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
                       <span className="text-sm font-medium">Bulk Generation</span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Analysis
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/keyword-gap">
+                  <SidebarMenuButton
+                    isActive={activeSection === "keyword-gap"}
+                    className={`group relative ${
+                      activeSection === "keyword-gap"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-keyword-gap"
+                  >
+                    <Zap className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">Keyword Gap</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>

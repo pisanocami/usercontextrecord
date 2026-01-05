@@ -23,7 +23,6 @@ export interface KeywordGapResult {
   borderline: KeywordResult[];
   stats: {
     passed: number;
-    warned: number;
     blocked: number;
   };
   filtersApplied: {
@@ -298,7 +297,7 @@ export async function computeKeywordGap(
   });
   
   const results: KeywordResult[] = [];
-  const stats = { passed: 0, warned: 0, blocked: 0 };
+  const stats = { passed: 0, blocked: 0 };
   
   allCompetitorKeywords.forEach((competitors, keyword) => {
     const evaluation = evaluateKeyword(keyword, config);
@@ -315,7 +314,6 @@ export async function computeKeywordGap(
     });
     
     if (evaluation.status === "pass") stats.passed++;
-    else if (evaluation.status === "warn") stats.warned++;
     else stats.blocked++;
   });
   
