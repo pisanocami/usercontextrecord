@@ -292,13 +292,22 @@ function getEffectiveCapabilityModel(config: Configuration): CapabilityModel {
   if (config.capability_model && (config.capability_model.boosters?.length || config.capability_model.penalties?.length)) {
     return config.capability_model as CapabilityModel;
   }
-  const presetName = config.scoring_config?.vertical_preset;
+  const govCapability = (config.governance as any)?.capability_model;
+  if (govCapability && (govCapability.boosters?.length || govCapability.penalties?.length)) {
+    return govCapability as CapabilityModel;
+  }
+  const presetName = config.scoring_config?.vertical_preset || 
+                     (config.governance as any)?.scoring_config?.vertical_preset;
   return getCapabilityPreset(presetName);
 }
 
 function getEffectiveScoringConfig(config: Configuration): ScoringConfig {
   if (config.scoring_config) {
     return config.scoring_config as ScoringConfig;
+  }
+  const govScoring = (config.governance as any)?.scoring_config;
+  if (govScoring) {
+    return govScoring as ScoringConfig;
   }
   return getScoringPreset();
 }
