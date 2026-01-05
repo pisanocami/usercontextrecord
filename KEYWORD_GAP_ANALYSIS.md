@@ -2,9 +2,58 @@
 
 ## Overview
 
-El sistema de Keyword Gap Analysis identifica oportunidades de keywords donde los competidores rankean pero la marca no. Utiliza DataForSEO para obtener datos reales de ranking y aplica un sistema de clasificación de 3 niveles con scoring inteligente.
+El sistema de Keyword Gap Analysis identifica oportunidades de keywords donde los competidores rankean pero la marca no. Utiliza una **arquitectura multi-proveedor** que soporta DataForSEO y Ahrefs, aplicando un sistema de clasificación de 3 niveles con scoring inteligente.
 
 **Principio clave:** El sistema clasifica keywords en 3 categorías: `pass`, `review`, y `out_of_play` basándose en capability scoring y detección de marcas competidoras.
+
+---
+
+## Arquitectura Multi-Proveedor
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    MULTI-PROVIDER ARCHITECTURE                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  server/keyword-data-provider.ts     → Interface + Factory Pattern      │
+│  server/providers/                   → Provider Implementations         │
+│     ├── dataforseo-provider.ts       → DataForSEO (domain_intersection) │
+│     ├── ahrefs-provider.ts           → Ahrefs (organic-keywords + gap)  │
+│     └── index.ts                     → Exports all providers            │
+│                                                                         │
+│  ┌─────────────────┐     ┌─────────────────┐                           │
+│  │   DataForSEO    │     │     Ahrefs      │                           │
+│  ├─────────────────┤     ├─────────────────┤                           │
+│  │ domain_inter-   │     │ organic-keywords│                           │
+│  │ section API     │     │ + in-memory gap │                           │
+│  │ Basic Auth      │     │ Bearer Token    │                           │
+│  │ No cache        │     │ 7-day TTL cache │                           │
+│  └─────────────────┘     └─────────────────┘                           │
+│           │                      │                                      │
+│           └──────────┬───────────┘                                      │
+│                      ▼                                                  │
+│         getProvider("dataforseo" | "ahrefs")                           │
+│                      │                                                  │
+│                      ▼                                                  │
+│            KeywordGapLiteResult                                         │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### DataForSEO Provider
+- **Endpoint:** POST `/v3/dataforseo_labs/google/domain_intersection/live`
+- **Auth:** Basic Auth (DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD)
+- **Gap Method:** Direct API gap analysis (intersection_mode: "only_target2_keywords")
+- **Fields:** keyword, search_volume, cpc, competition, keyword_difficulty
+
+### Ahrefs Provider
+- **Endpoint:** GET `/v3/site-explorer/organic-keywords`
+- **Auth:** Bearer Token (AHREFS_API_KEY)
+- **Gap Method:** In-memory computation (competitor_keywords - client_keywords)
+- **Cache:** 7-day TTL, keyed by (domain, country, limit)
+- **Limits:** 2000 keywords/domain, position ≤ 20 for competitors, ≤ 100 for client
+- **Filters:** minVolume = 100, maxKd = 60
+- **Fields:** keyword, best_position, volume, keyword_difficulty, cpc
 
 ---
 
@@ -16,17 +65,17 @@ El sistema de Keyword Gap Analysis identifica oportunidades de keywords donde lo
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  1. INPUT: Configuration (UCR)                                          │
-│     ├── brand.domain → "oofos.com"                                      │
-│     ├── competitors.direct → ["hoka.com", "kanefootwear.com", ...]      │
-│     ├── category_definition.included → ["recovery footwear", ...]       │
+│     ├── brand.domain → "homedepot.com"                                  │
+│     ├── competitors.competitors[] → tier1+tier2 domains only            │
+│     │   └── [{domain: "lowes.com", tier: "tier1"}, ...]                 │
+│     ├── category_definition.included → ["home improvement", ...]        │
 │     └── negative_scope → exclusiones para filtrado                      │
 │                                                                         │
-│  2. DATA FETCH: DataForSEO API                                          │
-│     └── POST /dataforseo_labs/google/domain_intersection/live           │
-│         ├── target1: brand domain                                       │
-│         ├── target2: competitor domain                                  │
-│         └── intersection_mode: "only_target2_keywords"                  │
-│         → Retorna keywords donde SOLO el competidor rankea              │
+│  2. DATA FETCH: Provider API (DataForSEO OR Ahrefs)                     │
+│     ├── DataForSEO: POST /domain_intersection/live                      │
+│     │   └── intersection_mode: "only_target2_keywords"                  │
+│     └── Ahrefs: GET /organic-keywords × 2 → in-memory gap               │
+│         └── gap = competitor_keywords - client_keywords                 │
 │                                                                         │
 │  3. INTENT CLASSIFICATION (por cada keyword)                            │
 │     ├── category_capture: sandals, slides, recovery shoes               │
@@ -372,8 +421,14 @@ keyword: "best footwear for nurses"
 
 ```
 POST /api/keyword-gap-lite/run
-├── Body: { configurationId: number }
-├── Process: computeKeywordGap(config, dataforseoClient)
+├── Body: { 
+│     configurationId: number,
+│     provider?: "dataforseo" | "ahrefs",  // default: "dataforseo"
+│     location?: string,                    // default: "us"
+│     language?: string,                    // default: "en"
+│     limit?: number                        // default: 200
+│   }
+├── Process: computeKeywordGap(config, provider)
 └── Response: KeywordGapLiteResult (3-tier structure)
 
 GET /api/keyword-gap-lite/cache
@@ -381,6 +436,9 @@ GET /api/keyword-gap-lite/cache
 
 DELETE /api/keyword-gap-lite/cache
 └── Response: { message: "Cache cleared" }
+
+GET /api/keyword-gap/status
+└── Response: { configured: boolean, providers: { dataforseo: boolean, ahrefs: boolean } }
 ```
 
 ---
@@ -390,6 +448,56 @@ DELETE /api/keyword-gap-lite/cache
 1. **3 Tabs claros** - Top Opportunities, Needs Review, Out of Play
 2. **Percentages visibles** - Stats badges muestran distribución (3%/24%/74%)
 3. **Opportunity Score** - Priorización inteligente basada en volume × cpc × intent × capability
-4. **Competitor brands filtrados** - Kane, Hoka, etc. van a Out of Play automáticamente
+4. **Competitor brands filtrados** - Lowes, Menards, Amazon, Walmart, etc. van a Out of Play automáticamente
 5. **Sin falsos positivos** - Variant regex preciso, stopwords para brand detection
 6. **Collapsible Out of Play** - Accordion para no abrumar con keywords filtrados
+7. **Multi-Provider** - Selector para cambiar entre DataForSEO y Ahrefs
+
+---
+
+## Environment Variables
+
+```bash
+# DataForSEO
+DATAFORSEO_LOGIN=your_login
+DATAFORSEO_PASSWORD=your_password
+
+# Ahrefs
+AHREFS_API_KEY=your_api_key
+```
+
+---
+
+## Ejemplo de Uso con Ahrefs
+
+```typescript
+// Request
+POST /api/keyword-gap-lite/run
+{
+  "configurationId": 8,
+  "provider": "ahrefs",
+  "location": "us",
+  "limit": 50
+}
+
+// Response
+{
+  "brandDomain": "homedepot.com",
+  "competitors": ["lowes.com", "menards.com", "acehardware.com", "amazon.com", "walmart.com"],
+  "totalGapKeywords": 88,
+  "topOpportunities": [...],
+  "needsReview": [...],       // 33 keywords
+  "outOfPlay": [...],         // 55 keywords (competitor brands)
+  "stats": {
+    "passed": 0,
+    "review": 33,
+    "outOfPlay": 55,
+    "percentPassed": 0,
+    "percentReview": 38,
+    "percentOutOfPlay": 63
+  },
+  "filtersApplied": {
+    "competitorBrandTerms": 55  // walmart, lowes, amazon, etc.
+  }
+}
+```
