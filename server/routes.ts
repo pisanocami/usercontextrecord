@@ -1279,6 +1279,13 @@ Recommend channel context settings:
 - Marketplace dependence level (low, medium, high)
 Return JSON with keys: paid_media_active, seo_investment_level, marketplace_dependence`,
         
+        channels: `Based on the business model "${context?.business_model || 'B2B'}" and industry "${context?.industry || 'unknown'}":
+Recommend channel context settings:
+- Should paid media be active? (boolean)
+- SEO investment level (low, medium, high)
+- Marketplace dependence level (low, medium, high)
+Return JSON with keys: paid_media_active, seo_investment_level, marketplace_dependence`,
+        
         negative: `For a "${context?.business_model || 'B2B'}" company in "${context?.industry || 'unknown'}":
 Suggest negative scope exclusions:
 - Categories to exclude (array)
