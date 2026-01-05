@@ -2,37 +2,43 @@
 
 ## Overview
 
-El sistema de Keyword Gap Analysis identifica oportunidades de keywords donde los competidores rankean pero la marca no. Utiliza DataForSEO para obtener datos reales de ranking y aplica guardrails del UCR para filtrar resultados.
+El sistema de Keyword Gap Analysis identifica oportunidades de keywords donde los competidores rankean pero la marca no. Utiliza DataForSEO para obtener datos reales de ranking y aplica guardrails del UCR para clasificar resultados.
+
+**Principio clave:** El sistema NUNCA bloquea keywords. Solo clasifica con status `pass` o `warn` para permitir revisión humana.
 
 ---
 
-## Arquitectura del Flujo
+## Arquitectura del Flujo (NUEVA)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         KEYWORD GAP LITE FLOW                           │
+│                         KEYWORD GAP LITE FLOW v2                        │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  1. INPUT: Configuration (UCR)                                          │
 │     ├── brand.domain → "oofos.com"                                      │
 │     ├── competitors.direct → ["hoka.com", "brooks.com", ...]            │
-│     └── negative_scope → exclusiones                                    │
+│     └── negative_scope → exclusiones (solo para warnings)               │
 │                                                                         │
 │  2. DATA FETCH: DataForSEO API                                          │
-│     ├── GET ranked_keywords/live para brand domain                      │
-│     └── GET ranked_keywords/live para cada competitor (paralelo)        │
+│     └── POST /dataforseo_labs/google/domain_intersection/live           │
+│         ├── target1: brand domain                                       │
+│         ├── target2: competitor domain                                  │
+│         └── intersection_mode: "only_target2_keywords"                  │
+│         → Retorna keywords donde SOLO el competidor rankea              │
 │                                                                         │
-│  3. GAP CALCULATION                                                     │
-│     └── competitor_keywords - brand_keywords = gap_keywords             │
+│  3. GUARDRAIL EVALUATION (por cada keyword) - SOLO WARN, NO BLOCK       │
+│     ├── checkExclusions() → ¿Matchea negative_scope? → warn             │
+│     └── fenceCheck() → ¿Fuera del category fence? → warn                │
 │                                                                         │
-│  4. GUARDRAIL EVALUATION (por cada keyword)                             │
-│     ├── applyExclusions() → ¿Bloqueado por negative_scope?              │
-│     └── fenceCheck() → ¿Dentro del category fence?                      │
-│                                                                         │
-│  5. THEME ASSIGNMENT                                                    │
+│  4. THEME ASSIGNMENT                                                    │
 │     └── Brand | Category | Problem/Solution | Product | Other           │
 │                                                                         │
-│  6. OUTPUT: Top 30 passed + 10 borderline                               │
+│  5. SORTING: Por search volume (mayor a menor)                          │
+│                                                                         │
+│  6. OUTPUT: Todos los keywords con status + search volume               │
+│     ├── ✅ pass: Dentro del fence, sin exclusiones                      │
+│     └── ⚠️ warn: Fuera del fence O matchea exclusión (requiere review)  │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -41,201 +47,261 @@ El sistema de Keyword Gap Analysis identifica oportunidades de keywords donde lo
 
 ## Componentes Detallados
 
-### 1. Fuente de Datos: DataForSEO
+### 1. Fuente de Datos: DataForSEO (NUEVO)
 
 **Archivo:** `server/dataforseo.ts`
 
-**API Endpoint:** `/dataforseo_labs/google/ranked_keywords/live`
+**API Endpoint:** `/dataforseo_labs/google/domain_intersection/live`
 
 **Parámetros:**
 ```typescript
 {
-  target: "oofos.com",           // Dominio a analizar
-  language_name: "English",      // Idioma
-  location_code: 2840,           // USA (código de país)
-  limit: 200                     // Max keywords por dominio
+  target1: "oofos.com",                    // Marca (brand)
+  target2: "hoka.com",                     // Competidor
+  language_name: "English",
+  location_code: 2840,                     // USA
+  intersections: {
+    included_keywords: false,              // Excluir overlap
+    excluded_keywords: true,               // Solo keywords del competidor
+  },
+  // O usar:
+  intersection_mode: "only_target2_keywords",
+  limit: 200
 }
 ```
 
 **Response por keyword:**
 ```typescript
 {
-  keyword: "recovery sandals",
-  search_volume: 12000,
-  position: 3,                   // Ranking actual
-  cpc: 1.25,
-  competition: 0.65
+  keyword: "recovery sandals for runners",
+  search_volume: 8100,
+  target2_position: 5,                     // Ranking del competidor
+  target1_position: null,                  // Marca no rankea (gap real)
+  cpc: 1.45,
+  competition: 0.72
 }
 ```
 
-**PROBLEMA ACTUAL:** Solo obtenemos keywords donde el dominio YA rankea. NO obtenemos keywords donde el dominio NO rankea (que es lo que queremos para gap analysis).
+**MEJORA:** Ahora obtenemos keywords donde la marca NO rankea pero el competidor SÍ (gap analysis real).
 
 ---
 
-### 2. Cálculo del Gap
-
-**Archivo:** `server/keyword-gap-lite.ts` → `computeKeywordGap()`
-
-**Lógica actual:**
-```typescript
-// 1. Obtener keywords de la marca
-brandKeywords = await getRankedKeywords(brandDomain);
-
-// 2. Obtener keywords de cada competidor
-competitorKeywords = await getRankedKeywords(competitorDomain);
-
-// 3. Calcular gap: keywords del competidor que la marca NO tiene
-gapKeywords = competitorKeywords.filter(kw => !brandKeywords.includes(kw));
-```
-
-**PROBLEMA:** El gap solo incluye keywords donde:
-- El competidor rankea
-- La marca NO aparece en top 100
-
-Esto NO captura keywords donde la marca rankea bajo (posición 50+) vs competidor rankea alto (posición 1-10).
-
----
-
-### 3. Sistema de Guardrails
+### 2. Sistema de Guardrails (NUEVO - Solo Warn)
 
 **Archivo:** `server/keyword-gap-lite.ts`
 
-#### 3.1 Exclusion Check (`applyExclusions`)
+**Principio:** El sistema NUNCA bloquea. Solo clasifica como `pass` o `warn`.
 
-Bloquea keywords que contengan términos del negative_scope:
+#### 2.1 Exclusion Check (`checkExclusions`) - WARN ONLY
 
 ```typescript
-const exclusions = [
-  ...config.negative_scope.excluded_categories,    // ["running shoes", "athletic gear"]
-  ...config.negative_scope.excluded_keywords,      // ["cheap", "fake"]
-  ...config.negative_scope.excluded_use_cases,     // ["marathon", "hiking"]
-  ...config.negative_scope.excluded_competitors    // ["nike"]
-];
+function checkExclusions(keyword: string, exclusions: string[]): { 
+  hasMatch: boolean; 
+  reason: string 
+} {
+  const normalizedKw = normalizeKeyword(keyword);
+  
+  for (const exclusion of exclusions) {
+    // Word boundary matching (más preciso)
+    const regex = new RegExp(`\\b${escapeRegex(exclusion)}\\b`, 'i');
+    
+    if (regex.test(normalizedKw)) {
+      return { 
+        hasMatch: true, 
+        reason: `Matches exclusion: "${exclusion}"` 
+      };
+    }
+  }
+  
+  return { hasMatch: false, reason: "" };
+}
 
-// Bloquea si el keyword contiene O está contenido en la exclusión
-if (keyword.includes(exclusion) || exclusion.includes(keyword)) {
-  return { blocked: true, reason: `Matches exclusion: "${exclusion}"` };
+// Resultado: Si hasMatch = true → status = "warn" (NO "block")
+```
+
+#### 2.2 Fence Check (`fenceCheck`) - WARN ONLY
+
+```typescript
+function fenceCheck(keyword: string, inScopeConcepts: string[]): {
+  inFence: boolean;
+  reason: string;
+} {
+  const normalizedKw = normalizeKeyword(keyword);
+  
+  for (const concept of inScopeConcepts) {
+    if (hasSemanticMatch(normalizedKw, concept)) {
+      return { inFence: true, reason: `Matches: "${concept}"` };
+    }
+  }
+  
+  // NUEVO: Ya no bloqueamos, solo advertimos
+  return { 
+    inFence: false, 
+    reason: "Outside category fence - needs review" 
+  };
+}
+
+// Resultado: Si inFence = false → status = "warn" (NO "block")
+```
+
+#### 2.3 Evaluación Final
+
+```typescript
+function evaluateKeyword(keyword: string, config: Configuration): KeywordEvaluation {
+  // 1. Check exclusions
+  const exclusionCheck = checkExclusions(keyword, getAllExclusions(config));
+  
+  // 2. Check fence
+  const fenceCheck = fenceCheck(keyword, getInScopeConcepts(config));
+  
+  // 3. Determinar status (NUNCA block)
+  if (exclusionCheck.hasMatch) {
+    return { 
+      status: "warn", 
+      statusIcon: "⚠️", 
+      reason: exclusionCheck.reason 
+    };
+  }
+  
+  if (!fenceCheck.inFence) {
+    return { 
+      status: "warn", 
+      statusIcon: "⚠️", 
+      reason: fenceCheck.reason 
+    };
+  }
+  
+  return { 
+    status: "pass", 
+    statusIcon: "✅", 
+    reason: fenceCheck.reason 
+  };
 }
 ```
 
-**PROBLEMA:** El matching es demasiado agresivo:
-- `exclusion.includes(keyword)` puede bloquear falsamente
-- No diferencia entre palabra completa vs substring
-- "shoe" bloquearía "recovery shoe" si "shoe" está en exclusiones
+---
 
-#### 3.2 Fence Check (`fenceCheck`)
-
-Verifica que el keyword esté dentro del "category fence":
+### 3. Search Volume y Sorting (NUEVO)
 
 ```typescript
-const inScopeConcepts = [
-  ...config.category_definition.included,           // ["sandals", "slides"]
-  config.category_definition.primary_category,      // "Recovery Footwear"
-  ...config.category_definition.approved_categories // ["footwear", "wellness"]
-];
-
-const demandThemes = [
-  ...config.demand_definition.brand_keywords.seed_terms,        // ["oofos", "oofoam"]
-  ...config.demand_definition.non_brand_keywords.category_terms, // ["recovery", "comfort"]
-  ...config.demand_definition.non_brand_keywords.problem_terms   // ["foot pain", "plantar fasciitis"]
-];
-
-// Token matching: busca overlap de tokens > 2 caracteres
-for (const concept of allConcepts) {
-  const conceptTokens = concept.split(" ");
-  const keywordTokens = keyword.split(" ");
-  
-  const hasMatch = conceptTokens.some(token => 
-    token.length > 2 && keywordTokens.some(kwToken => 
-      kwToken.includes(token) || token.includes(kwToken)
-    )
-  );
-  
-  if (hasMatch) return { status: "pass" };
+interface KeywordResult {
+  keyword: string;
+  searchVolume: number;          // ✅ Ahora incluido
+  competitorPosition: number;    // ✅ Ranking del competidor
+  status: "pass" | "warn";       // Solo 2 estados
+  statusIcon: string;
+  reason: string;
+  competitorsSeen: string[];
+  theme: string;
 }
 
-return { status: "block", reason: "Outside category fence" };
+// Sorting: Por search volume descendente
+results.sort((a, b) => {
+  // Primero pass, luego warn
+  if (a.status !== b.status) {
+    return a.status === "pass" ? -1 : 1;
+  }
+  // Luego por search volume
+  return (b.searchVolume || 0) - (a.searchVolume || 0);
+});
 ```
-
-**PROBLEMA:** 
-- Matching muy permisivo: "sandal" matchea "sandals" pero también "sandal bag"
-- No considera relevancia semántica
-- Keywords válidos pueden ser bloqueados si no contienen tokens exactos
 
 ---
 
 ### 4. Theme Assignment
 
-Asigna cada keyword a un grupo temático:
-
 ```typescript
 const themes = [
-  { name: "Brand", terms: brand_keywords.seed_terms },      // "oofos", "oofoam"
-  { name: "Category", terms: category_terms },              // "recovery sandals"
-  { name: "Problem/Solution", terms: problem_terms },       // "foot pain relief"
-  { name: "Product", terms: category_definition.included }, // "slides", "clogs"
+  { name: "Brand", terms: brand_keywords.seed_terms },
+  { name: "Category", terms: category_terms },
+  { name: "Problem/Solution", terms: problem_terms },
+  { name: "Product", terms: category_definition.included },
 ];
 
 // Si ningún theme matchea → "Other"
+// "Other" NO es malo - solo significa que necesita clasificación manual
 ```
-
-**PROBLEMA:** Muchos keywords terminan en "Other" porque el matching es estricto.
 
 ---
 
-## Problemas Identificados
+## Estructura de Output (NUEVA)
 
-### P1: DataForSEO no da keywords donde la marca NO rankea
-
-**Impacto:** Alto
-**Descripción:** El API `ranked_keywords/live` solo retorna keywords donde el dominio tiene ranking. Para gap analysis real necesitamos `keyword_gap/live` de DataForSEO.
-
-**Solución propuesta:**
 ```typescript
-// Usar keyword gap endpoint directamente
-POST /dataforseo_labs/google/domain_intersection/live
-{
-  "target1": "oofos.com",      // Marca
-  "target2": "hoka.com",       // Competidor
-  "intersection_mode": "only_in_target2"  // Keywords solo en competidor
+interface KeywordGapResult {
+  brandDomain: string;
+  competitors: string[];
+  totalGapKeywords: number;
+  
+  results: KeywordResult[];              // Todos los keywords
+  grouped: Record<string, KeywordResult[]>;  // Por theme
+  needsReview: KeywordResult[];          // Solo los "warn"
+  
+  stats: {
+    passed: number;
+    needsReview: number;                 // Antes era "blocked"
+  };
+  
+  filtersApplied: {
+    excludedCategories: number;
+    excludedKeywords: number;
+    excludedUseCases: number;
+    totalFilters: number;
+  };
+}
+
+interface KeywordResult {
+  keyword: string;
+  normalizedKeyword: string;
+  searchVolume: number;                  // ✅ NUEVO
+  competitorPosition: number;            // ✅ NUEVO
+  status: "pass" | "warn";               // Solo 2 estados (no "block")
+  statusIcon: "✅" | "⚠️";
+  reason: string;
+  competitorsSeen: string[];
+  theme: string;
 }
 ```
 
-### P2: Matching de exclusiones demasiado agresivo
+---
 
-**Impacto:** Medio
-**Descripción:** Bloquea keywords válidos por substring matching.
+## Comparación: Antes vs Después
 
-**Solución propuesta:**
-- Usar word boundary matching: `\b${exclusion}\b`
-- Implementar fuzzy matching con threshold
-
-### P3: Fence check depende de datos UCR incompletos
-
-**Impacto:** Alto
-**Descripción:** Si el UCR no tiene `category_terms` o `problem_terms` bien definidos, casi todo se bloquea.
-
-**Solución propuesta:**
-- Default `status: "warn"` en lugar de `status: "block"` para fence failures
-- Usar AI para inferir relevancia si fence check es ambiguo
-
-### P4: No hay volumen de búsqueda en output
-
-**Impacto:** Medio
-**Descripción:** Los keywords se ordenan por número de competidores que rankean, no por search volume.
-
-**Solución propuesta:**
-- Incluir `searchVolume` en el resultado
-- Ordenar por `searchVolume * priority_multiplier`
+| Aspecto | ANTES | DESPUÉS |
+|---------|-------|---------|
+| Data Source | `ranked_keywords/live` (solo donde marca rankea) | `domain_intersection/live` (gap real) |
+| Status posibles | pass, warn, block | pass, warn (NO block) |
+| Exclusion fail | Block ⛔ | Warn ⚠️ |
+| Fence fail | Block ⛔ | Warn ⚠️ |
+| Search Volume | No incluido | ✅ Incluido |
+| Sorting | Por # competidores | Por search volume |
+| UCR incompleto | Bloquea casi todo | Warn para review humano |
 
 ---
 
-## Flujo de API Endpoints
+## Flujo de Decisión por Keyword
+
+```
+keyword: "recovery sandals for plantar fasciitis"
+    │
+    ├── ¿Matchea exclusión? (excluded_keywords, excluded_categories, etc.)
+    │   ├── SÍ → status: "warn" ⚠️ + reason: "Matches exclusion: X"
+    │   └── NO → continuar
+    │
+    ├── ¿Dentro del category fence? (category_terms, problem_terms, etc.)
+    │   ├── SÍ → status: "pass" ✅ + reason: "Matches: recovery"
+    │   └── NO → status: "warn" ⚠️ + reason: "Outside fence - needs review"
+    │
+    └── Asignar theme → "Problem/Solution"
+```
+
+---
+
+## API Endpoints
 
 ```
 POST /api/keyword-gap-lite/run
 ├── Body: { configurationId: number }
-├── Process: computeKeywordGap(config, dataforseoClient, options)
+├── Process: computeKeywordGap(config, dataforseoClient)
 └── Response: KeywordGapResult
 
 GET /api/keyword-gap-lite/cache
@@ -247,65 +313,10 @@ DELETE /api/keyword-gap-lite/cache
 
 ---
 
-## Estructura de Output Actual
+## Consideraciones para Demo
 
-```typescript
-interface KeywordGapResult {
-  brandDomain: string;           // "oofos.com"
-  competitors: string[];         // ["hoka.com", "brooks.com"]
-  totalGapKeywords: number;      // Total antes de filtrar
-  
-  results: KeywordResult[];      // Top 30 que pasaron guardrails
-  grouped: Record<string, KeywordResult[]>;  // Agrupados por theme
-  borderline: KeywordResult[];   // Top 10 bloqueados (para review)
-  
-  stats: {
-    passed: number;
-    blocked: number;
-  };
-  
-  filtersApplied: {
-    excludedCategories: number;
-    excludedKeywords: number;
-    excludedUseCases: number;
-    totalFilters: number;
-  };
-  
-  contextVersion: number;
-  configurationName: string;
-}
-
-interface KeywordResult {
-  keyword: string;
-  normalizedKeyword: string;
-  status: "pass" | "warn" | "block";
-  statusIcon: string;            // "✅" | "⚠️" | "⛔"
-  reason: string;
-  competitorsSeen: string[];     // Qué competidores rankean
-  searchVolume?: number;         // ⚠️ Actualmente undefined
-  theme: string;                 // Brand | Category | Problem/Solution | Product | Other
-}
-```
-
----
-
-## Dónde Mejorar
-
-| Área | Problema | Prioridad | Solución |
-|------|----------|-----------|----------|
-| Data Source | Solo keywords donde marca rankea | ALTA | Usar `domain_intersection/live` o `keyword_gap/live` |
-| Exclusions | Substring matching muy agresivo | MEDIA | Word boundary regex |
-| Fence Check | Bloquea todo si UCR incompleto | ALTA | Default a "warn" no "block" |
-| Sorting | Sin search volume | MEDIA | Incluir y ordenar por volumen |
-| Themes | Muchos "Other" | BAJA | Fallback a AI classification |
-| Competitors | Hardcodeados del UCR | MEDIA | Validar que existan en DataForSEO |
-
----
-
-## Próximos Pasos Sugeridos
-
-1. **Migrar a `domain_intersection/live`** para obtener keywords reales de gap
-2. **Cambiar fence check default** de "block" a "warn" 
-3. **Agregar search volume** al sorting y display
-4. **Implementar word boundary matching** para exclusiones
-5. **Agregar fallback de AI** para keywords ambiguos
+1. **Sin bloqueos duros** - Todo keyword aparece, algunos con ⚠️ para review
+2. **Search volume visible** - Priorización clara por oportunidad
+3. **Posición del competidor** - Ver qué tan bien rankean
+4. **Themes** - Agrupación lógica para análisis
+5. **Needs Review** - Sección separada para keywords ambiguos
