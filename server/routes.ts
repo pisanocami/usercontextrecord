@@ -749,7 +749,7 @@ export async function registerRoutes(
     }
   });
 
-  // Create new configuration
+  // Create or update configuration (upsert by domain)
   app.post("/api/configurations", async (req: any, res) => {
     try {
       const userId = "anonymous-user";
@@ -785,6 +785,39 @@ export async function registerRoutes(
       const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
       const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
       
+      // Check if a configuration with this domain already exists
+      const domain = configData.brand?.domain;
+      const existingConfig = domain ? await storage.getConfigurationByDomain(userId, domain) : null;
+      
+      if (existingConfig) {
+        // Update existing configuration - increment context version
+        const existingVersion = (existingConfig.governance?.context_version as number) || 1;
+        const configWithValidation = {
+          ...configData,
+          governance: {
+            ...configData.governance,
+            validation_status: validation.status,
+            blocked_reasons: validation.blockedReasons,
+            context_hash: contextHash,
+            context_version: existingVersion + 1,
+            quality_score: qualityScore,
+            ai_behavior: {
+              ...(configData.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior),
+              requires_human_review: requiresHumanReview,
+              auto_approved: autoApproved,
+            },
+          },
+        };
+        
+        const updated = await storage.updateConfiguration(
+          existingConfig.id, 
+          userId, 
+          configWithValidation, 
+          "Auto-update via context generation"
+        );
+        return res.json({ ...updated, updated: true });
+      }
+      
       const configWithValidation = {
         ...configData,
         governance: {
@@ -805,8 +838,8 @@ export async function registerRoutes(
       const config = await storage.createConfiguration(userId, configWithValidation);
       res.json(config);
     } catch (error) {
-      console.error("Error creating configuration:", error);
-      res.status(500).json({ error: "Failed to create configuration" });
+      console.error("Error creating/updating configuration:", error);
+      res.status(500).json({ error: "Failed to create/update configuration" });
     }
   });
 
