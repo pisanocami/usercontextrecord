@@ -57,6 +57,60 @@ El sistema de Keyword Gap Analysis identifica oportunidades de keywords donde lo
 
 ---
 
+## v3.1 Configurable Scoring Models (NEW)
+
+Version 3.1 introduces **configurable capability models** and **vertical-specific presets** that can be customized per UCR.
+
+### Configuration Sources (Priority Order)
+1. `config.capability_model` - Direct UCR-level configuration
+2. `config.governance.capability_model` - Nested in governance JSONB
+3. `config.scoring_config.vertical_preset` - Reference to preset
+4. `config.governance.scoring_config.vertical_preset` - Nested preset reference
+5. Default preset (generic)
+
+### Vertical Presets
+
+**File:** `server/capability-presets.ts`
+
+| Preset | Pass Threshold | Review Threshold | Key Boosters |
+|--------|----------------|------------------|--------------|
+| **dtc_footwear** | 0.55 | 0.30 | recovery (+0.5), comfort (+0.2), orthopedic (+0.3), sandals (+0.2) |
+| **retail_big_box** | 0.65 | 0.35 | power tools (+0.3), appliances (+0.25), storage (+0.2) |
+| **b2b_saas** | 0.50 | 0.25 | enterprise (+0.35), roi (+0.3), integration (+0.25) |
+
+### Enhanced Opportunity Scoring Formula (v3.1)
+
+```typescript
+opportunityScore = volume × cpc × intentWeight × capabilityScore × difficultyFactor × positionFactor
+
+where:
+  difficultyFactor = 1 - (keywordDifficulty / 100) × difficulty_weight
+  positionFactor = 1 / (1 + (competitorPosition / 10)) × position_weight
+```
+
+### Confidence Levels
+
+| Level | Condition | Description |
+|-------|-----------|-------------|
+| **High** | capability > pass_threshold + 0.15 | Clear fit, proceed with confidence |
+| **Medium** | Within 0.15 of threshold | Good fit, monitor results |
+| **Low** | Near threshold boundary | Borderline, needs human validation |
+
+### Case Study: OOFOS (DTC Footwear)
+
+Using `vertical_preset: "dtc_footwear"`:
+
+| Metric | Before Preset | After Preset |
+|--------|---------------|--------------|
+| Pass Rate | 0% | **15%** |
+| Review Rate | 75% | 60% |
+| Out of Play | 25% | 25% |
+| Top Keywords | none | "recovery shoes" (153K score) |
+
+See `OOFOS_CASE_STUDY.md` for detailed analysis.
+
+---
+
 ## Arquitectura del Flujo (v3 - 3-Tier System)
 
 ```
