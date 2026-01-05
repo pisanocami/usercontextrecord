@@ -1,0 +1,269 @@
+Aquí tienes instrucciones claras para el programador (tipo “implementation plan”) para corregir el Keyword Gap Lite y que deje de generar output basura, sin romper el principio de “no bloquear” y optimizando para Ahrefs.
+
+✅ Objetivo del fix
+
+Transformar el módulo de:
+
+“Lista de keywords donde el competidor rankea y nosotros no”
+
+a:
+
+“Lista priorizada de oportunidades capturables para la categoría del cliente, separando ruido (brand terms, talles, SKUs) en out_of_play y evitando que contamine el Top.”
+
+1) Cambios de modelo de datos (Schema)
+1.1 Agregar campos nuevos en KeywordResult
+
+Agregar:
+
+type KeywordStatus = "pass" | "review" | "out_of_play";
+
+type IntentType = 
+  | "category_capture"
+  | "problem_solution"
+  | "product_generic"
+  | "brand_capture"
+  | "variant_or_size"
+  | "other";
+
+interface KeywordResult {
+  keyword: string;
+  normalizedKeyword: string;
+
+  // existing
+  searchVolume: number;
+  cpc?: number;
+  kd?: number;
+  competitorPosition?: number;
+
+  // NEW
+  status: KeywordStatus;         // pass/review/out_of_play (no "block")
+  intentType: IntentType;        // clasificación simple
+  capabilityScore: number;       // 0..1
+  opportunityScore: number;      // number usado para sort
+  reason: string;                // explicación humana
+  flags: string[];               // e.g. ["competitor_brand", "size_variant"]
+}
+
+
+Nota: “out_of_play” NO bloquea. Solo evita que contamine el ranking.
+
+2) Cambiar la lógica de guardrails (UCR) a 3 niveles
+2.1 Separar “exclusiones” en 2 listas
+
+En configuración UCR agregar:
+
+negative_scope_review: string[];      // manda a review
+negative_scope_out_of_play: string[]; // manda a out_of_play
+competitor_brand_terms: string[];     // marcas y modelos (hoka, bondi, clifton)
+variant_terms: string[];             // size, wide, mens, womens, colores, etc.
+
+Regla:
+
+match competitor_brand_terms → out_of_play
+
+match variant_terms (talles/modelos/colores + marca) → out_of_play
+
+match negative_scope_out_of_play → out_of_play
+
+match fence “débil” → review
+
+match fence “fuerte” → pass
+
+3) Implementar Intent Classification (sin IA, barato)
+
+Crear función deterministic:
+
+function classifyIntent(keyword: string, config: Configuration): IntentType
+
+Reglas sugeridas (regex / tokens)
+
+Si contiene marca competidora: brand_capture
+
+Si contiene size|wide|4e|mens|women|7.5|8.5|39|40|41|42|black|white → variant_or_size
+
+Si contiene best|for plantar fasciitis|arch support|pain relief|recovery → problem_solution
+
+Si contiene sandals|slides|recovery sandals|recovery slides → category_capture
+
+Si contiene términos genéricos de producto (shoes si OOFOS no vende shoes) → other
+
+No hace falta perfecto: solo suficiente para ordenar bien.
+
+4) Capability Score (la pieza clave)
+
+Crear:
+
+function computeCapabilityScore(keyword: string, config: Configuration): number
+
+Heurística rápida (0..1)
+
+Ejemplo para OOFOS (sandals/slides recovery):
+
++0.6 si keyword contiene recovery
+
++0.3 si keyword contiene sandals|slides
+
+-0.7 si keyword contiene running shoes|hiking boots|marathon training
+
+-0.6 si keyword contiene marca competidora
+
+clamp 0..1
+
+Luego:
+
+capability < 0.3 → status = out_of_play
+
+0.3–0.6 → review
+
+0.6 → puede ser pass si también está in-fence
+
+5) Opportunity Score (nuevo sorting)
+
+Cambiar sorting de volumen a score compuesto.
+
+intentWeight = {
+  category_capture: 1.0,
+  problem_solution: 1.0,
+  product_generic: 0.7,
+  brand_capture: 0.2,
+  variant_or_size: 0.0,
+  other: 0.1
+}
+
+opportunityScore =
+  (searchVolume || 0) *
+  (cpc || 1) *
+  intentWeight[intentType] *
+  capabilityScore
+
+Sorting nuevo
+
+status: pass → review → out_of_play
+
+opportunityScore desc
+
+searchVolume desc
+
+6) UI / Output: cómo se muestra para que “no parezca malo”
+
+En el output separa secciones:
+
+✅ Top Opportunities (pass)
+
+⚠️ Needs Review (review)
+
+💤 Out of Play (hidden by default)
+
+Y agregar un summary arriba:
+
+% pass
+
+% review
+
+% out_of_play
+
+“X keywords removidas del top por ser brand/variants”
+
+7) Migrar DataForSEO → Ahrefs (Keyword Gap)
+7.1 Endpoint recomendado
+
+Usar Ahrefs content_gap en modo domain con múltiples competidores (1 call si es posible).
+
+Inputs:
+
+target = brand domain
+
+competitors = list
+
+mode = domain
+
+positions 1–20
+
+min volume (ej. 500)
+
+(opcional) min cpc > 0
+
+Guardar:
+
+keyword
+
+volume
+
+cpc
+
+kd
+
+competitor positions
+
+7.2 Caching
+
+Cache por:
+
+brand + competitors + min_volume + positions
+TTL:
+
+semanal (keyword gaps no cambian diario)
+
+8) QA Tests (para evitar regresión)
+
+Crear tests con keywords known-bad:
+
+Must go out_of_play
+
+“all black hoka shoes”
+
+“39 birkenstock size”
+
+“20 week marathon plan”
+
+“hoka bondi 8 slip resistant”
+
+Must go pass
+
+“recovery sandals”
+
+“sandals for plantar fasciitis”
+
+“best recovery slides”
+
+“arch support sandals”
+
+Assertions:
+
+Nunca aparecen en Top Opportunities si status != pass
+
+opportunityScore > 0 solo para pass/review
+
+9) Minimal deliverable (lo que deben implementar primero)
+
+Si quieres versión MVP sin sobre-engineering:
+
+✅ Implementar primero:
+
+competitor brand list → out_of_play
+
+size/variant regex → out_of_play
+
+opportunityScore + sorting
+
+UI separando pass/review/out_of_play
+
+Eso solo ya arregla 80% del problema.
+
+Copiar/pegar para Jira (tarea resumida)
+
+Task: Improve Keyword Gap Lite relevance
+Goal: Prevent competitor-brand and variant queries from dominating results; prioritize capturable category demand.
+Deliverables:
+
+Add status: pass/review/out_of_play (no blocking)
+
+Add intentType, capabilityScore, opportunityScore
+
+Add competitor_brand_terms + variant_terms filters → out_of_play
+
+Replace sorting with opportunityScore
+
+UI shows 3 sections; out_of_play collapsed
+
+Replace DataForSEO with Ahrefs content_gap + weekly caching

@@ -95,14 +95,22 @@ interface Configuration {
   };
 }
 
+type IntentType = "category_capture" | "problem_solution" | "product_generic" | "brand_capture" | "variant_or_size" | "other";
+
 interface KeywordLiteResult {
   keyword: string;
   normalizedKeyword: string;
-  status: "pass" | "warn" | "block";
+  status: "pass" | "review" | "out_of_play";
   statusIcon: string;
+  intentType: IntentType;
+  capabilityScore: number;
+  opportunityScore: number;
   reason: string;
+  flags: string[];
   competitorsSeen: string[];
   searchVolume?: number;
+  cpc?: number;
+  competitorPosition?: number;
   theme: string;
 }
 
@@ -110,17 +118,24 @@ interface KeywordGapLiteResult {
   brandDomain: string;
   competitors: string[];
   totalGapKeywords: number;
-  results: KeywordLiteResult[];
+  topOpportunities: KeywordLiteResult[];
+  needsReview: KeywordLiteResult[];
+  outOfPlay: KeywordLiteResult[];
   grouped: Record<string, KeywordLiteResult[]>;
-  borderline: KeywordLiteResult[];
   stats: {
     passed: number;
-    blocked: number;
+    review: number;
+    outOfPlay: number;
+    percentPassed: number;
+    percentReview: number;
+    percentOutOfPlay: number;
   };
   filtersApplied: {
     excludedCategories: number;
     excludedKeywords: number;
     excludedUseCases: number;
+    competitorBrandTerms: number;
+    variantTerms: number;
     totalFilters: number;
   };
   contextVersion: number;
@@ -583,34 +598,32 @@ export default function KeywordGap() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {/* AI-Generated Badge - visible when provisional */}
                   {isProvisional && (
                     <Badge className="flex items-center gap-1 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 border-amber-300">
                       <AlertTriangle className="h-3 w-3" />
-                      AI-Generated - Pending Validation
+                      AI-Generated
                     </Badge>
                   )}
                   {isConfirmed && (
                     <Badge className="flex items-center gap-1 text-xs bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200">
                       <CheckCircle className="h-3 w-3" />
-                      Human Confirmed
+                      Confirmed
                     </Badge>
                   )}
                   <Badge variant="outline" className="flex items-center gap-1 text-xs">
                     <ShieldCheck className="h-3 w-3" />
                     v{liteMutation.data.contextVersion}
                   </Badge>
-                  <Badge variant="outline" className="flex items-center gap-1 text-xs border-amber-500 text-amber-700">
-                    <Target className="h-3 w-3" />
-                    {liteMutation.data.filtersApplied.totalFilters} filters
-                  </Badge>
-                  <Badge variant="default" className="flex items-center gap-1">
+                  <Badge className="flex items-center gap-1 text-xs bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200">
                     <CheckCircle className="h-3 w-3" />
-                    {liteMutation.data.stats.passed} passed
+                    {liteMutation.data.stats.percentPassed}% Pass ({liteMutation.data.stats.passed})
                   </Badge>
-                  <Badge variant="destructive" className="flex items-center gap-1">
-                    <XCircle className="h-3 w-3" />
-                    {liteMutation.data.stats.blocked} blocked
+                  <Badge className="flex items-center gap-1 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                    <HelpCircle className="h-3 w-3" />
+                    {liteMutation.data.stats.percentReview}% Review ({liteMutation.data.stats.review})
+                  </Badge>
+                  <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                    {liteMutation.data.stats.percentOutOfPlay}% Out ({liteMutation.data.stats.outOfPlay})
                   </Badge>
                 </div>
               </div>
@@ -624,102 +637,168 @@ export default function KeywordGap() {
               )}
             </CardHeader>
             <CardContent>
-              <Accordion type="multiple" className="w-full">
-                {Object.entries(liteMutation.data.grouped).map(([theme, keywords]) => (
-                  <AccordionItem key={theme} value={theme}>
-                    <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{theme}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {keywords.length} keywords
-                        </Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="border rounded-md">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-8">Status</TableHead>
-                              <TableHead>Keyword</TableHead>
-                              <TableHead>Competitors</TableHead>
-                              <TableHead className="text-right">Reason</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {keywords.map((kw, i) => (
-                              <TableRow key={i} data-testid={`row-lite-${theme}-${i}`}>
-                                <TableCell>
-                                  <span className="text-lg" title={kw.reason}>
-                                    {kw.status === "pass" && <CheckCircle className="h-4 w-4 text-green-600" />}
-                                    {kw.status === "warn" && <HelpCircle className="h-4 w-4 text-amber-500" />}
-                                    {kw.status === "block" && <XCircle className="h-4 w-4 text-red-500" />}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="font-medium">{kw.keyword}</TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {kw.competitorsSeen.map((c, j) => (
-                                      <Badge key={j} variant="outline" className="text-xs">
-                                        {c}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right text-xs text-muted-foreground max-w-[200px] truncate" title={kw.reason}>
-                                  {kw.reason}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-              {Object.keys(liteMutation.data.grouped).length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No gap keywords found that pass the guardrails
-                </div>
-              )}
+              <Tabs defaultValue="opportunities" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="opportunities" data-testid="tab-opportunities">
+                    Top Opportunities ({liteMutation.data.topOpportunities.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="review" data-testid="tab-review">
+                    Needs Review ({liteMutation.data.needsReview.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="out" data-testid="tab-out">
+                    Out of Play ({liteMutation.data.outOfPlay.length})
+                  </TabsTrigger>
+                </TabsList>
 
-              {liteMutation.data.borderline && liteMutation.data.borderline.length > 0 && (
-                <div className="mt-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <h4 className="font-medium text-sm">Borderline - Requires Human Review ({liteMutation.data.borderline.length})</h4>
-                  </div>
-                  <div className="border rounded-md border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-8">Status</TableHead>
-                          <TableHead>Keyword</TableHead>
-                          <TableHead>Theme</TableHead>
-                          <TableHead className="text-right">Reason</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {liteMutation.data.borderline.map((kw, i) => (
-                          <TableRow key={i} data-testid={`row-borderline-${i}`}>
-                            <TableCell>
-                              <HelpCircle className="h-4 w-4 text-amber-500" />
-                            </TableCell>
-                            <TableCell className="font-medium">{kw.keyword}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">{kw.theme}</Badge>
-                            </TableCell>
-                            <TableCell className="text-right text-xs text-muted-foreground max-w-[200px] truncate" title={kw.reason}>
-                              {kw.reason}
-                            </TableCell>
+                <TabsContent value="opportunities">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    High-capability keywords aligned with your category. Ready to target.
+                  </p>
+                  {liteMutation.data.topOpportunities.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No top opportunities found. Check "Needs Review" for borderline keywords.
+                    </div>
+                  ) : (
+                    <div className="border rounded-md">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Keyword</TableHead>
+                            <TableHead>Intent</TableHead>
+                            <TableHead className="text-right">Volume</TableHead>
+                            <TableHead className="text-right">Score</TableHead>
+                            <TableHead className="text-right">Capability</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
+                        </TableHeader>
+                        <TableBody>
+                          {liteMutation.data.topOpportunities.slice(0, 50).map((kw, i) => (
+                            <TableRow key={i} data-testid={`row-opportunity-${i}`}>
+                              <TableCell className="font-medium">{kw.keyword}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {kw.intentType.replace(/_/g, " ")}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {kw.searchVolume?.toLocaleString() || "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs">
+                                {Math.round(kw.opportunityScore).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant={kw.capabilityScore >= 0.7 ? "default" : "secondary"} className="text-xs">
+                                  {Math.round(kw.capabilityScore * 100)}%
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="review">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Medium-capability keywords. Review for potential opportunities or exclusions.
+                  </p>
+                  {liteMutation.data.needsReview.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No keywords need review.
+                    </div>
+                  ) : (
+                    <div className="border rounded-md border-amber-200 dark:border-amber-900">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Keyword</TableHead>
+                            <TableHead>Intent</TableHead>
+                            <TableHead className="text-right">Volume</TableHead>
+                            <TableHead>Reason</TableHead>
+                            <TableHead className="text-right">Capability</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {liteMutation.data.needsReview.slice(0, 50).map((kw, i) => (
+                            <TableRow key={i} data-testid={`row-review-${i}`}>
+                              <TableCell className="font-medium">{kw.keyword}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {kw.intentType.replace(/_/g, " ")}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {kw.searchVolume?.toLocaleString() || "-"}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={kw.reason}>
+                                {kw.reason}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant="secondary" className="text-xs">
+                                  {Math.round(kw.capabilityScore * 100)}%
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="out">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Keywords removed from ranking: competitor brands, size variants, low capability fit.
+                  </p>
+                  {liteMutation.data.outOfPlay.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No keywords marked as out of play.
+                    </div>
+                  ) : (
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="out-of-play">
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex items-center gap-2">
+                            <span>Show {liteMutation.data.outOfPlay.length} out-of-play keywords</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="border rounded-md">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Keyword</TableHead>
+                                  <TableHead>Flags</TableHead>
+                                  <TableHead>Reason</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {liteMutation.data.outOfPlay.slice(0, 100).map((kw, i) => (
+                                  <TableRow key={i} data-testid={`row-out-${i}`} className="text-muted-foreground">
+                                    <TableCell className="font-medium">{kw.keyword}</TableCell>
+                                    <TableCell>
+                                      <div className="flex flex-wrap gap-1">
+                                        {kw.flags.map((flag, j) => (
+                                          <Badge key={j} variant="secondary" className="text-xs">
+                                            {flag.replace(/_/g, " ")}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-xs max-w-[200px] truncate" title={kw.reason}>
+                                      {kw.reason}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  )}
+                </TabsContent>
+              </Tabs>
 
               {/* Approve Context & Adopt Analysis button - only shown when provisional */}
               {isProvisional && liteMutation.data && (

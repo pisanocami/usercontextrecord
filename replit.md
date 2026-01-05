@@ -105,12 +105,17 @@ The frontend features:
 - **Environment Variables**: DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD (optional)
 
 ### Keyword Gap Lite Module
-- **server/keyword-gap-lite.ts**: Fast analysis with theme-based grouping
+- **server/keyword-gap-lite.ts**: Fast analysis with 3-tier classification system
 - **Normalization**: Domains (strip http/www/slash, lowercase) and keywords (lowercase, trim, collapse spaces)
 - **24h TTL Cache**: In-memory cache keyed by (domain, location, language, limit)
-- **Guardrails**: apply_exclusions() blocks on substring match, fence_check() evaluates against demand themes
-- **Theme Groups**: Brand, Category, Problem/Solution, Product, Other
-- **Status Badges**: Pass (valid), Warn (needs review), Block (excluded by guardrails)
+- **3-Tier Classification**:
+  - **Pass** (≥60% capability): High-fit keywords ready to target
+  - **Review** (30-60% capability): Medium-fit keywords for human evaluation
+  - **Out of Play** (<30% capability, competitor brands, size variants): Filtered keywords
+- **Intent Classification**: Deterministic regex patterns (category_capture, problem_solution, product_generic, brand_capture, variant_or_size)
+- **Scoring System**: opportunityScore = volume × cpc × intentWeight × capabilityScore
+- **Competitor Brand Detection**: Extracts from UCR competitors + common footwear brands (with stopword filtering)
+- **UI**: 3-tab layout (Top Opportunities, Needs Review, Out of Play with collapsed accordion)
 
 ## Recent Changes
 
@@ -128,6 +133,7 @@ The frontend features:
 - Added Context Validation Council: automated validator with weighted scoring and approval workflow
 - Enhanced AI competitor generation: now includes "why" reasoning for each suggested competitor
 - Keyword Gap Lite improvements: filters applied badge, context version tracking, borderline bucket for human review
+- **Keyword Gap Lite 3-Tier Rewrite**: Complete rewrite with pass/review/out_of_play classification, capability scoring (0-1), opportunity scoring (volume × cpc × intent × capability), competitor brand detection with stopword filtering, and 3-tab UI layout
 - Phase 4 Remediation (Summary Cards & Navigation): Added ChannelSummaryCard and StrategicSummaryCard to header with tooltips showing channel mix, SEO level, risk tolerance, goal type, and active constraints
 - Sidebar reorganization: Grouped 8 sections into 4 semantic categories (Identity, Market, Strategy, Guardrails) with reusable SectionMenuItems component
 - Simplified context creation: Only domain and primary_category are required fields. All other fields (brand name, industry, competitors, categories) are optional and can be AI-generated from domain + category. Configuration name auto-generated from domain.
