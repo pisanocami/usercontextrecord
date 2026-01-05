@@ -1,13 +1,16 @@
 import { useFormContext } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TagInput } from "@/components/tag-input";
 import { AIGenerateButton } from "@/components/ai-generate-button";
 import { useAIGenerate } from "@/hooks/use-ai-generate";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Info } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { Building2, Info, Sparkles, Loader2 } from "lucide-react";
 import type { InsertConfiguration } from "@shared/schema";
 
 const BUSINESS_MODELS = ["B2B", "DTC", "Marketplace", "Hybrid"] as const;
@@ -56,6 +59,108 @@ export function BrandContextSection() {
   const form = useFormContext<InsertConfiguration>();
   const { toast } = useToast();
   const { generate, isGenerating, generateAsync } = useAIGenerate();
+
+  // Fortune 500 brand generation mutation
+  const fortune500Mutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/ai/generate-fortune500", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const brand = data.brand;
+      
+      // Update brand fields
+      form.setValue("brand.name", brand.name, { shouldDirty: true });
+      form.setValue("brand.domain", brand.domain, { shouldDirty: true });
+      form.setValue("brand.industry", brand.industry, { shouldDirty: true });
+      form.setValue("brand.business_model", brand.business_model as "B2B" | "DTC" | "Marketplace" | "Hybrid", { shouldDirty: true });
+      form.setValue("brand.primary_geography", brand.primary_geography || [], { shouldDirty: true });
+      form.setValue("brand.revenue_band", brand.revenue_band, { shouldDirty: true });
+      form.setValue("brand.target_market", brand.target_market, { shouldDirty: true });
+      form.setValue("name", brand.name, { shouldDirty: true });
+
+      // Update category definition
+      form.setValue("category_definition.primary_category", brand.industry, { shouldDirty: true });
+      
+      // Update competitors
+      if (brand.competitors && Array.isArray(brand.competitors)) {
+        const competitorEntries = brand.competitors.map((c: { name: string; domain?: string; tier?: string; revenue_range?: string; why?: string }) => ({
+          name: c.name,
+          domain: c.domain || "",
+          tier: (c.tier as "tier1" | "tier2" | "tier3") || "tier1",
+          status: "approved" as const,
+          similarity_score: 70,
+          serp_overlap: 50,
+          size_proximity: 60,
+          revenue_range: c.revenue_range || "",
+          employee_count: "",
+          funding_stage: "public" as const,
+          geo_overlap: [],
+          evidence: {
+            why_selected: c.why || "",
+            top_overlap_keywords: [],
+            serp_examples: [],
+          },
+          added_by: "ai" as const,
+          added_at: new Date().toISOString(),
+          rejected_reason: "",
+        }));
+        
+        form.setValue("competitors.competitors", competitorEntries, { shouldDirty: true });
+        form.setValue("competitors.approved_count", competitorEntries.length, { shouldDirty: true });
+        form.setValue("competitors.pending_review_count", 0, { shouldDirty: true });
+        
+        const directCompetitors = competitorEntries.filter((c: { tier: string }) => c.tier === "tier1").map((c: { name: string }) => c.name);
+        const indirectCompetitors = competitorEntries.filter((c: { tier: string }) => c.tier !== "tier1").map((c: { name: string }) => c.name);
+        form.setValue("competitors.direct", directCompetitors, { shouldDirty: true });
+        form.setValue("competitors.indirect", indirectCompetitors, { shouldDirty: true });
+      }
+      
+      // Update demand keywords
+      if (brand.demand_keywords) {
+        form.setValue("demand_definition.brand_keywords.seed_terms", brand.demand_keywords.seed_terms || [], { shouldDirty: true });
+        form.setValue("demand_definition.non_brand_keywords.category_terms", brand.demand_keywords.category_terms || [], { shouldDirty: true });
+        form.setValue("demand_definition.non_brand_keywords.problem_terms", brand.demand_keywords.problem_terms || [], { shouldDirty: true });
+      }
+      
+      // Update strategic context
+      if (brand.strategic_context) {
+        form.setValue("strategic_intent.primary_goal", brand.strategic_context.primary_goal || "", { shouldDirty: true });
+        form.setValue("strategic_intent.growth_priority", brand.strategic_context.growth_priority || "", { shouldDirty: true });
+        form.setValue("strategic_intent.risk_tolerance", brand.strategic_context.risk_tolerance || "medium", { shouldDirty: true });
+      }
+      
+      // Update channel context
+      if (brand.channel_context) {
+        form.setValue("channel_context.paid_media_active", brand.channel_context.paid_media_active ?? false, { shouldDirty: true });
+        form.setValue("channel_context.seo_investment_level", brand.channel_context.seo_investment_level || "medium", { shouldDirty: true });
+        form.setValue("channel_context.marketplace_dependence", brand.channel_context.marketplace_dependence || "low", { shouldDirty: true });
+      }
+      
+      // Update exclusions (negative scope)
+      if (brand.exclusions) {
+        form.setValue("negative_scope.excluded_categories", brand.exclusions.excluded_categories || [], { shouldDirty: true });
+        form.setValue("negative_scope.excluded_keywords", brand.exclusions.excluded_keywords || [], { shouldDirty: true });
+        form.setValue("negative_scope.excluded_use_cases", brand.exclusions.excluded_use_cases || [], { shouldDirty: true });
+      }
+
+      // Update governance
+      form.setValue("governance.model_suggested", true, { shouldDirty: true });
+      form.setValue("governance.last_reviewed", new Date().toISOString().split("T")[0], { shouldDirty: true });
+      
+      toast({
+        title: "Fortune 500 brand generated",
+        description: `Loaded real data for ${brand.name}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error generating brand",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleGenerateAll = async (brandData: any) => {
     const sections = [
@@ -189,17 +294,32 @@ export function BrandContextSection() {
             </p>
           </div>
         </div>
-        <AIGenerateButton
-          onClick={handleGenerate}
-          isGenerating={isGenerating}
-          disabled={!form.getValues("brand.name") && !form.getValues("brand.domain")}
-        />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            onClick={() => fortune500Mutation.mutate()}
+            disabled={fortune500Mutation.isPending}
+            data-testid="button-generate-fortune500"
+          >
+            {fortune500Mutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Fortune 500
+          </Button>
+          <AIGenerateButton
+            onClick={handleGenerate}
+            isGenerating={isGenerating}
+            disabled={!form.getValues("brand.name") && !form.getValues("brand.domain")}
+          />
+        </div>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Company Information</CardTitle>
-          <CardDescription>Basic details about your brand and business</CardDescription>
+          <CardDescription>Enter your domain manually or generate a Fortune 500 brand for testing</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
