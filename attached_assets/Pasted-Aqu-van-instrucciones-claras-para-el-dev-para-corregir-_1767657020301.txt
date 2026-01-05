@@ -1,0 +1,108 @@
+Aquí van instrucciones claras para el dev para corregir el problema que detectaste
+(keywords con capability alta cayendo en Review por el “category fence”), y además dejarlo
+listo como SPEC 3.1.
+✅ SPEC 3.1 — Keyword Gap Lite (Fix de Fence Override)
+1) Problema actual
+Keywords como clogs women , tan clogs , luxury clogs tienen:
+capability = 0.75 (75%)
+PERO están en Review porque:
+fenceCheck = false → “Outside category fence - needs review”
+📌 Hoy el código está haciendo esto:
+➡️ Esto está produciendo que keywords potencialmente muy relevantes se queden en
+Review aunque el scoring las marque como ganables.
+2) Nuevo comportamiento (Spec 3.1)
+✅ Regla nueva:
+Capability manda. Fence solo flaggea.
+El sistema debe clasificar así:
+✅ PASS
+capabilityScore >= pass_threshold
+aunque el keyword esté fuera del fence
+pero debe quedar marcado como:
+flags: ["outside_fence"]
+reason: "Strong capability fit, outside fence"
+⚠️ REVIEW
+✅ Objetivo de Spec 3.1:
+El “category fence” NO debe anular el capability score.
+Debe funcionar como warning / flag, no como downgrade automático.
+ts
+if (!fenceCheck.inFence) {
+status = "review";
+}
+1/4
+review_threshold <= capabilityScore < pass_threshold
+independiente del fence (pero fence puede sumar flags)
+💤 OUT_OF_PLAY
+capabilityScore < review_threshold
+o si entra en “competitor_brand”
+o si entra en “variant_or_size”
+3) Reglas exactas para implementar
+Thresholds
+pass_threshold por preset (ej: DTC footwear = 0.55)
+review_threshold = 0.30
+4) Nueva lógica de evaluación (pseudocódigo)
+ts
+const fence = fenceCheck(keyword, config);
+const capability = computeCapabilityScore(keyword, config);
+const flags = [];
+if (!fence.inFence) {
+flags.push("outside_fence");
+}
+if (isCompetitorBrand(keyword, config)) {
+return outOfPlay("competitor_brand", flags);
+}
+if (intentType === "variant_or_size") {
+return outOfPlay("variant_or_size", flags);
+}
+if (capability < review_threshold) {
+return outOfPlay("low_capability", flags);
+}
+if (capability < pass_threshold) {
+return review("medium_capability", flags);
+}
+2/4
+5) Output esperado (nuevo)
+Ejemplo keyword: clogs women
+✅ Antes:
+Status: Review
+Reason: “Outside category fence - needs review”
+✅ Ahora:
+Status: Pass
+Flags: ["outside_fence"]
+Reason: "Strong capability fit — verify category alignment"
+6) UI: cómo mostrarlo para claridad
+En la tabla de “Top Opportunities”:
+Agregar un pequeño badge de warning:
+⚠️ Outside Fence
+tooltip: “Strong keyword opportunity, but not included in current category scope.”
+Esto permite:
+✅ que el usuario lo vea como high priority
+pero entienda el riesgo / validación necesaria.
+7) Bonus: Fence Override band (opcional)
+Si quieren un control más fino:
+fence_override_threshold
+ej: 0.70
+📌 Regla:
+Si capability >= fence_override_threshold , pasa aunque esté fuera del fence.
+Si no, queda en Review.
+Pero para Spec 3.1 recomiendo la versión simple:
+✅ capability manda siempre, fence solo flaggea.
+✅ SPEC 3.1 — Definition of Done (Checklist)
+// capability >= pass_threshold
+return pass("strong_capability", flags);
+3/4
+✅ Keywords con capability > pass_threshold deben caer en Pass aunque estén fuera del
+fence
+✅ En Pass deben incluir flags: ["outside_fence"] cuando aplique
+✅ UI debe mostrar badge “Outside Fence” en Top Opportunities
+✅ Unit tests:
+capability = 0.75 + outside fence → Pass
+capability = 0.45 + outside fence → Review
+capability = 0.20 → Out of Play
+competitor brand → Out of Play
+📌 Impacto
+Este cambio resuelve 2 problemas de negocio:
+1. No perdemos oportunidades reales solo porque el UCR no está perfecto todavía
+2. El sistema se siente más “inteligente” y menos “rígido”
+Si querés, puedo escribirte el bloque exacto de evaluateKeyword() ya en TypeScript listo
+para copiar/pegar al repo (con flags, reason, y logs de debug).
+4/4

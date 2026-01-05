@@ -1,0 +1,110 @@
+
+
+Back to Contexts
+Keyword Gap Analysis
+Oofos Context - oofos.com
+
+UCR Guardrails Active
+Analyze Competitor
+e.g., competitor.com
+Analyze
+Configured competitors:
+
+hoka.com
+kanefootwear.com
+crocs.com
+birkenstock.com
+Quick Analysis
+AI ReadyReady for AI-generated analysis
+AI-Generated Mode
+
+Results will be generated automatically and must be reviewed before adoption.
+
+
+Ahrefs
+Run Keyword Gap (AI-Generated)
+Results are provisional until human validation
+
+Compare All Competitors
+Keyword Gap Lite Results
+oofos.com vs 4 competitors - Top 30 of 269 keywords
+AI-Generated
+v1
+15% Pass (41)
+60% Review (161)
+25% Out (67)
+This analysis was generated using an AI-proposed context.
+Review context and exclusions before approving.
+Estimated Missing Value
+$27.5K/mo
+Based on 3% CTR assumption
+Top Themes
+Brand (30)
+Other (10)
+Problem/Solution (1)
+Competitor Ownership
+kanefootwear.com
+23
+birkenstock.com
+18
+Top Opportunities (41)
+Needs Review (161)
+Out of Play (67)
+Medium-capability keywords. Review for potential opportunities or exclusions.
+
+Keyword	Intent	Volume	KD	Capability	Reason	Confidence
+water shoes	product generic	52.000	2	50%	Medium capability	medium
+water shoes for women	product generic	13.000	2	50%	Medium capability	medium
+men's slip on shoes	product generic	9800	3	50%	Medium capability	medium
+best water shoes	problem solution	3700	1	50%	Medium capability	medium
+canes shoes	product generic	3400	0	50%	Medium capability	medium
+clogs women	category capture	1800	10	75%	Outside category fence - needs review	medium
+best shoes for standing	problem solution	1600	1	50%	Medium capability	medium
+water shoes near me	product generic	3400	1	50%	Medium capability	medium
+slip in shoes	product generic	2400	2	50%	Medium capability	medium
+vans non slip shoes	product generic	3100	3	50%	Medium capability	medium
+how long should walking shoes last	problem solution	200	0	50%	Medium capability	medium
+fsa eligible shoes	product generic	600	0	50%	Medium capability	medium
+fsa shoes	product generic	500	0	50%	Medium capability	medium
+cane shoes	product generic	1000	0	50%	Medium capability	medium
+tan clogs	category capture	450	0	75%	Outside category fence - needs review	medium
+lace up shoes	product generic	1200	0	50%	Medium capability	medium
+women clog	category capture	450	0	75%	Outside category fence - needs review	medium
+best standing shoes	problem solution	450	1	50%	Medium capability	medium
+fsa approved shoes	product generic	300	0	50%	Medium capability	medium
+hsa eligible shoes	product generic	250	0	50%	Medium capability	medium
+mens clogs leather	category capture	350	0	75%	Outside category fence - needs review	medium
+swim shoes for women	product generic	1100	1	50%	Medium capability	medium
+shoes to walk on water	product generic	500	0	50%	Medium capability	medium
+luxury clogs	category capture	200	2	75%	Outside category fence - needs review	medium
+hsa approved shoes	product generic	250	0	50%	Medium capability	medium
+coach slip on shoes	product generic	500	2	50%	Medium capability	medium
+woven clogs	category capture	150	0	75%	Outside category fence - needs review	medium
+walking on water shoes	problem solution	450	0	50%	Medium capability	medium
+woman clogs	category capture	200	1	75%	Outside category fence - needs review	medium
+shoes slip on	product generic	400	8	50%	Medium capability	medium
+eva material	other	4200	7	65%	Outside category fence - needs review	medium
+birkibuc vs oiled leather	other	150	0	50%	Outside category fence - needs review	medium
+slip shoes	product generic	600	3	50%	Medium capability	medium
+penn state shoes	product generic	250	0	50%	Medium capability	medium
+men's clog	category capture	150	0	75%	Outside category fence - needs review	medium
+what are non slip shoes	product generic	900	1	50%	Medium capability	medium
+light brown clogs	category capture	100	0	75%	Outside category fence - needs review	medium
+are vans non slip	other	2700	0	50%	Medium capability	medium
+winter clog	category capture	200	0	75%	Outside category fence - needs review	medium
+clogs with back	category capture	150	0	75%	Outside category fence - needs review	medium
+air conditioned shoes	product generic	300	0	50%	Medium capability	medium
+swim shoes for men	product generic	300	0	50%	Medium capability	medium
+how do i know if i need wide shoes	product generic	500	0	50%	Medium capability	medium
+women's clog	category capture	150	9	75%	Outside category fence - needs review	medium
+best shoe for overpronation	problem solution	200	0	50%	Medium capability	medium
+tan clogs womens	category capture	150	0	75%	Outside category fence - needs review	medium
+memory foam sneakers	product generic	350	0	50%	Outside category fence - needs review	medium
+ethylene vinyl acetate	other	3100	12	50%	Outside category fence - needs review	medium
+shoes for walking on water	problem solution	200	0	50%	Medium capability	medium
+wide vs regular shoes	product generic	400	0	50%	Medium capability	medium
+Ready to adopt this analysis?
+
+This will mark the context as Human Confirmed and make results official.
+
+Approve Context & Adopt Analysis
