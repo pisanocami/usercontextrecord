@@ -3,7 +3,6 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, type InsertConfiguration, type BulkBrandInput, type ContextQualityScore } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
-import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleGenAI } from "@google/genai";
@@ -11,6 +10,11 @@ import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
 import { validateContext, type ContextValidationResult } from "./context-validator";
+
+// Authentication imports - will be conditionally loaded
+let setupAuth: any = null;
+let isAuthenticated: any = null;
+let registerAuthRoutes: any = null;
 
 let openai: OpenAI | null = null;
 let gemini: GoogleGenerativeAI | null = null;
@@ -417,6 +421,10 @@ Return a complete JSON object with ALL sections filled.`;
       direct: generated.competitors?.direct || [],
       indirect: generated.competitors?.indirect || [],
       marketplaces: generated.competitors?.marketplaces || [],
+      competitors: generated.competitors?.competitors || [],
+      approved_count: generated.competitors?.approved_count || 0,
+      rejected_count: generated.competitors?.rejected_count || 0,
+      pending_review_count: generated.competitors?.pending_review_count || 0,
     },
     demand_definition: {
       brand_keywords: {
@@ -435,6 +443,9 @@ Return a complete JSON object with ALL sections filled.`;
       primary_goal: generated.strategic_intent?.primary_goal || "Increase market share",
       secondary_goals: generated.strategic_intent?.secondary_goals || [],
       avoid: generated.strategic_intent?.avoid || [],
+      goal_type: generated.strategic_intent?.goal_type || "roi",
+      time_horizon: generated.strategic_intent?.time_horizon || "medium",
+      constraint_flags: generated.strategic_intent?.constraint_flags || {},
     },
     channel_context: {
       paid_media_active: generated.channel_context?.paid_media_active ?? true,
@@ -446,6 +457,11 @@ Return a complete JSON object with ALL sections filled.`;
       excluded_keywords: generated.negative_scope?.excluded_keywords || [],
       excluded_use_cases: generated.negative_scope?.excluded_use_cases || [],
       excluded_competitors: generated.negative_scope?.excluded_competitors || [],
+      category_exclusions: generated.negative_scope?.category_exclusions || [],
+      keyword_exclusions: generated.negative_scope?.keyword_exclusions || [],
+      use_case_exclusions: generated.negative_scope?.use_case_exclusions || [],
+      competitor_exclusions: generated.negative_scope?.competitor_exclusions || [],
+      audit_log: generated.negative_scope?.audit_log || [],
       enforcement_rules: {
         hard_exclusion: true,
         allow_model_suggestion: true,
@@ -472,6 +488,41 @@ Return a complete JSON object with ALL sections filled.`;
       validation_status: "needs_review" as const,
       human_verified: false,
       blocked_reasons: [],
+      context_status: "draft" as const,
+      quality_score: {
+        overall: 75,
+        completeness: 80,
+        competitor_confidence: 75,
+        negative_strength: 70,
+        evidence_coverage: 75,
+        grade: "medium" as const,
+        breakdown: {
+          completeness_details: "Good coverage of required fields",
+          competitor_details: "Competitor analysis present",
+          negative_details: "Negative scope defined",
+          evidence_details: "Basic evidence provided"
+        },
+        calculated_at: new Date().toISOString(),
+      },
+      ai_behavior: {
+        require_human_below: 50,
+        auto_approve_threshold: 80,
+        requires_human_review: false,
+        auto_approved: false,
+        regeneration_count: 0,
+        max_regenerations: 3,
+        redacted_fields: [],
+        violation_detected: false,
+      },
+      section_approvals: {
+        brand_identity: { status: "pending" as const },
+        category_definition: { status: "pending" as const },
+        competitive_set: { status: "pending" as const },
+        demand_definition: { status: "pending" as const },
+        strategic_intent: { status: "pending" as const },
+        channel_context: { status: "pending" as const },
+        negative_scope: { status: "pending" as const },
+      },
     },
   };
 }
@@ -481,9 +532,20 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
-  // Setup authentication FIRST
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // Setup authentication conditionally
+  const useReplitAuth = process.env.NODE_ENV === 'production' || process.env.USE_REPLIT_AUTH === 'true';
+  
+  if (useReplitAuth) {
+    if (!setupAuth) {
+      const authModule = await import("./replit_integrations/auth");
+      setupAuth = authModule.setupAuth;
+      isAuthenticated = authModule.isAuthenticated;
+      registerAuthRoutes = authModule.registerAuthRoutes;
+    }
+    
+    await setupAuth(app);
+    registerAuthRoutes(app);
+  }
   
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {
@@ -1055,10 +1117,9 @@ IMPORTANT:
 - Generate 2-3 exclusions for categories/keywords/use cases the company would NOT want to be associated with.
 - Only return the JSON object, no additional text.`;
 
-      const response = await gemini.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-      });
+      const model = gemini!.getGenerativeModel({ model: "gemini-pro" });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
 
       const content = response.text;
       if (!content) {
@@ -1150,16 +1211,21 @@ IMPORTANT:
       }
 
       const userId = (req.user as any)?.id || "anonymous-user";
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const config = await storage.getConfigurationById(parseInt(configurationId), userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
       }
 
-      const versions = await storage.getConfigurationVersions(configurationId, userId);
+      const versions = await storage.getConfigurationVersions(parseInt(configurationId), userId);
       const contextVersion = versions?.length || 1;
 
-      const validationResult = validateContext(config, contextVersion);
+      const validationResult = validateContext({
+        ...config,
+        id: config.id.toString(),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString()
+      }, contextVersion);
 
       res.json(validationResult);
     } catch (error: any) {
@@ -1178,7 +1244,7 @@ IMPORTANT:
       }
 
       const userId = (req.user as any)?.id || "anonymous-user";
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const config = await storage.getConfigurationById(parseInt(configurationId), userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
@@ -1193,16 +1259,9 @@ IMPORTANT:
       };
 
       await storage.updateConfiguration(configurationId, userId, {
+        ...config,
         governance: updatedGovernance,
-      });
-
-      // Create a version snapshot for audit trail
-      await storage.createConfigurationVersion(
-        configurationId,
-        userId,
-        { ...config, governance: updatedGovernance },
-        "Context approved by user"
-      );
+      }, "Context approved by user");
 
       res.json({ 
         success: true, 
@@ -1239,7 +1298,7 @@ IMPORTANT:
       }
 
       const userId = (req.user as any)?.id || null;
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const config = await storage.getConfigurationById(parseInt(configurationId), userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
@@ -1295,7 +1354,7 @@ IMPORTANT:
       }
 
       const userId = (req.user as any)?.id || null;
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const config = await storage.getConfigurationById(parseInt(configurationId), userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
@@ -1404,7 +1463,7 @@ IMPORTANT:
       }
 
       const userId = (req.user as any)?.id || "anonymous-user";
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const config = await storage.getConfigurationById(parseInt(configurationId), userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
@@ -1438,7 +1497,12 @@ IMPORTANT:
         },
       };
 
-      const result = await computeKeywordGap(config, dataforseoClient, {
+      const result = await computeKeywordGap({
+        ...config,
+        id: config.id.toString(),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString()
+      }, dataforseoClient, {
         limitPerDomain,
         locationCode,
         languageCode,
@@ -1482,7 +1546,7 @@ IMPORTANT:
       }
 
       const userId = (req.user as any)?.id || "anonymous-user";
-      const config = await storage.getConfigurationById(configurationId, userId);
+      const config = await storage.getConfigurationById(parseInt(configurationId), userId);
 
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });

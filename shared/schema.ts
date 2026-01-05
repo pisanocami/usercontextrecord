@@ -466,8 +466,14 @@ export interface ConfigurationVersion {
   created_at: Date;
 }
 
-// Category Alternative type export
-export type CategoryAlternative = z.infer<typeof categoryAlternativeSchema>;
+// Tenant schema
+export const insertTenantSchema = z.object({
+  name: z.string().min(1, "Tenant name is required"),
+  domain: z.string().optional(),
+  settings: z.record(z.any()).optional(),
+});
+
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
 
 // Default configuration for new configurations
 export const defaultConfiguration: InsertConfiguration = {

@@ -130,7 +130,7 @@ Research this brand and provide realistic, data-driven information.`;
     const generated = JSON.parse(content);
     
     // Get current config and merge with AI-generated data
-    const currentConfig = await storage.getConfigurationById(configId, tenantId, userId);
+    const currentConfig = await storage.getConfigurationById(configId, userId);
     if (!currentConfig) {
       console.error("Configuration not found");
       return;
@@ -176,7 +176,7 @@ Research this brand and provide realistic, data-driven information.`;
     };
 
     // Save updated configuration
-    await storage.updateConfiguration(configId, tenantId, userId, updatedConfig, "AI-generated updates");
+    await storage.updateConfiguration(configId, userId, updatedConfig, "AI-generated updates");
     
     console.log(`✅ AI generation completed for config ${configId}`);
   } catch (error) {
@@ -203,7 +203,6 @@ export function registerTenantRoutes(app: Router) {
       
       // Create default configuration for new tenant
       const config = await storage.createConfiguration(
-        tenant.id,
         userId,
         defaultConfiguration
       );
@@ -358,7 +357,7 @@ export function registerTenantRoutes(app: Router) {
       }
 
       // Get configuration status
-      const configs = await storage.getAllConfigurations(id, userId);
+      const configs = await storage.getAllConfigurations(userId);
       const hasConfig = configs.length > 0;
       const hasCompleteConfig = configs.some(config => 
         config.governance?.validation_status === "complete" || 
