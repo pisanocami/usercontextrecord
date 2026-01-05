@@ -343,20 +343,14 @@ export async function computeKeywordGap(
   });
   
   results.sort((a, b) => {
-    if (a.status !== b.status) {
-      return a.status === "pass" ? -1 : 1;
-    }
     return (b.searchVolume || 0) - (a.searchVolume || 0);
   });
   
   const passedResults = results.filter(r => r.status === "pass");
   const warnResults = results.filter(r => r.status === "warn");
   
-  const top50 = passedResults.slice(0, 50);
-  const needsReview = warnResults.slice(0, 20);
-  
   const grouped: Record<string, KeywordResult[]> = {};
-  top50.forEach(result => {
+  results.forEach(result => {
     if (!grouped[result.theme]) {
       grouped[result.theme] = [];
     }
@@ -372,9 +366,9 @@ export async function computeKeywordGap(
     brandDomain,
     competitors: directCompetitors,
     totalGapKeywords: results.length,
-    results: top50,
+    results: results,
     grouped,
-    needsReview,
+    needsReview: warnResults,
     stats,
     filtersApplied: {
       excludedCategories,
