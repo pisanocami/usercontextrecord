@@ -1,6 +1,7 @@
 import pLimit from "p-limit";
 import type { Configuration } from "@shared/schema";
-import { getDomainIntersection, type DomainIntersectionKeyword } from "./dataforseo";
+import type { KeywordDataProvider, GapKeyword } from "./keyword-data-provider";
+import { getProvider } from "./providers";
 
 export type KeywordStatus = "pass" | "review" | "out_of_play";
 
@@ -58,7 +59,7 @@ export interface KeywordGapResult {
 }
 
 interface CacheEntry {
-  data: DomainIntersectionKeyword[];
+  data: GapKeyword[];
   timestamp: number;
 }
 
@@ -88,7 +89,7 @@ function getCacheKey(brandDomain: string, competitorDomain: string, locationCode
   return `${normalizeDomain(brandDomain)}|${normalizeDomain(competitorDomain)}|${locationCode}|${languageCode}`;
 }
 
-function getFromCache(key: string): DomainIntersectionKeyword[] | null {
+function getFromCache(key: string): GapKeyword[] | null {
   const entry = keywordCache.get(key);
   if (!entry) return null;
   
@@ -100,7 +101,7 @@ function getFromCache(key: string): DomainIntersectionKeyword[] | null {
   return entry.data;
 }
 
-function setCache(key: string, data: DomainIntersectionKeyword[]): void {
+function setCache(key: string, data: GapKeyword[]): void {
   keywordCache.set(key, {
     data,
     timestamp: Date.now(),
@@ -488,6 +489,7 @@ export async function computeKeywordGap(
     locationCode?: number;
     languageCode?: string;
     maxCompetitors?: number;
+    provider?: "dataforseo" | "ahrefs";
   } = {}
 ): Promise<KeywordGapResult> {
   const {
@@ -495,7 +497,10 @@ export async function computeKeywordGap(
     locationCode = 2840,
     languageCode = "English",
     maxCompetitors = 5,
+    provider = "dataforseo",
   } = options;
+  
+  const keywordProvider = getProvider(provider);
   
   const brandDomain = normalizeDomain(config.brand?.domain || "");
   
@@ -534,7 +539,7 @@ export async function computeKeywordGap(
   const limit = pLimit(3);
   
   const allKeywordsMap = new Map<string, {
-    keyword: DomainIntersectionKeyword;
+    keyword: GapKeyword;
     competitors: string[];
   }>();
   
@@ -547,19 +552,21 @@ export async function computeKeywordGap(
         
         if (!cachedKeywords) {
           try {
-            console.log(`Fetching domain intersection: ${brandDomain} vs ${competitorDomain}`);
-            const result = await getDomainIntersection(
+            console.log(`[${keywordProvider.displayName}] Fetching gap: ${brandDomain} vs ${competitorDomain}`);
+            const result = await keywordProvider.getGapKeywords(
               brandDomain,
               competitorDomain,
-              locationCode,
-              languageCode,
-              limitPerDomain
+              {
+                locationCode,
+                languageName: languageCode,
+                limit: limitPerDomain,
+              }
             );
             cachedKeywords = result.gapKeywords;
             setCache(cacheKey, cachedKeywords);
-            console.log(`Got ${cachedKeywords.length} gap keywords from ${competitorDomain}`);
+            console.log(`[${keywordProvider.displayName}] Got ${cachedKeywords.length} gap keywords from ${competitorDomain}`);
           } catch (error) {
-            console.error(`Error fetching intersection for ${competitorDomain}:`, error);
+            console.error(`[${keywordProvider.displayName}] Error fetching gap for ${competitorDomain}:`, error);
             cachedKeywords = [];
           }
         }

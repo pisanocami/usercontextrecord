@@ -9,6 +9,7 @@ import { GoogleGenAI } from "@google/genai";
 import pLimit from "p-limit";
 import { getKeywordGap, applyUCRGuardrails, checkCredentialsConfigured, getRankedKeywords, type KeywordGapResult } from "./dataforseo";
 import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as KeywordGapLiteResult } from "./keyword-gap-lite";
+import { getProvider, getAllProviderStatuses, type ProviderType } from "./providers";
 import { validateContext, type ContextValidationResult } from "./context-validator";
 import { validateConfiguration as validateConfigurationFull, type FullValidationResult } from "@shared/validation";
 
@@ -1870,22 +1871,31 @@ IMPORTANT:
     }
   });
 
+  app.get("/api/keyword-gap-lite/providers", async (req, res) => {
+    const statuses = getAllProviderStatuses();
+    res.json({ providers: statuses });
+  });
+
   app.post("/api/keyword-gap-lite/run", async (req: any, res) => {
     try {
-      if (!checkCredentialsConfigured()) {
-        return res.status(503).json({ 
-          error: "DataForSEO credentials not configured.",
-          configured: false,
-        });
-      }
-
       const { 
         configurationId, 
         limitPerDomain = 200, 
         locationCode = 2840, 
         languageCode = "en",
         maxCompetitors = 5,
+        provider = "dataforseo" as ProviderType,
       } = req.body;
+
+      const selectedProvider = getProvider(provider);
+      
+      if (!selectedProvider.isConfigured()) {
+        return res.status(503).json({ 
+          error: `${selectedProvider.displayName} credentials not configured.`,
+          configured: false,
+          provider: provider,
+        });
+      }
 
       if (!configurationId) {
         return res.status(400).json({ error: "configurationId is required" });
@@ -1921,6 +1931,7 @@ IMPORTANT:
         locationCode,
         languageCode: languageCode === "en" ? "English" : languageCode,
         maxCompetitors,
+        provider,
       });
 
       res.json(result);
