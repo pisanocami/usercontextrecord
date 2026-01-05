@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -249,17 +250,31 @@ function getContextStatusInfo(status: ContextStatus) {
   }
 }
 
+type ProviderType = "dataforseo" | "ahrefs";
+
+interface ProviderStatus {
+  provider: ProviderType;
+  displayName: string;
+  configured: boolean;
+  message?: string;
+}
+
 export default function KeywordGap() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [competitorDomain, setCompetitorDomain] = useState("");
   const [activeTab, setActiveTab] = useState("gap");
+  const [selectedProvider, setSelectedProvider] = useState<ProviderType>("dataforseo");
 
   const configId = id ? parseInt(id, 10) : null;
 
   const { data: statusData, isLoading: statusLoading } = useQuery<{ configured: boolean }>({
     queryKey: ["/api/keyword-gap/status"],
+  });
+
+  const { data: providersData } = useQuery<{ providers: ProviderStatus[] }>({
+    queryKey: ["/api/keyword-gap-lite/providers"],
   });
 
   const { data: config, isLoading: configLoading } = useQuery<Configuration>({
@@ -303,11 +318,12 @@ export default function KeywordGap() {
   });
 
   const liteMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (provider: ProviderType) => {
       const response = await apiRequest("POST", "/api/keyword-gap-lite/run", {
         configurationId: configId,
         limitPerDomain: 200,
         maxCompetitors: 5,
+        provider,
       });
       return response.json() as Promise<KeywordGapLiteResult>;
     },
@@ -550,22 +566,52 @@ export default function KeywordGap() {
                 </div>
               )}
 
-              <Button
-                className="w-full"
-                onClick={() => liteMutation.mutate()}
-                disabled={liteMutation.isPending || !canRunAnalysis}
-                data-testid="button-gap-lite"
-              >
-                {liteMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Zap className="h-4 w-4 mr-2" />
-                )}
-                {isProvisional ? "Run Keyword Gap (AI-Generated)" : "Run Keyword Gap Lite"}
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                {isProvisional && "Results are provisional until human validation"}
-              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={selectedProvider} 
+                    onValueChange={(v) => setSelectedProvider(v as ProviderType)}
+                    data-testid="select-provider"
+                  >
+                    <SelectTrigger className="w-40" data-testid="select-provider-trigger">
+                      <SelectValue placeholder="Data Source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {providersData?.providers?.map((p) => (
+                        <SelectItem 
+                          key={p.provider} 
+                          value={p.provider}
+                          disabled={!p.configured}
+                          data-testid={`select-provider-${p.provider}`}
+                        >
+                          {p.displayName} {!p.configured && "(Not configured)"}
+                        </SelectItem>
+                      )) || (
+                        <>
+                          <SelectItem value="dataforseo">DataForSEO</SelectItem>
+                          <SelectItem value="ahrefs" disabled>Ahrefs (Coming soon)</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    className="flex-1"
+                    onClick={() => liteMutation.mutate(selectedProvider)}
+                    disabled={liteMutation.isPending || !canRunAnalysis}
+                    data-testid="button-gap-lite"
+                  >
+                    {liteMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Zap className="h-4 w-4 mr-2" />
+                    )}
+                    {isProvisional ? "Run Keyword Gap (AI-Generated)" : "Run Keyword Gap Lite"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  {isProvisional && "Results are provisional until human validation"}
+                </p>
+              </div>
               <Button
                 className="w-full"
                 variant="secondary"
