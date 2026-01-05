@@ -98,16 +98,33 @@ The frontend features:
 - **IBM Plex Sans**: Primary UI font (Carbon Design System)
 - **IBM Plex Mono**: Monospace font for code/JSON display
 
-### DataForSEO Integration
-- **server/dataforseo.ts**: Client with Basic Auth authentication
-- **Keyword Gap Analysis**: Compare brand keywords vs competitors
+### Multi-Provider Keyword Gap Architecture
+- **server/keyword-data-provider.ts**: Abstract provider interface with factory pattern
+- **server/providers/**: Provider implementations directory
+  - **dataforseo-provider.ts**: DataForSEO domain_intersection endpoint, Basic Auth
+  - **ahrefs-provider.ts**: Ahrefs organic-keywords endpoint, Bearer token auth, 7-day cache TTL
+- **Factory Pattern**: `getProvider(name)` returns appropriate provider instance
+- **Common Interface**: `GapResult`, `GapKeyword`, `RankedKeywordsResult` types
+
+### DataForSEO Provider
+- **Endpoint**: POST /v3/dataforseo_labs/google/domain_intersection/live
+- **Authentication**: Basic Auth (DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD)
 - **UCR Guardrails**: Filter results based on excluded_categories, excluded_keywords, excluded_use_cases
-- **Environment Variables**: DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD (optional)
+
+### Ahrefs Provider
+- **Endpoint**: GET /v3/site-explorer/organic-keywords
+- **Authentication**: Bearer token (AHREFS_API_KEY)
+- **Gap Computation**: In-memory (competitor_keywords - client_keywords)
+- **Cache**: 7-day TTL, keyed by (domain, country, limit)
+- **Limits**: 2000 keywords/domain, position ≤ 20 for competitors, ≤ 100 for client
+- **Filters**: minVolume = 100, maxKd = 60
+- **Fields**: keyword, best_position, volume, keyword_difficulty, cpc (no traffic field)
 
 ### Keyword Gap Lite Module
 - **server/keyword-gap-lite.ts**: Fast analysis with 3-tier classification system
+- **Multi-Provider Support**: `provider` parameter accepts "dataforseo" or "ahrefs"
 - **Normalization**: Domains (strip http/www/slash, lowercase) and keywords (lowercase, trim, collapse spaces)
-- **24h TTL Cache**: In-memory cache keyed by (domain, location, language, limit)
+- **Competitor Extraction**: From UCR `config.competitors.competitors[]` array, tier1 + tier2 only
 - **3-Tier Classification**:
   - **Pass** (≥60% capability): High-fit keywords ready to target
   - **Review** (30-60% capability): Medium-fit keywords for human evaluation
@@ -139,6 +156,7 @@ The frontend features:
 - Simplified context creation: Only domain and primary_category are required fields. All other fields (brand name, industry, competitors, categories) are optional and can be AI-generated from domain + category. Configuration name auto-generated from domain.
 - **Phase 2 (Context Locking)**: State machine workflow DRAFT_AI → AI_READY → AI_ANALYSIS_RUN → HUMAN_CONFIRMED → LOCKED with validation gates. ContextReviewPanel UI for section-by-section approval. PATCH /api/configurations/:id/status endpoint.
 - **Phase 3 (Validation Gate)**: Comprehensive validation module (shared/validation.ts) with section-level validation, integrity checksum, approval gates. GET /api/configurations/:id/validate endpoint returns detailed validation results.
+- **Multi-Provider Keyword Gap (Complete)**: Implemented factory pattern with DataForSEO and Ahrefs providers. Ahrefs uses organic-keywords endpoint with 7-day cache, in-memory gap computation. Fixed competitor domain extraction to use UCR `competitors.competitors[]` array (tier1+tier2 only).
 
 ### 10-Phase Growth Signal Architecture
 

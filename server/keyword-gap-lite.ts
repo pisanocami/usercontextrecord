@@ -504,13 +504,17 @@ export async function computeKeywordGap(
   
   const brandDomain = normalizeDomain(config.brand?.domain || "");
   
-  const directCompetitors = (config.competitors?.direct || [])
-    .slice(0, maxCompetitors)
-    .map(c => {
-      if (typeof c === "string") return c;
-      if (c && typeof c === "object" && "domain" in c) return (c as { domain: string }).domain;
-      return "";
+  const competitorsList = config.competitors?.competitors || [];
+  const directCompetitors = competitorsList
+    .filter((c) => 
+      typeof c === "object" && c !== null && "domain" in c && typeof (c as { domain?: string }).domain === "string" && (c as { domain: string }).domain.length > 0
+    )
+    .filter((c) => {
+      const tier = (c as { tier?: string }).tier;
+      return tier === "tier1" || tier === "tier2";
     })
+    .slice(0, maxCompetitors)
+    .map((c) => (c as { domain: string }).domain)
     .filter(Boolean);
   
   if (!brandDomain || directCompetitors.length === 0) {

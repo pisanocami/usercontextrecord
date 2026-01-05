@@ -8,13 +8,10 @@ import type {
 
 interface AhrefsOrganicKeyword {
   keyword: string;
-  position: number;
+  best_position: number;
   volume: number;
   keyword_difficulty: number;
   cpc: number;
-  url: string;
-  traffic: number;
-  best_position_url?: string;
 }
 
 interface AhrefsOrganicResponse {
@@ -99,12 +96,10 @@ export class AhrefsProvider implements KeywordDataProvider {
       console.log(`[Ahrefs] Cache hit for ${normalizedDomain} (expires ${new Date(cached.expiresAt).toISOString()})`);
       return cached.data.items.map(item => ({
         keyword: item.keyword,
-        position: item.position || 0,
+        best_position: item.position || 0,
         volume: item.searchVolume || 0,
         keyword_difficulty: (item.competition || 0) * 100,
         cpc: item.cpc || 0,
-        url: "",
-        traffic: 0,
       }));
     }
 
@@ -112,13 +107,17 @@ export class AhrefsProvider implements KeywordDataProvider {
 
     const apiKey = this.getApiKey();
     
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    
     const params = new URLSearchParams({
       target: normalizedDomain,
       mode: "domain",
       country: country,
-      limit: String(limit),
-      order_by: "traffic:desc",
-      where: `position<=${positionLimit}`,
+      limit: String(Math.min(limit * 2, 10000)),
+      order_by: "volume:desc",
+      select: "keyword,best_position,volume,keyword_difficulty,cpc",
+      date: dateStr,
       output: "json",
     });
 
@@ -140,7 +139,9 @@ export class AhrefsProvider implements KeywordDataProvider {
     }
 
     const data = await response.json() as AhrefsOrganicResponse;
-    const keywords = data.keywords || [];
+    const allKeywords = data.keywords || [];
+    
+    const keywords = allKeywords.filter(kw => kw.best_position <= positionLimit).slice(0, limit);
 
     console.log(`[Ahrefs] Fetched ${keywords.length} keywords for ${normalizedDomain}`);
 
@@ -150,7 +151,7 @@ export class AhrefsProvider implements KeywordDataProvider {
       items: keywords.map(kw => ({
         keyword: kw.keyword,
         searchVolume: kw.volume,
-        position: kw.position,
+        position: kw.best_position,
         cpc: kw.cpc,
         competition: kw.keyword_difficulty / 100,
       })),
@@ -177,7 +178,7 @@ export class AhrefsProvider implements KeywordDataProvider {
 
     const clientKwSet = new Set(
       clientKeywords
-        .filter(kw => kw.position <= 100)
+        .filter(kw => kw.best_position <= 100)
         .map(kw => kw.keyword.toLowerCase())
     );
 
@@ -194,7 +195,7 @@ export class AhrefsProvider implements KeywordDataProvider {
       gapKeywords.push({
         keyword: compKw.keyword,
         searchVolume: compKw.volume,
-        competitorPosition: compKw.position,
+        competitorPosition: compKw.best_position,
         cpc: compKw.cpc,
         competition: compKw.keyword_difficulty / 100,
       });
@@ -281,7 +282,7 @@ export class AhrefsProvider implements KeywordDataProvider {
       items: keywords.map(kw => ({
         keyword: kw.keyword,
         searchVolume: kw.volume,
-        position: kw.position,
+        position: kw.best_position,
         cpc: kw.cpc,
         competition: kw.keyword_difficulty / 100,
       })),
