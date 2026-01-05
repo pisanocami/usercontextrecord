@@ -1,0 +1,170 @@
+Claro. Abajo tienes instrucciones directas para el dev para implementar Ahrefs API v3 en el
+módulo Keyword Gap & Visibility, con foco fuerte en control de costos, menos llamadas, y
+salidas “AI-ready”.
+✅ Instrucciones para Dev — Implementar Ahrefs API v3
+(Keyword Gap) con Control de Costos
+🎯 Objetivo del módulo
+Encontrar keywords donde competidores rankean y la marca NO, priorizadas por:
+volumen
+KD
+posición del competidor
+(opcional) CPC / intención
+Y entregar:
+Top oportunidades
+valor estimado
+resumen por competidor
+output estructurado JSON para análisis AI / reporte
+1) Arquitectura recomendada (Low-cost)
+✅ Principio: NO usar endpoints “caros” repetidamente
+En Ahrefs, lo más costoso no es solo la llamada: es llamar muchas veces sin cache, o traer
+data que no necesitas.
+📌 Por eso:
+🔥 Solo usar 1 endpoint base:
+✅ site-explorer/organic-keywords
+Ese endpoint te da:
+keyword
+posición
+volumen
+KD
+URL
+tráfico estimado
+1/6
+Con esto se puede construir el “gap” en código, sin depender del Content Gap endpoint (que
+en algunos casos es más limitado o menos controlable).
+2) Flujo completo recomendado
+STEP A — Extraer keywords orgánicas por dominio
+Endpoint:
+GET /v3/site-explorer/organic-keywords
+Parámetros sugeridos (para reducir costo)
+target={domain}
+mode=domain
+country=us (o el que defina el config)
+limit=2000 (máximo controlado)
+where=position<=20 ✅ (clave para bajar ruido)
+order_by=traffic_desc o volume_desc
+📌 IMPORTANTE: limitar a top 20 reduce millones de keywords basura.
+STEP B — Construir “sets” y hacer gap en código
+1. client_kw = set(keywords donde client rankea pos<=100 o <=50)
+2. Para cada competidor:
+comp_kw = set(keywords donde comp rankea pos<=20)
+3. Gap:
+gap_kw = comp_kw - client_kw
+✅ Esto replica Content Gap pero más barato y controlable.
+STEP C — Enriquecer métricas (sin nuevas llamadas)
+Cuando traes organic keywords del competidor, ya tienes:
+volume
+KD
+position
+url
+traffic
+✅ Entonces al calcular gap, ya tienes lo necesario sin hits adicionales.
+STEP D — Filtrado (para evitar output basura)
+Aplicar reglas de negocio:
+2/6
+Filtros mínimos:
+volume >= 500
+KD <= 40 (configurable)
+pos_competitor <= 20
+excluir keywords “brand competitor” si aplica
+Guardrails:
+excluded_terms solo generan warn , nunca block
+out_of_fence → warn
+in-scope → pass
+STEP E — Scoring de oportunidad (simple y barato)
+Un score básico (sin ML) que da 80% del valor:
+Donde:
+kd_norm = KD / 100
+position_weight = 1.0 si pos<=5, 0.7 si <=10, 0.5 si <=20
+3) Estrategia de costos (CRÍTICA)
+✅ Regla #1: Cachear agresivamente
+TTL recomendado:
+7 días (weekly cache)
+si quieren “fast”: TTL 3 días
+Los gaps no cambian diariamente.
+Cache key:
+keyword_gap:{client}:{country}:{competitor_list_hash}:{filters_hash}
+✅ Regla #2: No llamar Ahrefs para cada keyword
+🚫 NO llamar keyword explorer por keyword
+✅ Solo 1 batch por dominio
+✅ Regla #3: Limitar competidores en MVP
+máximo 3 competidores en alpha
+máximo 5 en producción
+python
+score = (log(volume) * (1 - kd_norm) * position_weight)
+3/6
+no más de 5 nunca
+✅ Regla #4: Mantener “limit” controlado por dominio
+Recomendación:
+traer top 2000 por dominio (pos<=20)
+normalmente se reduce a 200–600 keywords útiles
+✅ Regla #5: “Incremental refresh”
+Si guardas data de competidor:
+no re-fetch si ya fue actualizado esta semana
+refresh only delta (si se puede)
+4) Outputs necesarios (para report + AI)
+Output 1 — Summary
+Output 2 — Table Top Opportunities
+Campos mínimos:
+keyword
+volume
+KD
+competitor_position
+competitor_url
+score
+status(pass/warn)
+reason
+Output 3 — Breakdown por competidor
+json
+{
+"client": "oofos.com",
+"competitors": ["hoka.com","crocs.com"],
+"total_gap_keywords": 412,
+"passed": 260,
+"warn": 152,
+"top_opportunity_value_usd": 183400
+}
+json
+4/6
+5) Implementación sugerida (estructura de código)
+Servicios:
+ahrefsClient.ts
+keywordGapService.ts
+cacheService.ts
+Funciones clave:
+fetchOrganicKeywords(domain, country, positionLimit, limit)
+buildGapKeywords(clientKeywords, competitorKeywords[])
+applyGuardrails(keyword, config) -> pass|warn
+scoreKeyword(keywordData) -> float
+saveSnapshotToDB(snapshot)
+6) “Lite Mode” para reducir costo aún más (recomendado)
+Si quieren ahorrar todavía más:
+traer solo top 500 keywords por competidor
+usar order_by=traffic_desc
+solo keywords con volume >= 500
+Esto produce un output “ejecutivo”, no exhaustivo.
+7) Checklist (para dev)
+✅ Implementar organic-keywords endpoint
+✅ Implementar cache TTL semanal
+✅ Implementar limit y filtros antes de guardar
+✅ Implementar scoring simple
+✅ Output JSON estándar (summary + table + breakdown)
+✅ Guardrails solo warn / pass
+✅ UI: mostrar “Warnings require review”, no bloquear
+8) Recomendación final (para Susan / producto)
+En OOFOS el problema del output malo se ve claro:
+[
+{"competitor":"hoka.com","gap_keywords":220,"top_value":91000},
+{"competitor":"crocs.com","gap_keywords":192,"top_value":92000}
+]
+5/6
+El sistema está dejando pasar muchas keywords “Hoka brand queries” como
+“opportunity”
+Eso es porque el Fence está demasiado amplio o no hay filtro de intención
+Con Ahrefs + scoring + filtro non-brand eso se arregla
+✅ Próximo paso si quieres
+Puedo entregarte también:
+1. Pseudocódigo completo en TypeScript
+2. Esquema de DB para guardar snapshots y evitar re-hits
+3. Lista de parámetros exactos para Ahrefs v3 según el plan (lite / full)
+Solo dime cuál necesitas primero.
+6/6
