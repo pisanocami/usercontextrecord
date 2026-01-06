@@ -9,9 +9,9 @@
 import { 
   UCR_SECTION_NAMES,
   getModuleDefinition,
-  canModuleExecute 
-} from '@shared/module-registry';
-import type { UCRSection } from '@shared/module-registry';
+  canModuleExecute,
+  type UCRSection
+} from '@shared/module.contract';
 import type { Configuration } from '@shared/schema';
 
 export type { UCRSection };

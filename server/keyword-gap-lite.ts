@@ -10,7 +10,7 @@ import {
   RULES,
   type UCRSection 
 } from "./execution-gateway";
-import { SEO_VISIBILITY_GAP, UCR_SECTION_NAMES } from "@shared/module-registry";
+import { SEO_VISIBILITY_GAP, UCR_SECTION_NAMES } from "@shared/module.contract";
 import type { 
   Disposition, 
   Severity, 
@@ -529,13 +529,6 @@ export interface KeywordEvaluation {
   trace: ItemTrace[];
 }
 
-function statusToDisposition(status: KeywordStatus): Disposition {
-  switch (status) {
-    case "pass": return "PASS";
-    case "review": return "REVIEW";
-    case "out_of_play": return "OUT_OF_PLAY";
-  }
-}
 
 function createTrace(
   ruleId: string, 

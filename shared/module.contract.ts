@@ -659,3 +659,139 @@ export function getAllContracts(): ModuleContract[] {
 export function getActiveContracts(): ModuleContract[] {
   return Object.values(CONTRACT_REGISTRY);
 }
+
+/* ---------------------------------- */
+/* Legacy Module Definitions           */
+/* (Consolidated from module-registry) */
+/* ---------------------------------- */
+
+export type UCRSection = UCRSectionID;
+
+export interface ModuleDefinition {
+  id: string;
+  name: string;
+  description: string;
+  question: string;
+  requiredSections: UCRSectionID[];
+  optionalSections: UCRSectionID[];
+  outputType: 'keywords' | 'signal' | 'share' | 'levers' | 'capture' | 'pricing';
+  status: 'active' | 'planned' | 'deprecated';
+}
+
+export const CATEGORY_DEMAND_SIGNAL: ModuleDefinition = {
+  id: 'category_demand_signal',
+  name: 'Category Demand Signal',
+  description: 'Market demand trends and seasonality analysis',
+  question: 'Is this category worth investing in and when?',
+  requiredSections: ['A', 'B'],
+  optionalSections: ['D', 'E', 'G', 'H'],
+  outputType: 'signal',
+  status: 'planned'
+};
+
+export const BRAND_ATTENTION: ModuleDefinition = {
+  id: 'brand_attention',
+  name: 'Brand Attention & Share of Search',
+  description: 'Brand share of search and attention metrics',
+  question: 'What part of the market mind is ours?',
+  requiredSections: ['A', 'B', 'C'],
+  optionalSections: ['E', 'H'],
+  outputType: 'share',
+  status: 'planned'
+};
+
+export const SEO_VISIBILITY_GAP: ModuleDefinition = {
+  id: 'seo_visibility_gap',
+  name: 'SEO Visibility & Gap Mapping',
+  description: 'Keyword gap analysis with 3-tier classification',
+  question: 'Where are we missing organic opportunity?',
+  requiredSections: ['A', 'B', 'C'],
+  optionalSections: ['D', 'E', 'F', 'G', 'H'],
+  outputType: 'keywords',
+  status: 'active'
+};
+
+export const RETAIL_PRICING: ModuleDefinition = {
+  id: 'retail_pricing',
+  name: 'Retail Availability & Pricing Intelligence',
+  description: 'Retail shelf presence and pricing analysis',
+  question: 'Where are we losing shelf and margin?',
+  requiredSections: ['A', 'C'],
+  optionalSections: ['E', 'F', 'G', 'H'],
+  outputType: 'pricing',
+  status: 'planned'
+};
+
+export const DEMAND_CAPTURE: ModuleDefinition = {
+  id: 'demand_capture',
+  name: 'Demand Capture & Efficiency',
+  description: 'Branded vs non-branded demand capture analysis',
+  question: 'Are we capturing demand or just defending?',
+  requiredSections: ['A', 'B'],
+  optionalSections: ['D', 'E', 'F', 'H'],
+  outputType: 'capture',
+  status: 'planned'
+};
+
+export const STRATEGIC_LEVERS: ModuleDefinition = {
+  id: 'strategic_levers',
+  name: 'Strategic Levers & AI-Augmented Moves',
+  description: 'Orchestrates recommendations from all modules',
+  question: 'What should we do next?',
+  requiredSections: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+  optionalSections: [],
+  outputType: 'levers',
+  status: 'planned'
+};
+
+export const MODULE_REGISTRY: Record<string, ModuleDefinition> = {
+  'category_demand_signal': CATEGORY_DEMAND_SIGNAL,
+  'brand_attention': BRAND_ATTENTION,
+  'seo_visibility_gap': SEO_VISIBILITY_GAP,
+  'retail_pricing': RETAIL_PRICING,
+  'demand_capture': DEMAND_CAPTURE,
+  'strategic_levers': STRATEGIC_LEVERS
+};
+
+export function getModuleDefinition(moduleId: string): ModuleDefinition | undefined {
+  return MODULE_REGISTRY[moduleId];
+}
+
+export function getActiveModules(): ModuleDefinition[] {
+  return Object.values(MODULE_REGISTRY).filter(m => m.status === 'active');
+}
+
+export function getAllModules(): ModuleDefinition[] {
+  return Object.values(MODULE_REGISTRY);
+}
+
+export function canModuleExecute(
+  moduleId: string, 
+  availableSections: UCRSectionID[]
+): { canExecute: boolean; missingSections: UCRSectionID[]; warnings: string[] } {
+  const module = getModuleDefinition(moduleId);
+  if (!module) {
+    return { canExecute: false, missingSections: [], warnings: ['Module not found'] };
+  }
+
+  const missingSections = module.requiredSections.filter(
+    section => !availableSections.includes(section)
+  );
+
+  const missingOptional = module.optionalSections.filter(
+    section => !availableSections.includes(section)
+  );
+
+  const warnings: string[] = [];
+  if (missingOptional.length > 0) {
+    warnings.push(
+      `Missing optional sections: ${missingOptional.map(s => `${s} (${UCR_SECTION_NAMES[s]})`).join(', ')}. Results may be less accurate.`
+    );
+  }
+
+  return {
+    canExecute: missingSections.length === 0,
+    missingSections,
+    warnings
+  };
+}

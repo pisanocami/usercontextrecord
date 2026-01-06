@@ -132,10 +132,19 @@ function formatScoreBreakdown(kw: KeywordLiteResult): string {
   ].join("\n");
 }
 
+import type { 
+  Disposition, 
+  Severity, 
+  UCRSectionID, 
+  ItemTrace,
+  UCR_SECTION_NAMES as UCR_NAMES
+} from "@shared/module.contract";
+
 interface KeywordLiteResult {
   keyword: string;
   normalizedKeyword: string;
   status: "pass" | "review" | "out_of_play";
+  disposition?: Disposition;
   statusIcon: string;
   intentType: IntentType;
   capabilityScore: number;
@@ -143,6 +152,7 @@ interface KeywordLiteResult {
   difficultyFactor?: number;
   positionFactor?: number;
   reason: string;
+  reasons?: string[];
   flags: string[];
   confidence: "high" | "medium" | "low";
   competitorsSeen: string[];
@@ -151,13 +161,158 @@ interface KeywordLiteResult {
   keywordDifficulty?: number;
   competitorPosition?: number;
   theme: string;
+  trace?: ItemTrace[];
 }
 
-type UCRSection = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
+function getSeverityColor(severity: Severity): string {
+  switch (severity) {
+    case "critical": return "text-red-600 dark:text-red-400";
+    case "high": return "text-orange-600 dark:text-orange-400";
+    case "medium": return "text-amber-600 dark:text-amber-400";
+    case "low": return "text-muted-foreground";
+  }
+}
+
+function TraceDisplay({ trace }: { trace: ItemTrace[] }) {
+  if (!trace || trace.length === 0) return null;
+  
+  return (
+    <div className="p-3 bg-muted/50 text-xs space-y-1">
+      <div className="font-medium text-muted-foreground mb-1">Gate Evaluation Trace:</div>
+      {trace.map((t, i) => (
+        <div key={i} className="flex items-start gap-2 py-0.5 flex-wrap">
+          <Badge variant="outline" className="text-xs shrink-0 font-mono">
+            {t.ucrSection}
+          </Badge>
+          <span className={`shrink-0 ${getSeverityColor(t.severity)}`}>
+            [{t.severity}]
+          </span>
+          <span className="text-muted-foreground">{t.ruleId}:</span>
+          <span>{t.reason}</span>
+          {t.evidence && (
+            <span className="text-muted-foreground italic">({t.evidence})</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KeywordRowWithTrace({ 
+  kw, 
+  index, 
+  testIdPrefix,
+  showScore = true 
+}: { 
+  kw: KeywordLiteResult; 
+  index: number; 
+  testIdPrefix: string;
+  showScore?: boolean;
+}) {
+  const [showTrace, setShowTrace] = useState(false);
+  const hasTrace = kw.trace && kw.trace.length > 0;
+  
+  return (
+    <>
+      <TableRow data-testid={`row-${testIdPrefix}-${index}`}>
+        <TableCell className="font-medium">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span>{kw.keyword}</span>
+            {kw.disposition && (
+              <Badge variant="outline" className="text-xs font-mono">
+                {kw.disposition}
+              </Badge>
+            )}
+            {kw.flags?.includes("outside_fence") && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Fence
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs max-w-[200px]">Outside current category scope. Verify alignment.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline" className="text-xs capitalize">
+            {kw.intentType.replace(/_/g, " ")}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-right">
+          {kw.searchVolume?.toLocaleString() || "-"}
+        </TableCell>
+        <TableCell className="text-right font-mono text-xs">
+          {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
+        </TableCell>
+        {showScore && (
+          <TableCell className="text-right font-mono text-xs">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted decoration-muted-foreground/50">
+                    {Math.round(kw.opportunityScore).toLocaleString()}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="font-mono text-xs">
+                  <div className="whitespace-pre-line">{formatScoreBreakdown(kw)}</div>
+                  <div className="mt-1 pt-1 border-t border-muted text-right font-semibold">
+                    = {Math.round(kw.opportunityScore).toLocaleString()}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </TableCell>
+        )}
+        <TableCell className="text-right">
+          <Badge variant={kw.capabilityScore >= 0.7 ? "default" : "secondary"} className="text-xs">
+            {Math.round(kw.capabilityScore * 100)}%
+          </Badge>
+        </TableCell>
+        <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={kw.reason}>
+          {kw.reason}
+        </TableCell>
+        <TableCell className="text-center">
+          <Badge 
+            variant={kw.confidence === "high" ? "default" : kw.confidence === "medium" ? "secondary" : "outline"}
+            className="text-xs capitalize"
+          >
+            {kw.confidence || "medium"}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-center">
+          {hasTrace && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowTrace(!showTrace)}
+              data-testid={`btn-trace-${testIdPrefix}-${index}`}
+            >
+              <ChevronRight className={`h-4 w-4 transition-transform ${showTrace ? 'rotate-90' : ''}`} />
+            </Button>
+          )}
+        </TableCell>
+      </TableRow>
+      {hasTrace && showTrace && (
+        <TableRow className="bg-muted/30">
+          <TableCell colSpan={showScore ? 9 : 8} className="p-0">
+            <TraceDisplay trace={kw.trace!} />
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
 
 interface UCRContext {
   ucr_version: string;
-  sections_used: UCRSection[];
+  sections_used: UCRSectionID[];
   rules_triggered: string[];
   executed_at: string;
   module_id: string;
@@ -1072,76 +1227,18 @@ export default function KeywordGap() {
                             <TableHead className="text-right">Capability</TableHead>
                             <TableHead>Reason</TableHead>
                             <TableHead className="text-center">Confidence</TableHead>
+                            <TableHead className="text-center">Trace</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {liteResult.topOpportunities.slice(0, 50).map((kw, i) => (
-                            <TableRow key={i} data-testid={`row-opportunity-${i}`}>
-                              <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                  <span>{kw.keyword}</span>
-                                  {kw.flags?.includes("outside_fence") && (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700">
-                                            <AlertTriangle className="h-3 w-3 mr-1" />
-                                            Fence
-                                          </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p className="text-xs max-w-[200px]">Strong keyword opportunity, but not included in current category scope. Verify alignment.</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {kw.intentType.replace(/_/g, " ")}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {kw.searchVolume?.toLocaleString() || "-"}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-xs">
-                                {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-xs">
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="cursor-help underline decoration-dotted decoration-muted-foreground/50">
-                                        {Math.round(kw.opportunityScore).toLocaleString()}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left" className="font-mono text-xs">
-                                      <div className="whitespace-pre-line">{formatScoreBreakdown(kw)}</div>
-                                      <div className="mt-1 pt-1 border-t border-muted text-right font-semibold">
-                                        = {Math.round(kw.opportunityScore).toLocaleString()}
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant={kw.capabilityScore >= 0.7 ? "default" : "secondary"} className="text-xs">
-                                  {Math.round(kw.capabilityScore * 100)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={kw.reason}>
-                                {kw.reason}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge 
-                                  variant={kw.confidence === "high" ? "default" : kw.confidence === "medium" ? "secondary" : "outline"}
-                                  className="text-xs capitalize"
-                                >
-                                  {kw.confidence || "medium"}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
+                            <KeywordRowWithTrace 
+                              key={i} 
+                              kw={kw} 
+                              index={i} 
+                              testIdPrefix="opportunity"
+                              showScore={true}
+                            />
                           ))}
                         </TableBody>
                       </Table>
@@ -1169,40 +1266,18 @@ export default function KeywordGap() {
                             <TableHead className="text-right">Capability</TableHead>
                             <TableHead>Reason</TableHead>
                             <TableHead className="text-center">Confidence</TableHead>
+                            <TableHead className="text-center">Trace</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {liteResult.needsReview.slice(0, 50).map((kw, i) => (
-                            <TableRow key={i} data-testid={`row-review-${i}`}>
-                              <TableCell className="font-medium">{kw.keyword}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {kw.intentType.replace(/_/g, " ")}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {kw.searchVolume?.toLocaleString() || "-"}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-xs">
-                                {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant="secondary" className="text-xs">
-                                  {Math.round(kw.capabilityScore * 100)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={kw.reason}>
-                                {kw.reason}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge 
-                                  variant={kw.confidence === "high" ? "default" : kw.confidence === "medium" ? "secondary" : "outline"}
-                                  className="text-xs capitalize"
-                                >
-                                  {kw.confidence || "medium"}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
+                            <KeywordRowWithTrace 
+                              key={i} 
+                              kw={kw} 
+                              index={i} 
+                              testIdPrefix="review"
+                              showScore={false}
+                            />
                           ))}
                         </TableBody>
                       </Table>

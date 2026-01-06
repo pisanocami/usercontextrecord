@@ -1,5 +1,14 @@
 /**
- * FON Module Registry
+ * @deprecated This file has been consolidated into module.contract.ts
+ * 
+ * Please update your imports to use:
+ *   import { ... } from '@shared/module.contract';
+ * 
+ * This file is maintained for backwards compatibility only.
+ * All new development should use module.contract.ts directly.
+ * 
+ * ============================================================
+ * FON Module Registry (DEPRECATED)
  * 
  * Defines the formal contract between modules and UCR sections.
  * Each module declares which UCR sections it requires and optionally uses.

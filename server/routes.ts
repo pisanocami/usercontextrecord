@@ -12,7 +12,7 @@ import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as 
 import { getProvider, getAllProviderStatuses, type ProviderType } from "./providers";
 import { validateContext, type ContextValidationResult } from "./context-validator";
 import { validateConfiguration as validateConfigurationFull, type FullValidationResult } from "@shared/validation";
-import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES } from "@shared/module-registry";
+import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES } from "@shared/module.contract";
 import { validateModuleExecution } from "./execution-gateway";
 
 const openai = new OpenAI({
