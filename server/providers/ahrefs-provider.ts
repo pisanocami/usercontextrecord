@@ -110,19 +110,30 @@ export class AhrefsProvider implements KeywordDataProvider {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0];
     
-    const params = new URLSearchParams({
-      target: normalizedDomain,
-      mode: "domain",
-      country: country,
-      limit: String(Math.min(limit * 2, 10000)),
-      order_by: "volume:desc",
-      select: "keyword,best_position,volume,keyword_difficulty,cpc",
-      date: dateStr,
-      output: "json",
-    });
+    // Use params.set() to guarantee all required params are included
+    const params = new URLSearchParams();
+    params.set("target", normalizedDomain);
+    params.set("mode", "domain");
+    params.set("country", country);
+    params.set("limit", String(Math.min(limit * 2, 10000)));
+    params.set("order_by", "volume:desc");
+    // REQUIRED by Ahrefs API v3 - must specify which fields to return
+    params.set("select", "keyword,best_position,volume,keyword_difficulty,cpc");
+    params.set("date", dateStr);
+    params.set("output", "json");
+
+    // Validate required param is present - fail fast if not
+    if (!params.get("select")) {
+      throw new Error("[Ahrefs] FATAL: Missing required param 'select' - this should never happen");
+    }
+
+    // Log full URL for debugging
+    const url = `https://api.ahrefs.com/v3/site-explorer/organic-keywords?${params.toString()}`;
+    console.log("[Ahrefs] URL:", url);
+    console.log("[Ahrefs] Has select?", params.has("select"), "select=", params.get("select"));
 
     const response = await fetch(
-      `https://api.ahrefs.com/v3/site-explorer/organic-keywords?${params.toString()}`,
+      url,
       {
         method: "GET",
         headers: {
@@ -237,10 +248,32 @@ export class AhrefsProvider implements KeywordDataProvider {
 
     console.log(`[Ahrefs] Computing keyword gap: ${brandDomain} vs ${competitorDomain}`);
 
-    const [clientKeywords, competitorKeywords] = await Promise.all([
+    // Use Promise.allSettled to handle errors gracefully per-competitor
+    const [clientRes, compRes] = await Promise.allSettled([
       this.fetchOrganicKeywords(brandDomain, { country, limit: 2000, positionLimit: 100 }),
       this.fetchOrganicKeywords(competitorDomain, { country, limit: 2000, positionLimit: 20 }),
     ]);
+
+    // Client fetch is critical - if it fails, throw
+    if (clientRes.status === "rejected") {
+      console.error(`[Ahrefs] FATAL: Client domain fetch failed for ${brandDomain}:`, clientRes.reason);
+      throw clientRes.reason;
+    }
+    
+    // Competitor fetch failure is non-critical - return empty gap for this competitor
+    if (compRes.status === "rejected") {
+      console.warn(`[Ahrefs] Competitor fetch failed for ${competitorDomain}:`, compRes.reason);
+      return {
+        brandDomain: normalizeDomain(brandDomain),
+        competitorDomain: normalizeDomain(competitorDomain),
+        gapKeywords: [],
+        totalCount: 0,
+        error: `Competitor fetch failed: ${compRes.reason instanceof Error ? compRes.reason.message : String(compRes.reason)}`,
+      };
+    }
+
+    const clientKeywords = clientRes.value;
+    const competitorKeywords = compRes.value;
 
     console.log(`[Ahrefs] Client has ${clientKeywords.length} keywords, competitor has ${competitorKeywords.length}`);
 
