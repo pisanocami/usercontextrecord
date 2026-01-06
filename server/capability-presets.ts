@@ -13,6 +13,9 @@ export const DTC_FOOTWEAR_CAPABILITY: CapabilityModel = {
     { pattern: "eva foam|eva material|foam shoes?", weight: 0.15, label: "Material" },
   ],
   penalties: [
+    { pattern: "pdf|download|printable", weight: -0.50, label: "Document/informational" },
+    { pattern: "training plan|training schedule|training program", weight: -0.30, label: "Training content" },
+    { pattern: "marathon|half marathon|5k|10k|ultramarathon", weight: -0.20, label: "Race training" },
     { pattern: "running shoes?|hiking boots?|marathon training|trail running", weight: -0.60, label: "Performance athletics" },
     { pattern: "basketball|soccer|football|tennis|golf|climbing", weight: -0.55, label: "Sport-specific" },
     { pattern: "steel toe|work boots?|safety shoes?", weight: -0.45, label: "Industrial" },
@@ -28,8 +31,8 @@ export const DTC_FOOTWEAR_CAPABILITY: CapabilityModel = {
 };
 
 export const DTC_FOOTWEAR_SCORING: ScoringConfig = {
-  pass_threshold: 0.55,
-  review_threshold: 0.30,
+  pass_threshold: 0.65,
+  review_threshold: 0.35,
   difficulty_weight: 0.5,
   position_weight: 0.5,
   vertical_preset: "dtc_footwear",
@@ -56,8 +59,8 @@ export const RETAIL_BIG_BOX_CAPABILITY: CapabilityModel = {
 };
 
 export const RETAIL_BIG_BOX_SCORING: ScoringConfig = {
-  pass_threshold: 0.55,
-  review_threshold: 0.30,
+  pass_threshold: 0.65,
+  review_threshold: 0.35,
   difficulty_weight: 0.4,
   position_weight: 0.6,
   vertical_preset: "retail_big_box",
@@ -81,8 +84,8 @@ export const B2B_SAAS_CAPABILITY: CapabilityModel = {
 };
 
 export const B2B_SAAS_SCORING: ScoringConfig = {
-  pass_threshold: 0.50,
-  review_threshold: 0.25,
+  pass_threshold: 0.65,
+  review_threshold: 0.35,
   difficulty_weight: 0.6,
   position_weight: 0.4,
   vertical_preset: "b2b_saas",
@@ -97,8 +100,8 @@ export const DEFAULT_CAPABILITY: CapabilityModel = {
 };
 
 export const DEFAULT_SCORING: ScoringConfig = {
-  pass_threshold: 0.50,
-  review_threshold: 0.25,
+  pass_threshold: 0.65,
+  review_threshold: 0.35,
   difficulty_weight: 0.5,
   position_weight: 0.5,
   vertical_preset: "custom",

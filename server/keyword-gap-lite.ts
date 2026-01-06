@@ -264,6 +264,9 @@ const INFLUENCER_REGEX = /\b(olivia|emma|liam|noah|ava|sophia|isabella|mia|charl
 // Idioms/meme phrases that indicate non-product intent
 const IDIOM_PHRASES_REGEX = /\b(walking on water|walk on water|jesus shoes?|walk a mile|if the shoe fits|put yourself in|in someone'?s shoes?|fill (his|her|their|big) shoes?|dead man'?s shoes?|another man'?s shoes?|old woman who lived in a shoe|drop of a hat|when pigs fly|raining cats and dogs|break a leg|hit the hay|piece of cake|cost an arm and a leg|once in a blue moon|under the weather|bite the bullet|spill the beans|let the cat out|burn bridges|jump the shark|throw in the towel)\b/i;
 
+// Irrelevant intent patterns - informational/training/unrelated queries (Gate G hard exclusion)
+const IRRELEVANT_INTENT_REGEX = /\b(pdf|training plan|marathon|half marathon|workout|training schedule|5k training|10k training|couch to|beginner running|race training)\b|^(what is|what are|how to|how do|can you|should i|are .* business casual|is it ok to|why do|when to)/i;
+
 // Names that are clearly people not products (first name + last name pattern)
 const PERSON_NAME_PATTERN = /^[a-z]+\s+[a-z]+$/i;
 
@@ -286,6 +289,11 @@ export function detectIrrelevantEntity(keyword: string): { isIrrelevant: boolean
   // Check for idioms and meme phrases
   if (IDIOM_PHRASES_REGEX.test(normalizedKw)) {
     return { isIrrelevant: true, reason: "Idiom or non-literal phrase" };
+  }
+  
+  // Check for irrelevant intent patterns (informational, training, etc.)
+  if (IRRELEVANT_INTENT_REGEX.test(normalizedKw)) {
+    return { isIrrelevant: true, reason: "Irrelevant or informational intent" };
   }
   
   // Simple person name pattern - 2 word query that looks like a name
@@ -876,10 +884,29 @@ export function evaluateKeyword(
   // ============================================
   // FINAL DISPOSITION
   // ============================================
+  
+  // CRITICAL: outsideFence can NEVER produce PASS - maximum is REVIEW
+  if (outsideFence && capabilityScore >= reviewThreshold) {
+    const reason = capabilityScore >= passThreshold
+      ? "Outside category fence - requires human validation (score would pass)"
+      : "Outside category fence - requires human validation";
+    trace.push(createTrace("disposition.review_fence_cap", "B", reason, "medium", `score: ${capabilityScore.toFixed(2)}`));
+    reasons.push(reason);
+    return {
+      ...baseResult,
+      status: "review",
+      disposition: "REVIEW",
+      statusIcon: "?",
+      reason,
+      reasons,
+      flags: resultFlags,
+      confidence: "medium",
+      trace,
+    };
+  }
+  
   if (capabilityScore >= passThreshold) {
-    const reason = outsideFence 
-      ? "Strong capability fit - verify category alignment"
-      : (fenceResult.reason || "High capability match");
+    const reason = fenceResult.reason || "High capability match";
     trace.push(createTrace("disposition.pass", "H", reason, "low", `score: ${capabilityScore.toFixed(2)}`));
     reasons.push(reason);
     return {
@@ -890,16 +917,14 @@ export function evaluateKeyword(
       reason,
       reasons,
       flags: resultFlags,
-      confidence: outsideFence ? "medium" : "high",
+      confidence: "high",
       trace,
     };
   }
   
   if (capabilityScore >= reviewThreshold) {
     const confidence: ConfidenceLevel = capabilityScore >= (passThreshold - 0.1) ? "medium" : "low";
-    const reason = outsideFence 
-      ? "Medium capability - outside fence"
-      : "Medium capability - needs review";
+    const reason = "Medium capability - needs review";
     trace.push(createTrace("disposition.review", "H", reason, "medium", `score: ${capabilityScore.toFixed(2)}`));
     reasons.push(reason);
     return {
