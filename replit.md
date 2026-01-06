@@ -166,6 +166,9 @@ The frontend features:
 - **OOFOS Case Study**: Created OOFOS_CASE_STUDY.md with detailed analysis results showing "recovery shoes" theme as top opportunity (153K score).
 - **SPEC 3.1 Fence Override Fix**: Capability score now determines Pass/Review status, fence check only adds flags. Keywords with high capability (≥pass_threshold) are Pass even if outside fence, with `outside_fence` flag. OOFOS now shows 23% pass (62 keywords) vs 15% before. UI shows amber "Fence" badge with tooltip for outside_fence keywords.
 - **Score Transparency Tooltip**: Added interactive tooltip on opportunity score showing all formula components (volume, CPC, intent weight, capability, difficulty factor, position factor) for CMO transparency and auditability.
+- **Irrelevant Entity Filter**: Added detection for sports teams (NCAA/NFL/NBA), college names, influencer names, and idioms - routes to Out of Play with "irrelevant_entity" flag. Only fires when combined with footwear terms to avoid false positives.
+- **Out of Play Grouped UI**: Rewrote Out of Play tab to use collapsible Accordion grouped by reason categories (competitor_brand, size_variant, irrelevant_entity, excluded, low_capability) with count badges per group, sorted by volume descending.
+- **Confidence-Weighted Missing Value**: Replaced simple 3% CTR with capture probability formula: `statusFactor × confidenceFactor × kdFactor × positionFactor`. Status: Pass 70%, Fence 40%, Review 20%. Confidence: High 100%, Med 70%, Low 40%. KD clamped to [0,100]. Tooltip explains methodology.
 
 ### 10-Phase Growth Signal Architecture
 
