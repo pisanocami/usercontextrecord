@@ -241,7 +241,7 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <Link href="/">
+                <Link href="/keyword-gap">
                   <SidebarMenuButton
                     isActive={activeSection === "keyword-gap"}
                     className={`group relative ${
@@ -254,7 +254,6 @@ export function AppSidebar({
                     <Zap className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
                       <span className="text-sm font-medium">Keyword Gap</span>
-                      <span className="text-xs text-muted-foreground">Select config first</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
