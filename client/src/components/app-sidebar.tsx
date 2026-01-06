@@ -16,6 +16,7 @@ import {
   FileText,
   BarChart3,
   Zap,
+  History,
 } from "lucide-react";
 import {
   Sidebar,
@@ -202,6 +203,24 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/versions/latest">
+                  <SidebarMenuButton
+                    isActive={activeSection === "versions"}
+                    className={`group relative ${
+                      activeSection === "versions"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-versions"
+                  >
+                    <History className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">Version History</span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -254,6 +273,42 @@ export function AppSidebar({
                     <Zap className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
                       <span className="text-sm font-medium">Keyword Gap</span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/report/gap">
+                  <SidebarMenuButton
+                    isActive={activeSection === "gap-report"}
+                    className={`group relative ${
+                      activeSection === "gap-report"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-gap-report"
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">Gap Report</span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/one-pager/latest">
+                  <SidebarMenuButton
+                    isActive={activeSection === "one-pager"}
+                    className={`group relative ${
+                      activeSection === "one-pager"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-one-pager"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">One Pager</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
