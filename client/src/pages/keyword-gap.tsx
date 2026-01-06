@@ -171,6 +171,8 @@ interface KeywordGapLiteResult {
     excludedUseCases: number;
     competitorBrandTerms: number;
     variantTerms: number;
+    irrelevantEntities: number;
+    lowCapability: number;
     totalFilters: number;
   };
   contextVersion: number;
@@ -723,17 +725,78 @@ export default function KeywordGap() {
                   <div className="text-sm text-muted-foreground mb-1">Estimated Missing Value</div>
                   <div className="text-2xl font-bold" data-testid="stat-missing-value">
                     ${(() => {
-                      const totalValue = liteMutation.data.topOpportunities.reduce((sum, kw) => 
-                        sum + ((kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03), 0);
+                      // Confidence-weighted capture probability calculation
+                      const computeCaptureProbability = (kw: KeywordLiteResult) => {
+                        // Status factor based on keyword's actual status
+                        const hasFenceFlag = kw.flags?.includes("outside_fence");
+                        let statusFactor: number;
+                        if (kw.status === "pass" && !hasFenceFlag) {
+                          statusFactor = 0.7; // Strong Pass
+                        } else if (kw.status === "pass" && hasFenceFlag) {
+                          statusFactor = 0.4; // Fence (outside category but strong capability)
+                        } else if (kw.status === "review") {
+                          statusFactor = 0.2; // Review
+                        } else {
+                          statusFactor = 0.05; // Out of play (shouldn't happen but safe default)
+                        }
+                        
+                        // Confidence factor
+                        const confidenceMap: Record<string, number> = { high: 1.0, medium: 0.7, low: 0.4 };
+                        const confidenceFactor = confidenceMap[kw.confidence] || 0.7;
+                        
+                        // KD factor (lower KD = easier to rank) - clamp to 0-100 range
+                        const kd = Math.min(100, Math.max(0, kw.keywordDifficulty ?? 50));
+                        const kdFactor = 1 - (kd / 100) * 0.5; // 100 KD -> 0.5x, 0 KD -> 1.0x
+                        
+                        // Position factor (competitor at pos 15+ = easier opportunity)
+                        const pos = kw.competitorPosition ?? 10;
+                        let posFactor: number;
+                        if (pos <= 3) posFactor = 0.5;  // Hard to displace
+                        else if (pos <= 10) posFactor = 0.7;
+                        else if (pos <= 20) posFactor = 0.9;
+                        else posFactor = 1.0; // Weak competitor hold
+                        
+                        return Math.max(0, Math.min(1, statusFactor * confidenceFactor * kdFactor * posFactor));
+                      };
+                      
+                      // Sum both Pass and Review keywords with capture probability
+                      const passValue = liteMutation.data.topOpportunities.reduce((sum, kw) => {
+                        const baseValue = (kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03;
+                        const captureProbability = computeCaptureProbability(kw);
+                        return sum + (baseValue * captureProbability);
+                      }, 0);
+                      
+                      const reviewValue = liteMutation.data.needsReview.reduce((sum, kw) => {
+                        const baseValue = (kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03;
+                        const captureProbability = computeCaptureProbability(kw);
+                        return sum + (baseValue * captureProbability);
+                      }, 0);
+                      
+                      const totalValue = passValue + reviewValue;
                       return totalValue > 1000 
                         ? `${(totalValue / 1000).toFixed(1)}K` 
                         : totalValue.toFixed(0);
                     })()}
                     <span className="text-sm font-normal text-muted-foreground">/mo</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Based on 3% CTR assumption
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="text-xs text-muted-foreground mt-1 cursor-help underline decoration-dotted">
+                          Weighted by capture probability
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs max-w-[250px]">
+                        <div className="space-y-1">
+                          <p><strong>Capture Probability Factors:</strong></p>
+                          <p>Status: Pass 70%, Fence 40%, Review 20%</p>
+                          <p>Confidence: High 100%, Med 70%, Low 40%</p>
+                          <p>KD: Lower = better capture rate</p>
+                          <p>Position: Higher = weaker competitor hold</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <div className="p-4 rounded-md border bg-muted/30">
                   <div className="text-sm text-muted-foreground mb-1">Top Themes</div>
@@ -946,54 +1009,98 @@ export default function KeywordGap() {
 
                 <TabsContent value="out">
                   <p className="text-sm text-muted-foreground mb-4">
-                    Keywords removed from ranking: competitor brands, size variants, low capability fit.
+                    Keywords filtered out, grouped by reason. Expand each category to view details.
                   </p>
                   {liteMutation.data.outOfPlay.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       No keywords marked as out of play.
                     </div>
                   ) : (
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="out-of-play">
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex items-center gap-2">
-                            <span>Show {liteMutation.data.outOfPlay.length} out-of-play keywords</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="border rounded-md">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Keyword</TableHead>
-                                  <TableHead>Flags</TableHead>
-                                  <TableHead>Reason</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {liteMutation.data.outOfPlay.slice(0, 100).map((kw, i) => (
-                                  <TableRow key={i} data-testid={`row-out-${i}`} className="text-muted-foreground">
-                                    <TableCell className="font-medium">{kw.keyword}</TableCell>
-                                    <TableCell>
-                                      <div className="flex flex-wrap gap-1">
-                                        {kw.flags.map((flag, j) => (
-                                          <Badge key={j} variant="secondary" className="text-xs">
-                                            {flag.replace(/_/g, " ")}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="text-xs max-w-[200px] truncate" title={kw.reason}>
-                                      {kw.reason}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
+                    (() => {
+                      // Group keywords by reason category
+                      const reasonGroups: Record<string, { label: string; keywords: typeof liteMutation.data.outOfPlay }> = {
+                        competitor_brand: { label: "Competitor Brand Terms", keywords: [] },
+                        size_variant: { label: "Size/Variant Queries", keywords: [] },
+                        irrelevant_entity: { label: "Irrelevant Entity Keywords", keywords: [] },
+                        excluded: { label: "Excluded by Negative Scope", keywords: [] },
+                        low_capability: { label: "Low Capability Fit", keywords: [] },
+                        other: { label: "Other", keywords: [] },
+                      };
+                      
+                      liteMutation.data.outOfPlay.forEach(kw => {
+                        if (kw.flags.includes("competitor_brand")) {
+                          reasonGroups.competitor_brand.keywords.push(kw);
+                        } else if (kw.flags.includes("size_variant")) {
+                          reasonGroups.size_variant.keywords.push(kw);
+                        } else if (kw.flags.includes("irrelevant_entity")) {
+                          reasonGroups.irrelevant_entity.keywords.push(kw);
+                        } else if (kw.flags.includes("excluded")) {
+                          reasonGroups.excluded.keywords.push(kw);
+                        } else if (kw.reason === "Low capability fit") {
+                          reasonGroups.low_capability.keywords.push(kw);
+                        } else {
+                          reasonGroups.other.keywords.push(kw);
+                        }
+                      });
+                      
+                      const nonEmptyGroups = Object.entries(reasonGroups)
+                        .filter(([_, group]) => group.keywords.length > 0)
+                        .sort((a, b) => b[1].keywords.length - a[1].keywords.length);
+                      
+                      return (
+                        <Accordion type="multiple" className="w-full space-y-2">
+                          {nonEmptyGroups.map(([key, group]) => (
+                            <AccordionItem key={key} value={key} className="border rounded-md px-4">
+                              <AccordionTrigger className="hover:no-underline">
+                                <div className="flex items-center gap-3">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {group.keywords.length}
+                                  </Badge>
+                                  <span className="text-sm font-medium">{group.label}</span>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="border rounded-md mt-2">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Keyword</TableHead>
+                                        <TableHead className="text-right">Volume</TableHead>
+                                        <TableHead className="text-right">KD</TableHead>
+                                        <TableHead>Reason</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {group.keywords.slice(0, 50).map((kw, i) => (
+                                        <TableRow key={i} data-testid={`row-out-${key}-${i}`} className="text-muted-foreground">
+                                          <TableCell className="font-medium">{kw.keyword}</TableCell>
+                                          <TableCell className="text-right font-mono text-xs">
+                                            {kw.searchVolume?.toLocaleString() || "-"}
+                                          </TableCell>
+                                          <TableCell className="text-right font-mono text-xs">
+                                            {kw.keywordDifficulty ?? "-"}
+                                          </TableCell>
+                                          <TableCell className="text-xs max-w-[200px] truncate" title={kw.reason}>
+                                            {kw.reason}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                      {group.keywords.length > 50 && (
+                                        <TableRow>
+                                          <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-2">
+                                            ... and {group.keywords.length - 50} more
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
+                      );
+                    })()
                   )}
                 </TabsContent>
               </Tabs>

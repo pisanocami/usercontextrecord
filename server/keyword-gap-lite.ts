@@ -58,6 +58,8 @@ export interface KeywordGapResult {
     excludedUseCases: number;
     competitorBrandTerms: number;
     variantTerms: number;
+    irrelevantEntities: number;
+    lowCapability: number;
     totalFilters: number;
   };
   contextVersion: number;
@@ -188,6 +190,58 @@ export function fenceCheck(
 const VARIANT_TERMS_REGEX = /\b(size\s*\d|wide\s*width|narrow\s*width|4e|2e|w\s*width|mens\s*size|womens\s*size|kids\s*size|black\s+shoe|white\s+shoe|grey\s+shoe|navy\s+shoe)\b/i;
 
 const SIZE_NUMBERS_REGEX = /\bsize\s*(\d{1,2}\.?\d?)\b/i;
+
+// Irrelevant entity detection patterns
+const SPORTS_TEAMS_REGEX = /\b(bulldogs?|crimson tide|wolverines?|buckeyes?|longhorns?|gators?|seminoles?|tigers?|wildcats?|hurricanes?|tar heels?|jayhawks?|spartans?|hoosiers?|hawkeyes?|badgers?|trojans?|bruins?|ducks?|beavers?|cougar|razorbacks?|sooners?|cowboys?|aggies?|bears?|cardinals?|patriots?|raiders?|chiefs?|eagles?|giants?|steelers?|packers?|saints?|falcons?|panthers?|seahawks?|49ers?|broncos?|chargers?|dolphins?|bills?|jets?|colts?|texans?|jaguars?|titans?|ravens?|browns?|bengals?|lions?|vikings?|lakers?|celtics?|warriors?|heat|cavaliers?|thunder|rockets?|spurs?|mavericks?|clippers?|nuggets?|suns?|blazers?|bucks?|hornets?|hawks?|pistons?|pacers?|nets?|knicks?|raptors?|magic?)\b/i;
+
+const COLLEGE_NAMES_REGEX = /\b(alabama|auburn|clemson|ohio state|michigan|texas|florida|georgia|lsu|oklahoma|penn state|notre dame|wisconsin|oregon|usc|ucla|stanford|washington|tennessee|kentucky|kansas|duke|north carolina|unc|arkansas|missouri|mississippi|ole miss|iowa|nebraska|colorado|arizona|arizona state|baylor|tcu|texas a&m|texas tech|virginia|virginia tech|west virginia|maryland|rutgers|indiana|purdue|illinois|northwestern|minnesota|michigan state|iowa state|kansas state|oklahoma state|louisville|cincinnati|south carolina|nc state|wake forest|boston college|syracuse|pittsburgh|miami|florida state|georgia tech|vanderbilt|memphis|houston|byu|smu|tulane|ucf|usf)\b/i;
+
+// Influencer/celebrity names - common patterns
+const INFLUENCER_REGEX = /\b(olivia|emma|liam|noah|ava|sophia|isabella|mia|charlotte|amelia|harper|evelyn|abigail|emily|elizabeth|madison|luna|chloe|layla|riley|aria|zoey|nora|lily|eleanor|hannah|grace|addison|aubrey|brooklyn|victoria|stella|camila|penelope|leah|natalie|anna|alexa|hazel|ariana|aurora|savannah|bella|skylar|claire|violet|paisley|genesis|naomi|valentina|piper|kinsley|sarah|caroline|maya|peyton|willow|ruby|madelyn|alice|gianna|melanie|allison|alexandra|kaylee|aubree|charlie|audrey|autumn|kennedy|samantha|jasmine|julia|eva|quinn|nevaeh|brooklyn|nicolas|jose|santiago|julian|adriana|elena|isabella|sienna|maria|emilia|serenity|delilah|ivy|athena|vera|noa|jade|ada|nova|everleigh)\s+(amato|nguyen|smith|johnson|williams|brown|jones|garcia|miller|davis|rodriguez|martinez|hernandez|lopez|gonzalez|wilson|anderson|thomas|taylor|moore|jackson|martin|lee|perez|thompson|white|harris|sanchez|clark|ramirez|lewis|robinson|walker|young|allen|king|wright|scott|torres|hill|flores|green|adams|nelson|baker|hall|rivera|campbell|mitchell|carter|roberts)\b/i;
+
+// Idioms/meme phrases that indicate non-product intent
+const IDIOM_PHRASES_REGEX = /\b(walking on water|walk on water|jesus shoes?|walk a mile|if the shoe fits|put yourself in|in someone'?s shoes?|fill (his|her|their|big) shoes?|dead man'?s shoes?|another man'?s shoes?|old woman who lived in a shoe|drop of a hat|when pigs fly|raining cats and dogs|break a leg|hit the hay|piece of cake|cost an arm and a leg|once in a blue moon|under the weather|bite the bullet|spill the beans|let the cat out|burn bridges|jump the shark|throw in the towel)\b/i;
+
+// Names that are clearly people not products (first name + last name pattern)
+const PERSON_NAME_PATTERN = /^[a-z]+\s+[a-z]+$/i;
+
+export function detectIrrelevantEntity(keyword: string): { isIrrelevant: boolean; reason: string } {
+  const normalizedKw = normalizeKeyword(keyword);
+  
+  // Check for sports team references (college/pro)
+  if (SPORTS_TEAMS_REGEX.test(normalizedKw) || COLLEGE_NAMES_REGEX.test(normalizedKw)) {
+    // Only flag if combined with "shoes" or similar - sports team merchandise
+    if (/\b(shoes?|sneakers?|boots?|footwear|sandals?|slides?|slippers?)\b/i.test(normalizedKw)) {
+      return { isIrrelevant: true, reason: "Sports team merchandise keyword" };
+    }
+  }
+  
+  // Check for influencer/celebrity names
+  if (INFLUENCER_REGEX.test(normalizedKw)) {
+    return { isIrrelevant: true, reason: "Influencer/celebrity name keyword" };
+  }
+  
+  // Check for idioms and meme phrases
+  if (IDIOM_PHRASES_REGEX.test(normalizedKw)) {
+    return { isIrrelevant: true, reason: "Idiom or non-literal phrase" };
+  }
+  
+  // Simple person name pattern - 2 word query that looks like a name
+  // Only if it doesn't contain any product-related terms
+  const words = normalizedKw.split(/\s+/);
+  if (words.length === 2 && PERSON_NAME_PATTERN.test(normalizedKw)) {
+    const hasProductTerm = /\b(shoes?|sandals?|boots?|sneakers?|footwear|slides?|clogs?|slippers?|recovery|comfort|walking|running|hiking|orthopedic|plantar|arch)\b/i.test(normalizedKw);
+    if (!hasProductTerm) {
+      // Check if both words look like names (capitalized in original or common names)
+      const commonFirstNames = new Set(['olivia', 'emma', 'liam', 'noah', 'ava', 'sophia', 'john', 'mike', 'sarah', 'david', 'jennifer', 'jessica', 'chris', 'amanda', 'ashley', 'brittany', 'nicole', 'stephanie', 'melissa', 'kevin', 'brian', 'jason', 'justin', 'ryan', 'brandon', 'tyler', 'jacob', 'joshua', 'matthew', 'daniel', 'andrew', 'joseph', 'anthony', 'william', 'robert', 'james', 'michael', 'charles', 'thomas', 'mark', 'steven', 'paul', 'jeffrey', 'scott', 'eric', 'greg', 'timothy', 'jose', 'larry', 'frank', 'raymond', 'jerry', 'dennis', 'walter', 'peter', 'harold', 'douglas', 'henry', 'carl', 'arthur', 'lawrence', 'ronald', 'albert', 'johnny', 'gerald', 'roger', 'keith', 'jeremy', 'terry', 'sean', 'austin', 'christian', 'randy', 'eugene', 'russell', 'louis', 'howard', 'vincent', 'adam', 'harry', 'billy', 'bruce']);
+      if (commonFirstNames.has(words[0])) {
+        return { isIrrelevant: true, reason: "Person name - not product related" };
+      }
+    }
+  }
+  
+  return { isIrrelevant: false, reason: "" };
+}
 
 function getCompetitorBrandTerms(config: Configuration): string[] {
   const competitors = config.competitors?.competitors || [];
@@ -486,6 +540,19 @@ export function evaluateKeyword(
     };
   }
   
+  // Check for irrelevant entities (sports teams, influencers, idioms)
+  const irrelevantCheck = detectIrrelevantEntity(keyword);
+  if (irrelevantCheck.isIrrelevant) {
+    return {
+      ...baseResult,
+      status: "out_of_play",
+      statusIcon: "💤",
+      reason: irrelevantCheck.reason,
+      flags: [...flags, "irrelevant_entity"],
+      confidence: "high",
+    };
+  }
+  
   if (intentType === "variant_or_size") {
     return {
       ...baseResult,
@@ -657,6 +724,8 @@ export async function computeKeywordGap(
         excludedUseCases: 0,
         competitorBrandTerms: 0,
         variantTerms: 0,
+        irrelevantEntities: 0,
+        lowCapability: 0,
         totalFilters: 0,
       },
       contextVersion: 1,
@@ -723,6 +792,8 @@ export async function computeKeywordGap(
   const stats = { passed: 0, review: 0, outOfPlay: 0, percentPassed: 0, percentReview: 0, percentOutOfPlay: 0 };
   let competitorBrandCount = 0;
   let variantCount = 0;
+  let irrelevantEntityCount = 0;
+  let lowCapabilityCount = 0;
   
   allKeywordsMap.forEach(({ keyword: kw, competitors }) => {
     const evaluation = evaluateKeyword(
@@ -763,6 +834,8 @@ export async function computeKeywordGap(
     
     if (evaluation.flags.includes("competitor_brand")) competitorBrandCount++;
     if (evaluation.flags.includes("size_variant")) variantCount++;
+    if (evaluation.flags.includes("irrelevant_entity")) irrelevantEntityCount++;
+    if (evaluation.reason === "Low capability fit") lowCapabilityCount++;
   });
   
   const total = results.length || 1;
@@ -810,7 +883,9 @@ export async function computeKeywordGap(
       excludedUseCases,
       competitorBrandTerms: competitorBrandCount,
       variantTerms: variantCount,
-      totalFilters: excludedCategories + excludedKeywords + excludedUseCases + competitorBrandCount + variantCount,
+      irrelevantEntities: irrelevantEntityCount,
+      lowCapability: lowCapabilityCount,
+      totalFilters: excludedCategories + excludedKeywords + excludedUseCases + competitorBrandCount + variantCount + irrelevantEntityCount + lowCapabilityCount,
     },
     contextVersion: 1,
     configurationName: config.name || "Unknown",
