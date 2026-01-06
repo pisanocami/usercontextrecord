@@ -1935,11 +1935,12 @@ IMPORTANT:
       });
 
       // Persist the analysis results to database
-      const passKeywords = result.keywords?.filter((k: any) => k.status === "pass") || [];
-      const reviewKeywords = result.keywords?.filter((k: any) => k.status === "review") || [];
-      const outOfPlayKeywords = result.keywords?.filter((k: any) => k.status === "out_of_play") || [];
+      // KeywordGapResult has topOpportunities (pass), needsReview, outOfPlay arrays
+      const passKeywords = result.topOpportunities || [];
+      const reviewKeywords = result.needsReview || [];
+      const outOfPlayKeywords = result.outOfPlay || [];
 
-      // Extract top themes from pass keywords for summary
+      // Extract top themes from pass keywords (grouped by theme) for summary
       const themeMap = new Map<string, { count: number; totalVolume: number }>();
       passKeywords.forEach((kw: any) => {
         const theme = kw.theme || "other";
@@ -1956,8 +1957,9 @@ IMPORTANT:
         .sort((a, b) => b.totalVolume - a.totalVolume)
         .slice(0, 5);
 
-      // Calculate estimated missing value
-      const estimatedMissingValue = Math.round(result.summary?.estimatedMissingValue || 0);
+      // Calculate estimated missing value from stats (if available)
+      // Sum volume from pass keywords as proxy for missing value
+      const estimatedMissingValue = passKeywords.reduce((sum: number, kw: any) => sum + (kw.volume || 0), 0);
 
       const savedAnalysis = await storage.createKeywordGapAnalysis({
         userId,
@@ -1966,7 +1968,7 @@ IMPORTANT:
         domain: brandDomain,
         provider: provider,
         status: "completed",
-        totalKeywords: result.keywords?.length || 0,
+        totalKeywords: result.totalGapKeywords || 0,
         passCount: passKeywords.length,
         reviewCount: reviewKeywords.length,
         outOfPlayCount: outOfPlayKeywords.length,
