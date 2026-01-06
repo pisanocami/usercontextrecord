@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -295,15 +295,46 @@ interface ProviderStatus {
   message?: string;
 }
 
+interface SavedAnalysis {
+  id: number;
+  userId: string;
+  configurationId: number;
+  configurationName: string;
+  domain: string;
+  provider: string;
+  status: string;
+  totalKeywords: number;
+  passCount: number;
+  reviewCount: number;
+  outOfPlayCount: number;
+  estimatedMissingValue: number;
+  topThemes: { theme: string; count: number; totalVolume: number }[];
+  results: KeywordGapLiteResult;
+  parameters: Record<string, unknown>;
+  created_at: string;
+}
+
 export default function KeywordGap() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const { toast } = useToast();
   const [competitorDomain, setCompetitorDomain] = useState("");
   const [activeTab, setActiveTab] = useState("gap");
   const [selectedProvider, setSelectedProvider] = useState<ProviderType>("dataforseo");
 
   const configId = id ? parseInt(id, 10) : null;
+  
+  // Parse analysisId from query string
+  const urlParams = new URLSearchParams(searchString);
+  const analysisIdParam = urlParams.get("analysisId");
+  const analysisId = analysisIdParam ? parseInt(analysisIdParam, 10) : null;
+
+  // Fetch saved analysis if analysisId is present
+  const { data: savedAnalysis, isLoading: savedAnalysisLoading } = useQuery<SavedAnalysis>({
+    queryKey: ["/api/keyword-gap-analyses", analysisId],
+    enabled: !!analysisId,
+  });
 
   const { data: statusData, isLoading: statusLoading } = useQuery<{ configured: boolean }>({
     queryKey: ["/api/keyword-gap/status"],
@@ -389,7 +420,15 @@ export default function KeywordGap() {
     analyzeMutation.mutate(competitor);
   };
 
-  if (statusLoading || configLoading) {
+  // When viewing a saved analysis, set the lite mutation data from the saved results
+  useEffect(() => {
+    if (savedAnalysis?.results) {
+      // Trigger a "success" state on the mutation with saved data
+      liteMutation.reset();
+    }
+  }, [savedAnalysis]);
+
+  if (statusLoading || configLoading || savedAnalysisLoading) {
     return (
       <div className="h-full p-6">
         <Skeleton className="h-8 w-48 mb-4" />
@@ -476,14 +515,18 @@ export default function KeywordGap() {
   const isConfirmed = contextStatus === "HUMAN_CONFIRMED" || contextStatus === "LOCKED";
 
   const result = analyzeMutation.data;
+  
+  // Use saved analysis results if available, otherwise use live mutation data
+  const liteResult = savedAnalysis?.results || liteMutation.data;
+  const isViewingSavedAnalysis = !!savedAnalysis;
 
   return (
     <ScrollArea className="h-full">
       <div className="container max-w-6xl py-6 px-4">
-        <Link href="/">
+        <Link href="/keyword-gap">
           <Button variant="ghost" size="sm" className="mb-4" data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Contexts
+            Back to Analyses
           </Button>
         </Link>
 
@@ -500,6 +543,42 @@ export default function KeywordGap() {
           </Badge>
         </div>
 
+        {/* Saved Analysis Banner */}
+        {isViewingSavedAnalysis && savedAnalysis && (
+          <Card className="mb-6 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900">
+                    <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                      Viewing Saved Analysis
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Ran on {new Date(savedAnalysis.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })} using {savedAnalysis.provider}
+                    </p>
+                  </div>
+                </div>
+                <Link href={`/keyword-gap/${configId}`}>
+                  <Button variant="outline" size="sm" data-testid="button-run-new">
+                    <Zap className="h-4 w-4 mr-2" />
+                    Run New Analysis
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isViewingSavedAnalysis && (
         <div className="grid gap-6 md:grid-cols-3 mb-6">
           <Card className="md:col-span-2">
             <CardHeader>
@@ -665,8 +744,9 @@ export default function KeywordGap() {
             </CardContent>
           </Card>
         </div>
+        )}
 
-        {liteMutation.data && (
+        {liteResult && (
           <Card className="mb-6">
             <CardHeader>
               <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -676,7 +756,7 @@ export default function KeywordGap() {
                     Keyword Gap Lite Results
                   </CardTitle>
                   <CardDescription>
-                    {liteMutation.data.brandDomain} vs {liteMutation.data.competitors.length} competitors - Top 30 of {liteMutation.data.totalGapKeywords} keywords
+                    {liteResult.brandDomain} vs {liteResult.competitors.length} competitors - Top 30 of {liteResult.totalGapKeywords} keywords
                   </CardDescription>
                 </div>
                 <div className="flex gap-2 flex-wrap">
@@ -694,18 +774,18 @@ export default function KeywordGap() {
                   )}
                   <Badge variant="outline" className="flex items-center gap-1 text-xs">
                     <ShieldCheck className="h-3 w-3" />
-                    v{liteMutation.data.contextVersion}
+                    v{liteResult.contextVersion}
                   </Badge>
                   <Badge className="flex items-center gap-1 text-xs bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200">
                     <CheckCircle className="h-3 w-3" />
-                    {liteMutation.data.stats.percentPassed}% Pass ({liteMutation.data.stats.passed})
+                    {liteResult.stats.percentPassed}% Pass ({liteResult.stats.passed})
                   </Badge>
                   <Badge className="flex items-center gap-1 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
                     <HelpCircle className="h-3 w-3" />
-                    {liteMutation.data.stats.percentReview}% Review ({liteMutation.data.stats.review})
+                    {liteResult.stats.percentReview}% Review ({liteResult.stats.review})
                   </Badge>
                   <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-                    {liteMutation.data.stats.percentOutOfPlay}% Out ({liteMutation.data.stats.outOfPlay})
+                    {liteResult.stats.percentOutOfPlay}% Out ({liteResult.stats.outOfPlay})
                   </Badge>
                 </div>
               </div>
@@ -760,13 +840,13 @@ export default function KeywordGap() {
                       };
                       
                       // Sum both Pass and Review keywords with capture probability
-                      const passValue = liteMutation.data.topOpportunities.reduce((sum, kw) => {
+                      const passValue = liteResult.topOpportunities.reduce((sum, kw) => {
                         const baseValue = (kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03;
                         const captureProbability = computeCaptureProbability(kw);
                         return sum + (baseValue * captureProbability);
                       }, 0);
                       
-                      const reviewValue = liteMutation.data.needsReview.reduce((sum, kw) => {
+                      const reviewValue = liteResult.needsReview.reduce((sum, kw) => {
                         const baseValue = (kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03;
                         const captureProbability = computeCaptureProbability(kw);
                         return sum + (baseValue * captureProbability);
@@ -801,7 +881,7 @@ export default function KeywordGap() {
                 <div className="p-4 rounded-md border bg-muted/30">
                   <div className="text-sm text-muted-foreground mb-1">Top Themes</div>
                   <div className="flex flex-wrap gap-1" data-testid="stat-top-themes">
-                    {Object.entries(liteMutation.data.grouped || {})
+                    {Object.entries(liteResult.grouped || {})
                       .sort((a, b) => b[1].length - a[1].length)
                       .slice(0, 4)
                       .map(([theme, keywords]) => (
@@ -816,7 +896,7 @@ export default function KeywordGap() {
                   <div className="space-y-1" data-testid="stat-competitor-owners">
                     {(() => {
                       const competitorCounts: Record<string, number> = {};
-                      liteMutation.data.topOpportunities.forEach(kw => {
+                      liteResult.topOpportunities.forEach(kw => {
                         kw.competitorsSeen?.forEach(c => {
                           competitorCounts[c] = (competitorCounts[c] || 0) + 1;
                         });
@@ -838,13 +918,13 @@ export default function KeywordGap() {
               <Tabs defaultValue="opportunities" className="w-full">
                 <TabsList className="mb-4">
                   <TabsTrigger value="opportunities" data-testid="tab-opportunities">
-                    Top Opportunities ({liteMutation.data.topOpportunities.length})
+                    Top Opportunities ({liteResult.topOpportunities.length})
                   </TabsTrigger>
                   <TabsTrigger value="review" data-testid="tab-review">
-                    Needs Review ({liteMutation.data.needsReview.length})
+                    Needs Review ({liteResult.needsReview.length})
                   </TabsTrigger>
                   <TabsTrigger value="out" data-testid="tab-out">
-                    Out of Play ({liteMutation.data.outOfPlay.length})
+                    Out of Play ({liteResult.outOfPlay.length})
                   </TabsTrigger>
                 </TabsList>
 
@@ -852,7 +932,7 @@ export default function KeywordGap() {
                   <p className="text-sm text-muted-foreground mb-4">
                     High-capability keywords aligned with your category. Ready to target.
                   </p>
-                  {liteMutation.data.topOpportunities.length === 0 ? (
+                  {liteResult.topOpportunities.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       No top opportunities found. Check "Needs Review" for borderline keywords.
                     </div>
@@ -872,7 +952,7 @@ export default function KeywordGap() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {liteMutation.data.topOpportunities.slice(0, 50).map((kw, i) => (
+                          {liteResult.topOpportunities.slice(0, 50).map((kw, i) => (
                             <TableRow key={i} data-testid={`row-opportunity-${i}`}>
                               <TableCell className="font-medium">
                                 <div className="flex items-center gap-2">
@@ -950,7 +1030,7 @@ export default function KeywordGap() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Medium-capability keywords. Review for potential opportunities or exclusions.
                   </p>
-                  {liteMutation.data.needsReview.length === 0 ? (
+                  {liteResult.needsReview.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       No keywords need review.
                     </div>
@@ -969,7 +1049,7 @@ export default function KeywordGap() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {liteMutation.data.needsReview.slice(0, 50).map((kw, i) => (
+                          {liteResult.needsReview.slice(0, 50).map((kw, i) => (
                             <TableRow key={i} data-testid={`row-review-${i}`}>
                               <TableCell className="font-medium">{kw.keyword}</TableCell>
                               <TableCell>
@@ -1011,14 +1091,14 @@ export default function KeywordGap() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Keywords filtered out, grouped by reason. Expand each category to view details.
                   </p>
-                  {liteMutation.data.outOfPlay.length === 0 ? (
+                  {liteResult.outOfPlay.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       No keywords marked as out of play.
                     </div>
                   ) : (
                     (() => {
                       // Group keywords by reason category
-                      const reasonGroups: Record<string, { label: string; keywords: typeof liteMutation.data.outOfPlay }> = {
+                      const reasonGroups: Record<string, { label: string; keywords: typeof liteResult.outOfPlay }> = {
                         competitor_brand: { label: "Competitor Brand Terms", keywords: [] },
                         size_variant: { label: "Size/Variant Queries", keywords: [] },
                         irrelevant_entity: { label: "Irrelevant Entity Keywords", keywords: [] },
@@ -1027,7 +1107,7 @@ export default function KeywordGap() {
                         other: { label: "Other", keywords: [] },
                       };
                       
-                      liteMutation.data.outOfPlay.forEach(kw => {
+                      liteResult.outOfPlay.forEach(kw => {
                         if (kw.flags.includes("competitor_brand")) {
                           reasonGroups.competitor_brand.keywords.push(kw);
                         } else if (kw.flags.includes("size_variant")) {
@@ -1106,7 +1186,7 @@ export default function KeywordGap() {
               </Tabs>
 
               {/* Approve Context & Adopt Analysis button - only shown when provisional */}
-              {isProvisional && liteMutation.data && (
+              {isProvisional && liteResult && (
                 <div className="mt-6 pt-6 border-t">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-sm text-muted-foreground">
