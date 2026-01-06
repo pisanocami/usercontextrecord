@@ -74,6 +74,31 @@ export const bulkJobs = pgTable("bulk_jobs", {
   updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Keyword Gap Analyses table - stores completed analysis runs
+export const keywordGapAnalyses = pgTable("keyword_gap_analyses", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  configurationId: integer("configuration_id").notNull(), // FK to configurations
+  configurationName: text("configuration_name").notNull(),
+  domain: varchar("domain").notNull(),
+  provider: varchar("provider").notNull(), // "dataforseo" | "ahrefs"
+  status: varchar("status").notNull().default("completed"), // "running" | "completed" | "failed"
+  // Summary metrics
+  totalKeywords: integer("total_keywords").notNull().default(0),
+  passCount: integer("pass_count").notNull().default(0),
+  reviewCount: integer("review_count").notNull().default(0),
+  outOfPlayCount: integer("out_of_play_count").notNull().default(0),
+  estimatedMissingValue: integer("estimated_missing_value").notNull().default(0),
+  // Top themes for quick display
+  topThemes: jsonb("top_themes").default([]), // Array of {theme, count, totalVolume}
+  // Full results stored as JSONB
+  results: jsonb("results").notNull(), // Full KeywordGapLiteResult object
+  // Parameters used for the run
+  parameters: jsonb("parameters").notNull(), // {limitPerDomain, locationCode, languageCode, maxCompetitors}
+  // Timestamps
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 // Bulk brand input schema
 export const bulkBrandInputSchema = z.object({
   domain: z.string().min(1),
@@ -103,6 +128,42 @@ export interface BulkJob {
   created_at: Date;
   updated_at: Date;
 }
+
+// Keyword Gap Analysis types
+export interface KeywordGapAnalysisTheme {
+  theme: string;
+  count: number;
+  totalVolume: number;
+}
+
+export interface KeywordGapAnalysisParameters {
+  limitPerDomain: number;
+  locationCode: number;
+  languageCode: string;
+  maxCompetitors: number;
+  provider: string;
+}
+
+export interface KeywordGapAnalysis {
+  id: number;
+  userId: string;
+  configurationId: number;
+  configurationName: string;
+  domain: string;
+  provider: string;
+  status: "running" | "completed" | "failed";
+  totalKeywords: number;
+  passCount: number;
+  reviewCount: number;
+  outOfPlayCount: number;
+  estimatedMissingValue: number;
+  topThemes: KeywordGapAnalysisTheme[];
+  results: any; // Full KeywordGapLiteResult - complex nested type
+  parameters: KeywordGapAnalysisParameters;
+  created_at: Date;
+}
+
+export type InsertKeywordGapAnalysis = Omit<KeywordGapAnalysis, "id" | "created_at">;
 
 // Brand Context Schema - only domain is required, rest is optional for AI auto-generation
 export const brandSchema = z.object({
