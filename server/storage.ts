@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions, brands } from "@shared/schema";
+import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses } from "@shared/schema";
 import { eq, and, desc, max } from "drizzle-orm";
 import type {
   Brand,
@@ -16,6 +16,10 @@ import type {
   ConfigurationVersion,
   BrandEntity,
   InsertBrandEntity,
+  KeywordGapAnalysis,
+  InsertKeywordGapAnalysis,
+  KeywordGapAnalysisTheme,
+  KeywordGapAnalysisParameters,
 } from "@shared/schema";
 
 // Database brand type (global brand entity)
@@ -77,6 +81,11 @@ export interface IStorage {
   getConfigurationVersions(configId: number, userId: string): Promise<ConfigurationVersion[]>;
   getConfigurationVersion(versionId: number, userId: string): Promise<ConfigurationVersion | undefined>;
   restoreConfigurationVersion(versionId: number, userId: string): Promise<DbConfiguration>;
+  // Keyword Gap Analysis operations
+  createKeywordGapAnalysis(analysis: InsertKeywordGapAnalysis): Promise<KeywordGapAnalysis>;
+  getKeywordGapAnalyses(userId: string): Promise<KeywordGapAnalysis[]>;
+  getKeywordGapAnalysisById(id: number, userId: string): Promise<KeywordGapAnalysis | undefined>;
+  deleteKeywordGapAnalysis(id: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -804,6 +813,111 @@ export class DatabaseStorage implements IStorage {
       created_at: updated.created_at,
       updated_at: updated.updated_at,
     };
+  }
+
+  // ============ KEYWORD GAP ANALYSIS OPERATIONS ============
+
+  async createKeywordGapAnalysis(analysis: InsertKeywordGapAnalysis): Promise<KeywordGapAnalysis> {
+    const [result] = await db
+      .insert(keywordGapAnalyses)
+      .values({
+        userId: analysis.userId,
+        configurationId: analysis.configurationId,
+        configurationName: analysis.configurationName,
+        domain: analysis.domain,
+        provider: analysis.provider,
+        status: analysis.status,
+        totalKeywords: analysis.totalKeywords,
+        passCount: analysis.passCount,
+        reviewCount: analysis.reviewCount,
+        outOfPlayCount: analysis.outOfPlayCount,
+        estimatedMissingValue: analysis.estimatedMissingValue,
+        topThemes: analysis.topThemes,
+        results: analysis.results,
+        parameters: analysis.parameters,
+      })
+      .returning();
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      configurationName: result.configurationName,
+      domain: result.domain,
+      provider: result.provider,
+      status: result.status as "running" | "completed" | "failed",
+      totalKeywords: result.totalKeywords,
+      passCount: result.passCount,
+      reviewCount: result.reviewCount,
+      outOfPlayCount: result.outOfPlayCount,
+      estimatedMissingValue: result.estimatedMissingValue,
+      topThemes: (result.topThemes as KeywordGapAnalysisTheme[]) || [],
+      results: result.results,
+      parameters: result.parameters as KeywordGapAnalysisParameters,
+      created_at: result.created_at,
+    };
+  }
+
+  async getKeywordGapAnalyses(userId: string): Promise<KeywordGapAnalysis[]> {
+    const results = await db
+      .select()
+      .from(keywordGapAnalyses)
+      .where(eq(keywordGapAnalyses.userId, userId))
+      .orderBy(desc(keywordGapAnalyses.created_at));
+
+    return results.map(r => ({
+      id: r.id,
+      userId: r.userId,
+      configurationId: r.configurationId,
+      configurationName: r.configurationName,
+      domain: r.domain,
+      provider: r.provider,
+      status: r.status as "running" | "completed" | "failed",
+      totalKeywords: r.totalKeywords,
+      passCount: r.passCount,
+      reviewCount: r.reviewCount,
+      outOfPlayCount: r.outOfPlayCount,
+      estimatedMissingValue: r.estimatedMissingValue,
+      topThemes: (r.topThemes as KeywordGapAnalysisTheme[]) || [],
+      results: r.results,
+      parameters: r.parameters as KeywordGapAnalysisParameters,
+      created_at: r.created_at,
+    }));
+  }
+
+  async getKeywordGapAnalysisById(id: number, userId: string): Promise<KeywordGapAnalysis | undefined> {
+    const [result] = await db
+      .select()
+      .from(keywordGapAnalyses)
+      .where(and(eq(keywordGapAnalyses.id, id), eq(keywordGapAnalyses.userId, userId)))
+      .limit(1);
+
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      configurationName: result.configurationName,
+      domain: result.domain,
+      provider: result.provider,
+      status: result.status as "running" | "completed" | "failed",
+      totalKeywords: result.totalKeywords,
+      passCount: result.passCount,
+      reviewCount: result.reviewCount,
+      outOfPlayCount: result.outOfPlayCount,
+      estimatedMissingValue: result.estimatedMissingValue,
+      topThemes: (result.topThemes as KeywordGapAnalysisTheme[]) || [],
+      results: result.results,
+      parameters: result.parameters as KeywordGapAnalysisParameters,
+      created_at: result.created_at,
+    };
+  }
+
+  async deleteKeywordGapAnalysis(id: number, userId: string): Promise<void> {
+    await db
+      .delete(keywordGapAnalyses)
+      .where(and(eq(keywordGapAnalyses.id, id), eq(keywordGapAnalyses.userId, userId)));
   }
 }
 
