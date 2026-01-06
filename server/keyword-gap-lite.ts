@@ -64,6 +64,8 @@ export interface KeywordGapResult {
   };
   contextVersion: number;
   configurationName: string;
+  fromCache: boolean;
+  provider: string;
 }
 
 interface CacheEntry {
@@ -93,8 +95,8 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getCacheKey(brandDomain: string, competitorDomain: string, locationCode: number, languageCode: string): string {
-  return `${normalizeDomain(brandDomain)}|${normalizeDomain(competitorDomain)}|${locationCode}|${languageCode}`;
+function getCacheKey(brandDomain: string, competitorDomain: string, locationCode: number, languageCode: string, provider: string): string {
+  return `${normalizeDomain(brandDomain)}|${normalizeDomain(competitorDomain)}|${locationCode}|${languageCode}|${provider}`;
 }
 
 function getFromCache(key: string): GapKeyword[] | null {
@@ -681,6 +683,7 @@ export async function computeKeywordGap(
     languageCode?: string;
     maxCompetitors?: number;
     provider?: "dataforseo" | "ahrefs";
+    forceRefresh?: boolean;
   } = {}
 ): Promise<KeywordGapResult> {
   const {
@@ -689,7 +692,10 @@ export async function computeKeywordGap(
     languageCode = "English",
     maxCompetitors = 5,
     provider = "dataforseo",
+    forceRefresh = false,
   } = options;
+  
+  let usedCache = false;
   
   const keywordProvider = getProvider(provider);
   
@@ -730,6 +736,8 @@ export async function computeKeywordGap(
       },
       contextVersion: 1,
       configurationName: config.name || "Unknown",
+      fromCache: false,
+      provider,
     };
   }
   
@@ -744,12 +752,17 @@ export async function computeKeywordGap(
     directCompetitors.map(competitor =>
       limit(async () => {
         const competitorDomain = normalizeDomain(competitor);
-        const cacheKey = getCacheKey(brandDomain, competitorDomain, locationCode, languageCode);
-        let cachedKeywords = getFromCache(cacheKey);
+        const cacheKey = getCacheKey(brandDomain, competitorDomain, locationCode, languageCode, provider);
+        let cachedKeywords = forceRefresh ? null : getFromCache(cacheKey);
+        
+        if (cachedKeywords) {
+          usedCache = true;
+          console.log(`[${keywordProvider.displayName}] Using cached data for ${competitorDomain}`);
+        }
         
         if (!cachedKeywords) {
           try {
-            console.log(`[${keywordProvider.displayName}] Fetching gap: ${brandDomain} vs ${competitorDomain}`);
+            console.log(`[${keywordProvider.displayName}] Fetching gap: ${brandDomain} vs ${competitorDomain}${forceRefresh ? ' (force refresh)' : ''}`);
             const result = await keywordProvider.getGapKeywords(
               brandDomain,
               competitorDomain,
@@ -889,6 +902,8 @@ export async function computeKeywordGap(
     },
     contextVersion: 1,
     configurationName: config.name || "Unknown",
+    fromCache: usedCache,
+    provider,
   };
 }
 

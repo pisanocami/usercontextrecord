@@ -1885,6 +1885,7 @@ IMPORTANT:
         languageCode = "en",
         maxCompetitors = 5,
         provider = "dataforseo" as ProviderType,
+        forceRefresh = false,
       } = req.body;
 
       const selectedProvider = getProvider(provider);
@@ -1932,6 +1933,7 @@ IMPORTANT:
         languageCode: languageCode === "en" ? "English" : languageCode,
         maxCompetitors,
         provider,
+        forceRefresh,
       });
 
       // Persist the analysis results to database
