@@ -1,0 +1,277 @@
+Perfecto.
+Acá van **instrucciones DIRECTAS para el dev**, en formato **operativo**, sin teoría, para **arreglar el problema actual** (demasiados PASS, oportunidades falsas) **sin romper el sistema**.
+
+Esto es **qué tocar, en qué orden y con qué código**.
+
+---
+
+# 🎯 OBJETIVO PARA EL DEV
+
+> Ajustar el motor para que:
+>
+> * **NO pasen keywords irrelevantes**
+> * **PASS sea escaso y defendible**
+> * **REVIEW vuelva a existir**
+> * **Gate G y H hagan trabajo real**
+>
+> Sin cambiar arquitectura, solo **calibración + reglas**.
+
+---
+
+# 🧱 PASO 1 — ENDURECER GATE G (OBLIGATORIO)
+
+📍 **Archivo:**
+`shared/rules/packs/keyword.negative_scope.v1.json`
+
+### 1.1 Agregar exclusiones por intent irrelevante
+
+👉 **Agregar esta regla** (copiar/pegar):
+
+```json
+{
+  "ruleId": "negative_scope.irrelevant_intent",
+  "appliesTo": "item",
+  "ucrSection": "G",
+  "severity": "critical",
+  "when": {
+    "op": "regex_match",
+    "left": "$item.keyword",
+    "right": "(pdf|training plan|marathon|half marathon|workout|training schedule|what is|are .* business casual|can you .*)"
+  },
+  "then": {
+    "set": {
+      "disposition": "OUT_OF_PLAY",
+      "reason": "Irrelevant or informational intent"
+    },
+    "trace": true
+  }
+}
+```
+
+### 1.2 Regla dura para competitor brands (si no existe)
+
+```json
+{
+  "ruleId": "negative_scope.competitor_brand",
+  "appliesTo": "item",
+  "ucrSection": "G",
+  "severity": "critical",
+  "when": {
+    "op": "any_match",
+    "left": "$item.keyword",
+    "right": "$ucr.G.competitor_brands"
+  },
+  "then": {
+    "set": {
+      "disposition": "OUT_OF_PLAY",
+      "reason": "Competitor brand term"
+    },
+    "trace": true
+  }
+}
+```
+
+✅ **Resultado esperado:**
+Keywords como:
+
+* `20 week marathon training plan pdf`
+* `are sandals business casual`
+* `can you shoes`
+
+→ **OUT_OF_PLAY inmediato**, sin pasar por H.
+
+---
+
+# 🧱 PASO 2 — ARREGLAR GATE H (SCORING REAL)
+
+📍 **Archivo:**
+`UCR.H` (config / seed / UI editable)
+
+### 2.1 Cambiar thresholds (OBLIGATORIO)
+
+👉 **Reemplazar**:
+
+```json
+"thresholds": {
+  "pass": 0.50,
+  "review": 0.25
+}
+```
+
+👉 **Por**:
+
+```json
+"thresholds": {
+  "pass": 0.65,
+  "review": 0.35
+}
+```
+
+📌 Regla que el dev debe respetar en el engine:
+
+```ts
+if (capabilityScore < review) → OUT_OF_PLAY
+if (capabilityScore >= pass) → PASS
+else → REVIEW
+```
+
+---
+
+### 2.2 Agregar boosters y penalties reales (CLAVE)
+
+👉 **Agregar en `UCR.H`**:
+
+```json
+"boosters": [
+  { "pattern": "recovery", "weight": 0.15 },
+  { "pattern": "plantar fasciitis", "weight": 0.20 },
+  { "pattern": "arch support", "weight": 0.10 },
+  { "pattern": "after running", "weight": 0.10 }
+],
+"penalties": [
+  { "pattern": "training plan", "weight": -0.30 },
+  { "pattern": "pdf", "weight": -0.50 },
+  { "pattern": "marathon", "weight": -0.20 }
+]
+```
+
+📌 **NO tocar el baseScore (0.5)**
+📌 **NO aplicar thresholds dentro del scorer**
+
+---
+
+# 🧱 PASO 3 — CATEGORY FENCE B (NO MÁS “MATCHES CORE” FÁCIL)
+
+📍 **Archivo:**
+`UCR.B`
+
+### 3.1 Separar core vs extended
+
+```json
+"B": {
+  "core_terms": [
+    "recovery footwear",
+    "recovery sandals",
+    "recovery shoes",
+    "oofos"
+  ],
+  "extended_terms": [
+    "arch support",
+    "plantar fasciitis",
+    "supportive sandals",
+    "after workout",
+    "comfort shoes"
+  ]
+}
+```
+
+### 3.2 Lógica obligatoria en Gate B
+
+📌 **Implementar así (no inventar):**
+
+```ts
+if (matches core_terms) → in_fence
+else if (matches extended_terms) → in_fence
+else → outside_fence = true
+```
+
+⚠️ `outside_fence` **NUNCA** puede producir PASS directo
+→ como máximo REVIEW.
+
+---
+
+# 🧱 PASO 4 — FORZAR REVIEW A EXISTIR (ANTI-PASS-SPAM)
+
+📍 **Archivo:**
+`shared/rules/packs/keyword.scoring.v1.json`
+
+👉 **Agregar esta regla al final**:
+
+```json
+{
+  "ruleId": "scoring.force_review_if_outside_fence",
+  "appliesTo": "item",
+  "ucrSection": "B",
+  "severity": "medium",
+  "when": {
+    "op": "and",
+    "conditions": [
+      { "op": "eq", "left": "$item.outside_fence", "right": true },
+      { "op": "lt", "left": "$item.capabilityScore", "right": "$ucr.H.thresholds.pass" }
+    ]
+  },
+  "then": {
+    "set": {
+      "disposition": "REVIEW",
+      "reason": "Outside category fence — requires human validation"
+    },
+    "trace": true
+  }
+}
+```
+
+✅ Esto garantiza:
+
+* REVIEW > 0%
+* PASS solo cuando **realmente fuerte**
+
+---
+
+# 🧱 PASO 5 — DEBUG OBLIGATORIO (1 corrida)
+
+📍 **En el gateway**, loggear por keyword:
+
+```ts
+{
+  keyword,
+  capabilityScore,
+  outsideFence,
+  finalDisposition,
+  failedGate: "G" | "B" | "H" | null
+}
+```
+
+📊 **Esperado después del fix**:
+
+| Disposition | % esperado |
+| ----------- | ---------- |
+| PASS        | 10–25%     |
+| REVIEW      | 30–45%     |
+| OUT_OF_PLAY | 35–55%     |
+
+🚨 Si REVIEW = 0% → **FAIL**
+
+---
+
+# 🧪 TESTS MANUALES QUE EL DEV DEBE CORRER
+
+| Keyword                              | Resultado correcto |
+| ------------------------------------ | ------------------ |
+| `nike recovery sandals`              | OUT (G)            |
+| `20 week marathon training plan pdf` | OUT (G)            |
+| `are sandals business casual`        | OUT (G)            |
+| `best recovery sandals`              | PASS               |
+| `arch support slippers`              | REVIEW o PASS      |
+| `comfort shoes`                      | REVIEW             |
+
+---
+
+# 🧠 REGLA DE ORO PARA EL DEV
+
+> **Si todo es PASS → el sistema está roto**
+> **Si todo es OUT → el sistema está roto**
+> **REVIEW es señal de salud**
+
+---
+
+## ✅ LISTO
+
+Estas instrucciones son **suficientes para corregir el problema actual** sin rediseñar nada.
+
+Si querés, el próximo paso natural es:
+
+* crear un **preset “OOFOS Calibration v1”** reusable
+* o definir un **modo warm-up** para nuevos clientes
+* o instrumentar métricas automáticas de “PASS inflation”
+
+Decime cuál seguimos.
