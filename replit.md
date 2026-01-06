@@ -169,6 +169,7 @@ The frontend features:
 - **Irrelevant Entity Filter**: Added detection for sports teams (NCAA/NFL/NBA), college names, influencer names, and idioms - routes to Out of Play with "irrelevant_entity" flag. Only fires when combined with footwear terms to avoid false positives.
 - **Out of Play Grouped UI**: Rewrote Out of Play tab to use collapsible Accordion grouped by reason categories (competitor_brand, size_variant, irrelevant_entity, excluded, low_capability) with count badges per group, sorted by volume descending.
 - **Confidence-Weighted Missing Value**: Replaced simple 3% CTR with capture probability formula: `statusFactor × confidenceFactor × kdFactor × positionFactor`. Status: Pass 70%, Fence 40%, Review 20%. Confidence: High 100%, Med 70%, Low 40%. KD clamped to [0,100]. Tooltip explains methodology.
+- **Keyword Gap Analysis Persistence**: Added `keyword_gap_analyses` table to store analysis results with metrics (pass/review/out counts, estimated missing value, top themes). Auto-saves on run. New API endpoints: GET /api/keyword-gap-analyses, GET /api/keyword-gap-analyses/:id, DELETE /api/keyword-gap-analyses/:id. KeywordGapList page redesigned with tabbed interface showing saved analyses with View/Delete actions.
 
 ### 10-Phase Growth Signal Architecture
 
