@@ -33,6 +33,7 @@ export const DTC_FOOTWEAR_SCORING: ScoringConfig = {
   difficulty_weight: 0.5,
   position_weight: 0.5,
   vertical_preset: "dtc_footwear",
+  priority_themes: ["recovery", "plantar fasciitis", "arch support", "foot pain"],
 };
 
 export const RETAIL_BIG_BOX_CAPABILITY: CapabilityModel = {
@@ -60,6 +61,7 @@ export const RETAIL_BIG_BOX_SCORING: ScoringConfig = {
   difficulty_weight: 0.4,
   position_weight: 0.6,
   vertical_preset: "retail_big_box",
+  priority_themes: ["diy", "home improvement", "contractor"],
 };
 
 export const B2B_SAAS_CAPABILITY: CapabilityModel = {
@@ -84,6 +86,7 @@ export const B2B_SAAS_SCORING: ScoringConfig = {
   difficulty_weight: 0.6,
   position_weight: 0.4,
   vertical_preset: "b2b_saas",
+  priority_themes: ["enterprise", "integration", "automation"],
 };
 
 export const DEFAULT_CAPABILITY: CapabilityModel = {
@@ -99,6 +102,7 @@ export const DEFAULT_SCORING: ScoringConfig = {
   difficulty_weight: 0.5,
   position_weight: 0.5,
   vertical_preset: "custom",
+  priority_themes: [],
 };
 
 export type PresetName = "dtc_footwear" | "retail_big_box" | "b2b_saas" | "custom";

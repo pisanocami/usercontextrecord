@@ -191,6 +191,8 @@ export const categoryDefinitionSchema = z.object({
   excluded: z.array(z.string()).default([]),
   approved_categories: z.array(z.string()).default([]), // Human-approved categories
   alternative_categories: z.array(categoryAlternativeSchema).default([]), // AI-suggested with evidence
+  // v3.3: Semantic extensions - soft fence terms that match but don't require strict alignment
+  semantic_extensions: z.array(z.string()).default([]), // e.g., ["flat feet", "plantar fasciitis", "arch support"]
 });
 
 // Phase 2: Enhanced Competitor Schema with tiering, scoring, and evidence
@@ -307,14 +309,16 @@ export const capabilityModelSchema = z.object({
 // Scoring Config Schema - configurable thresholds and weights
 export const scoringConfigSchema = z.object({
   // Thresholds for pass/review/out_of_play
-  pass_threshold: z.number().min(0).max(1).default(0.60), // DTC: 0.55, Retail: 0.65
-  review_threshold: z.number().min(0).max(1).default(0.30), // Below this = out_of_play
+  pass_threshold: z.number().min(0).max(1).default(0.50), // Calibrated for real-world data
+  review_threshold: z.number().min(0).max(1).default(0.25), // Below this = out_of_play
   // Difficulty weighting (0 = ignore KD, 1 = full weight)
   difficulty_weight: z.number().min(0).max(1).default(0.5),
   // Position weighting (0 = ignore position, 1 = full weight)
   position_weight: z.number().min(0).max(1).default(0.5),
   // Vertical preset name (for display)
   vertical_preset: z.string().default("custom"),
+  // v3.3: Priority themes - keywords matching these themes get PASS override (CMO-safe)
+  priority_themes: z.array(z.string()).default([]), // e.g., ["recovery", "plantar fasciitis"]
 });
 
 // Phase 3: Enhanced exclusion entry with match type and TTL
@@ -633,6 +637,7 @@ export const defaultConfiguration: InsertConfiguration = {
     excluded: [], // AI will populate based on category
     approved_categories: [],
     alternative_categories: [],
+    semantic_extensions: [], // v3.3: Soft fence terms
   },
   competitors: {
     direct: [],

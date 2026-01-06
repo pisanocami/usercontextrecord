@@ -182,20 +182,26 @@ export function checkExclusions(
 export function fenceCheck(
   keyword: string,
   inScopeConcepts: string[],
-  demandThemes: string[]
-): { inFence: boolean; reason: string } {
+  demandThemes: string[],
+  semanticExtensions: string[] = []
+): { inFence: boolean; reason: string; matchType: "core" | "semantic" | "none" } {
   const normalizedKw = normalizeKeyword(keyword);
   
-  const allConcepts = [
+  // Core concepts (strict fence)
+  const coreConcepts = [
     ...inScopeConcepts.map(c => normalizeKeyword(c)),
     ...demandThemes.map(t => normalizeKeyword(t)),
   ].filter(Boolean);
   
-  if (allConcepts.length === 0) {
-    return { inFence: true, reason: "No fence defined - auto-pass" };
+  // Semantic extensions (soft fence - matches count as in-fence)
+  const semanticTerms = semanticExtensions.map(s => normalizeKeyword(s)).filter(Boolean);
+  
+  if (coreConcepts.length === 0 && semanticTerms.length === 0) {
+    return { inFence: true, reason: "No fence defined - auto-pass", matchType: "core" };
   }
   
-  for (const concept of allConcepts) {
+  // Check core concepts first
+  for (const concept of coreConcepts) {
     const conceptTokens = concept.split(" ").filter(t => t.length > 2);
     const keywordTokens = normalizedKw.split(" ");
     
@@ -206,11 +212,27 @@ export function fenceCheck(
     );
     
     if (hasMatch) {
-      return { inFence: true, reason: `Matches: "${concept}"` };
+      return { inFence: true, reason: `Matches core: "${concept}"`, matchType: "core" };
     }
   }
   
-  return { inFence: false, reason: "Outside category fence - needs review" };
+  // Check semantic extensions (soft match - still counts as in-fence)
+  for (const extension of semanticTerms) {
+    const extTokens = extension.split(" ").filter(t => t.length > 2);
+    const keywordTokens = normalizedKw.split(" ");
+    
+    const hasMatch = extTokens.some(token => 
+      keywordTokens.some(kwToken => 
+        kwToken.includes(token) || token.includes(kwToken)
+      )
+    );
+    
+    if (hasMatch) {
+      return { inFence: true, reason: `Matches semantic extension: "${extension}"`, matchType: "semantic" };
+    }
+  }
+  
+  return { inFence: false, reason: "Outside category fence - needs review", matchType: "none" };
 }
 
 const VARIANT_TERMS_REGEX = /\b(size\s*\d|wide\s*width|narrow\s*width|4e|2e|w\s*width|mens\s*size|womens\s*size|kids\s*size|black\s+shoe|white\s+shoe|grey\s+shoe|navy\s+shoe)\b/i;
@@ -662,7 +684,10 @@ export function evaluateKeyword(
     ...(config.demand_definition?.non_brand_keywords?.problem_terms || []),
   ];
   
-  const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes);
+  // v3.3: Get semantic extensions for soft fence matching
+  const semanticExtensions = config.category_definition?.semantic_extensions || [];
+  
+  const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes, semanticExtensions);
   let outsideFence = false;
   
   if (!fenceResult.inFence) {
@@ -722,6 +747,34 @@ export function evaluateKeyword(
     "low",
     `pass: ${passThreshold}, review: ${reviewThreshold}`
   ));
+
+  // ============================================
+  // PRIORITY THEME OVERRIDE (CMO-safe)
+  // ============================================
+  const priorityThemes = scoringConfig.priority_themes || [];
+  if (priorityThemes.length > 0) {
+    const normalizedKw = normalizeKeyword(keyword);
+    for (const theme of priorityThemes) {
+      const normalizedTheme = normalizeKeyword(theme);
+      if (normalizedKw.includes(normalizedTheme) || normalizedTheme.split(" ").some(t => t.length > 2 && normalizedKw.includes(t))) {
+        const reason = `Strategic priority theme: "${theme}"`;
+        trace.push(createTrace("scoring.priority_theme_override", "H", reason, "medium", keyword));
+        reasons.push(reason);
+        resultFlags.push("priority_theme");
+        return {
+          ...baseResult,
+          status: "pass",
+          disposition: "PASS",
+          statusIcon: "Y",
+          reason,
+          reasons,
+          flags: resultFlags,
+          confidence: "high",
+          trace,
+        };
+      }
+    }
+  }
 
   // ============================================
   // GATE 4: E/F (Strategic/Channel) - PRIORITIZATION
