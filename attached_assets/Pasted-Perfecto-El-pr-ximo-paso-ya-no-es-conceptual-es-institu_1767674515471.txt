@@ -1,0 +1,836 @@
+Perfecto.
+El próximo paso ya no es conceptual: es institucionalizar todo lo que definimos para que no se diluya cuando sumes más módulos, devs o councils.
+
+Te lo marco en 3 movimientos secuenciales, claros y ejecutables.
+
+🥇 PASO 1 — Crear el Module Contract oficial (1 fuente de verdad)
+
+👉 Objetivo: que ningún módulo pueda existir sin declarar cómo consume el UCR.
+
+Entregable concreto
+
+Un archivo tipo:
+
+/contracts/module.contract.ts
+
+
+o
+
+/contracts/module.contract.json
+
+Qué debe contener (mínimo)
+
+module_id
+
+required_ucr_sections
+
+optional_ucr_sections
+
+disposition_rules (PASS / REVIEW / OUT)
+
+explainability_required: true
+
+Ejemplo ultra-sintético:
+
+{
+  "module_id": "seo.keyword_gap_visibility.v1",
+  "ucr_binding": {
+    "required": ["A","B","C","G","H"],
+    "optional": ["D","E","F"]
+  },
+  "dispositions": ["PASS","REVIEW","OUT_OF_PLAY"],
+  "explainability": {
+    "required": true,
+    "fields": ["rule", "ucr_section"]
+  }
+}
+
+
+🔒 Regla: si un módulo no tiene contract → no corre.
+
+🥈 PASO 2 — Formalizar el Execution Gateway (hard guardrail)
+
+👉 Objetivo: que el UCR deje de ser “contexto blando” y pase a ser middleware obligatorio.
+
+Qué cerrás acá
+
+Validación de estado (LOCKED)
+
+Validación de secciones requeridas
+
+Inyección de filtros
+
+Normalización de output
+
+Esto convierte el sistema en:
+
+Strategy → Enforced Logic → Output
+
+No dashboards.
+
+🥉 PASO 3 — Convertir los Playbooks en Council Rule Sets
+
+Ahora sí: el gran salto.
+
+Qué significa esto
+
+Cada playbook (como el de Keyword Gap) deja de ser solo texto y pasa a tener:
+
+reglas declarativas
+
+thresholds
+
+flags de riesgo
+
+Ejemplo:
+
+{
+  "rule_id": "serp_structural_constraint",
+  "condition": "serp_features > threshold",
+  "action": "set_disposition:REVIEW",
+  "council": "SEO Visibility & Demand"
+}
+
+
+Así lográs:
+
+trazabilidad
+
+auditabilidad
+
+reuse por LLMs y agentes
+
+🧭 Orden recomendado (no lo saltees)
+
+Module Contract (1 día)
+
+Execution Gateway (1–2 días)
+
+Council Rule Sets (iterativo)
+
+Después de eso:
+
+podés sumar 20 módulos sin caos
+
+podés cambiar estrategia sin re-correr todo
+
+podés explicarle cualquier output a un CMO en 30 segundos
+
+Veredicto claro
+
+👉 El sistema ya está pensado.
+👉 El próximo paso es codificar la autoridad del UCR.
+
+Si querés, en el próximo mensaje puedo:
+
+escribir el module.contract.ts completo
+
+o diseñar el Council Rules DSL
+
+o ayudarte a decidir qué módulo debería migrar primero (spoiler: ya elegiste el correcto).
+
+escribir el module.contract.ts completo
+
+o diseñar el Council Rules DSL
+
+Aquí tenés ambas cosas:
+
+un module.contract.ts completo (listo para pegar en repo), y
+
+un diseño de Council Rules DSL (con schema + ejemplos + cómo evaluarlo).
+
+1) module.contract.ts (completo)
+/**
+ * module.contract.ts
+ * Force of Nature | Context-First OS
+ *
+ * Purpose:
+ * - Make UCR the non-negotiable contract for all modules
+ * - Enforce: required UCR sections, execution gate rules, dispositions, explainability
+ * - Provide a portable, versioned module contract that can be used by:
+ *   - backend execution gateway
+ *   - UI rendering / one-pager
+ *   - audit trail
+ *
+ * Notes:
+ * - Keep this file dependency-light so it can be shared across server/client if desired.
+ * - If you already have Zod in shared schema, you can swap the light validators with Zod.
+ */
+
+/* ---------------------------------- */
+/* Core Types                         */
+/* ---------------------------------- */
+
+export type UCRSectionID = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
+
+export type UCRStatus =
+  | "DRAFT_AI"
+  | "AI_READY"
+  | "AI_ANALYSIS_RUN"
+  | "HUMAN_CONFIRMED"
+  | "LOCKED";
+
+export type Disposition = "PASS" | "REVIEW" | "OUT_OF_PLAY";
+
+export type DataSource =
+  | "DataForSEO"
+  | "Ahrefs"
+  | "GoogleTrends"
+  | "SERPAPI"
+  | "BrightData"
+  | "OpenAI"
+  | "Gemini"
+  | "Internal"
+  | "Other";
+
+/**
+ * Minimal UCR "shape" used by the contract layer.
+ * Your actual UCR schema can be richer; this is the stable contract.
+ */
+export interface UCR {
+  id: number;
+  versionId: number;
+  status: UCRStatus;
+
+  // Canonical 8 sections:
+  A?: unknown; // Brand Context
+  B?: unknown; // Category Definition
+  C?: unknown; // Competitive Set
+  D?: unknown; // Demand Definition
+  E?: unknown; // Strategic Intent
+  F?: unknown; // Channel Context
+  G?: unknown; // Negative Scope
+  H?: unknown; // Governance
+}
+
+export interface ExecutionGatePolicy {
+  /**
+   * Allowed UCR statuses to run this module.
+   * Strong recommendation: only LOCKED (or LOCKED + HUMAN_CONFIRMED if you want a preview mode).
+   */
+  allowedStatuses: UCRStatus[];
+
+  /**
+   * If true, missing optional sections are tolerated but must be recorded in meta.
+   */
+  allowMissingOptionalSections?: boolean;
+
+  /**
+   * If true, module must store an audit trail payload on completion (recommended).
+   */
+  requireAuditTrail?: boolean;
+}
+
+export interface ExplainabilityPolicy {
+  /**
+   * If true, every item must include rule traces and UCR section linkage.
+   */
+  required: boolean;
+
+  /**
+   * Which fields must be present in the item-level trace.
+   */
+  itemTraceFields: Array<"ruleId" | "ucrSection" | "reason" | "evidence" | "severity">;
+
+  /**
+   * Which fields must be present in the run-level trace.
+   */
+  runTraceFields: Array<"sectionsUsed" | "sectionsMissing" | "filtersApplied" | "rulesTriggered">;
+}
+
+export interface DispositionPolicy {
+  /**
+   * The module must output a disposition for every produced item.
+   */
+  required: boolean;
+
+  /**
+   * Allowed values.
+   */
+  allowed: Disposition[];
+
+  /**
+   * If true, OUT_OF_PLAY items must be removed from default UI views (but still available via "show excluded").
+   */
+  hideOutOfPlayByDefault?: boolean;
+}
+
+export interface CachingPolicy {
+  /**
+   * Human-readable: "weekly", "daily", "hourly", "none"
+   */
+  cadence: "none" | "hourly" | "daily" | "weekly" | "monthly";
+
+  /**
+   * Optional: TTL seconds if you want strict enforcement.
+   */
+  ttlSeconds?: number;
+
+  /**
+   * Conditions that force cache bust.
+   */
+  bustOnChanges?: Array<
+    "competitor_set" | "category_scope" | "negative_scope" | "governance" | "market" | "all"
+  >;
+}
+
+export interface RiskProfile {
+  confidence: "low" | "medium" | "high";
+  riskIfWrong: "low" | "medium" | "high";
+  inferenceType: "external" | "internal" | "hybrid";
+}
+
+/* ---------------------------------- */
+/* Filters & Context Injection         */
+/* ---------------------------------- */
+
+export interface ContextInjectionSpec {
+  /**
+   * Which UCR sections the module consumes.
+   */
+  requiredSections: UCRSectionID[];
+  optionalSections?: UCRSectionID[];
+
+  /**
+   * Map: how each section is used (docs + UI hints).
+   */
+  sectionUsage: Partial<Record<UCRSectionID, string>>;
+
+  /**
+   * Module must declare how it interprets:
+   * - Fence (B) as soft gate
+   * - Negative Scope (G) as hard gate
+   */
+  gates: {
+    fenceMode: "soft" | "hard" | "none"; // B
+    negativeScopeMode: "hard" | "none"; // G
+  };
+}
+
+export interface ModuleInputSpec {
+  /**
+   * Inputs allowed at runtime (besides configurationId).
+   * Keep narrow; prefer UCR for strategic context.
+   */
+  fields: Array<{
+    name: string;
+    type: "string" | "number" | "boolean" | "string[]" | "number[]" | "json";
+    required?: boolean;
+    description?: string;
+    default?: unknown;
+    constraints?: {
+      min?: number;
+      max?: number;
+      enum?: unknown[];
+      pattern?: string;
+    };
+  }>;
+}
+
+export interface ModuleOutputSpec {
+  /**
+   * What entities the module outputs (keywords, categories, SKUs, etc.)
+   */
+  entityType: string;
+
+  /**
+   * Charts/tables the UI can render.
+   */
+  visuals?: Array<{
+    kind: "line" | "bar" | "table" | "heatmap" | "matrix" | "card" | "other";
+    title: string;
+    description?: string;
+  }>;
+
+  /**
+   * Expected summary fields.
+   */
+  summaryFields?: string[];
+}
+
+/* ---------------------------------- */
+/* Council Rules Linkage (DSL hook)    */
+/* ---------------------------------- */
+
+export interface CouncilRuleBinding {
+  /**
+   * Which council owns the module.
+   */
+  ownerCouncil: string;
+
+  /**
+   * Councils that can contribute rules.
+   */
+  supportingCouncils?: string[];
+
+  /**
+   * Which rule packs apply (by id/version).
+   */
+  rulePacks: Array<{
+    packId: string;
+    version: string;
+    appliesTo: "run" | "item" | "both";
+  }>;
+}
+
+/* ---------------------------------- */
+/* Contract Definition                 */
+/* ---------------------------------- */
+
+export interface ModuleContract {
+  moduleId: string; // e.g. "seo.keyword_gap_visibility.v1"
+  name: string;
+  category: string; // e.g. "SEO Signal"
+  layer: "Signal" | "Synthesis" | "Action";
+  version: string; // contract version (not moduleId version)
+
+  description: string;
+  strategicQuestion: string; // "What does this answer?"
+
+  dataSources: DataSource[];
+
+  riskProfile: RiskProfile;
+  caching: CachingPolicy;
+
+  executionGate: ExecutionGatePolicy;
+
+  contextInjection: ContextInjectionSpec;
+  inputs: ModuleInputSpec;
+
+  disposition: DispositionPolicy;
+  explainability: ExplainabilityPolicy;
+
+  output: ModuleOutputSpec;
+
+  councilRules?: CouncilRuleBinding;
+
+  /**
+   * Optional: additional notes that help keep exec-safe behavior.
+   */
+  guardrails?: {
+    neverPromiseRevenue?: boolean;
+    neverDumpRawEntitiesWithoutFraming?: boolean;
+    alwaysProvideNextStep?: boolean;
+  };
+}
+
+/* ---------------------------------- */
+/* Validation Helpers                  */
+/* ---------------------------------- */
+
+export class ContractError extends Error {
+  constructor(message: string, public details?: Record<string, unknown>) {
+    super(message);
+    this.name = "ContractError";
+  }
+}
+
+export function hasSection(ucr: UCR, section: UCRSectionID): boolean {
+  return typeof (ucr as any)[section] !== "undefined" && (ucr as any)[section] !== null;
+}
+
+export function validateUCRForContract(ucr: UCR, contract: ModuleContract): void {
+  // Status check
+  if (!contract.executionGate.allowedStatuses.includes(ucr.status)) {
+    throw new ContractError("UCR status is not allowed for this module", {
+      allowed: contract.executionGate.allowedStatuses,
+      actual: ucr.status,
+      moduleId: contract.moduleId,
+    });
+  }
+
+  // Required sections
+  const missingRequired = contract.contextInjection.requiredSections.filter((s) => !hasSection(ucr, s));
+  if (missingRequired.length > 0) {
+    throw new ContractError("Missing required UCR sections", {
+      missingRequired,
+      moduleId: contract.moduleId,
+    });
+  }
+
+  // Optional sections (record-only unless allowMissingOptionalSections = false)
+  const optional = contract.contextInjection.optionalSections ?? [];
+  const missingOptional = optional.filter((s) => !hasSection(ucr, s));
+  if (missingOptional.length > 0 && contract.executionGate.allowMissingOptionalSections === false) {
+    throw new ContractError("Missing optional UCR sections (not allowed by gate policy)", {
+      missingOptional,
+      moduleId: contract.moduleId,
+    });
+  }
+}
+
+/* ---------------------------------- */
+/* Registry (Single Source of Truth)   */
+/* ---------------------------------- */
+
+export type ModuleRegistry = Record<string, ModuleContract>;
+
+export function createModuleRegistry(contracts: ModuleContract[]): ModuleRegistry {
+  const registry: ModuleRegistry = {};
+  for (const c of contracts) {
+    if (registry[c.moduleId]) {
+      throw new ContractError("Duplicate moduleId in registry", { moduleId: c.moduleId });
+    }
+    registry[c.moduleId] = c;
+  }
+  return registry;
+}
+
+export function getContract(registry: ModuleRegistry, moduleId: string): ModuleContract {
+  const c = registry[moduleId];
+  if (!c) throw new ContractError("Unknown moduleId", { moduleId });
+  return c;
+}
+
+/* ---------------------------------- */
+/* Example Contracts                   */
+/* ---------------------------------- */
+
+/**
+ * Example: Keyword Gap & Visibility
+ * Anchored in your playbook rules: directional valuation, exec-safe, no promises.
+ */
+export const KeywordGapVisibilityContract: ModuleContract = {
+  moduleId: "seo.keyword_gap_visibility.v1",
+  name: "Keyword Gap & Visibility",
+  category: "SEO Signal",
+  layer: "Signal",
+  version: "contract.v1",
+
+  description:
+    "Identifies commercially meaningful search demand competitors capture that the client does not, translating gaps into directional missed value.",
+  strategicQuestion:
+    "What high-intent demand are competitors capturing today that we are structurally positioned to pursue?",
+
+  dataSources: ["Ahrefs", "Internal"],
+
+  riskProfile: {
+    confidence: "medium",
+    riskIfWrong: "medium",
+    inferenceType: "external",
+  },
+
+  caching: {
+    cadence: "weekly",
+    bustOnChanges: ["competitor_set", "category_scope", "negative_scope", "governance"],
+  },
+
+  executionGate: {
+    allowedStatuses: ["LOCKED"],
+    allowMissingOptionalSections: true,
+    requireAuditTrail: true,
+  },
+
+  contextInjection: {
+    requiredSections: ["A", "B", "C", "G", "H"],
+    optionalSections: ["D", "E", "F"],
+    sectionUsage: {
+      A: "Defines client domain and brand baseline.",
+      B: "Soft fence: keywords outside category marked REVIEW (outside_fence).",
+      C: "Defines competitor domains (max 5) for gap comparison.",
+      D: "Maps keywords into demand themes for exec framing.",
+      E: "Adjusts thresholds for PASS/REVIEW (aggressive vs conservative).",
+      F: "Weights recommendations (SEO vs Paid arbitration).",
+      G: "Hard gate: any keyword matching negative scope => OUT_OF_PLAY.",
+      H: "Capability / right-to-win scoring and thresholds.",
+    },
+    gates: {
+      fenceMode: "soft",
+      negativeScopeMode: "hard",
+    },
+  },
+
+  inputs: {
+    fields: [
+      {
+        name: "min_search_volume",
+        type: "number",
+        required: false,
+        default: 500,
+        description: "Remove long-tail noise.",
+        constraints: { min: 0, max: 1000000 },
+      },
+      {
+        name: "positions_to_include",
+        type: "number[]",
+        required: false,
+        default: [1, 20],
+        description: "Count competitor visibility only within a position band (e.g., 1–20).",
+      },
+      {
+        name: "ctr_assumption",
+        type: "number",
+        required: false,
+        default: 0.1,
+        description: "Directional scenario input (never treated as truth).",
+        constraints: { min: 0, max: 1 },
+      },
+    ],
+  },
+
+  disposition: {
+    required: true,
+    allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"],
+    hideOutOfPlayByDefault: true,
+  },
+
+  explainability: {
+    required: true,
+    itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"],
+    runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"],
+  },
+
+  output: {
+    entityType: "keyword_opportunity",
+    visuals: [
+      { kind: "bar", title: "Missed Traffic Value by Competitor" },
+      { kind: "table", title: "Top Keyword Opportunities" },
+    ],
+    summaryFields: ["total_missed_keywords", "total_missed_value_usd", "top_clusters", "primary_next_step"],
+  },
+
+  councilRules: {
+    ownerCouncil: "SEO Visibility & Demand",
+    supportingCouncils: ["Strategic Intelligence", "Performance Media & Messaging"],
+    rulePacks: [
+      { packId: "seo_visibility.keyword_gap.core", version: "v1", appliesTo: "both" },
+      { packId: "strategic_intel.serp_constraints", version: "v1", appliesTo: "item" },
+    ],
+  },
+
+  guardrails: {
+    neverPromiseRevenue: true,
+    neverDumpRawEntitiesWithoutFraming: true,
+    alwaysProvideNextStep: true,
+  },
+};
+
+/**
+ * Example: Category Demand Trend (5-Year)
+ * Category-level signal; not item-level PASS/OUT.
+ */
+export const CategoryDemandTrendContract: ModuleContract = {
+  moduleId: "market.category_demand_trend.v1",
+  name: "Category Demand Trend (5-Year)",
+  category: "Market Trends",
+  layer: "Signal",
+  version: "contract.v1",
+
+  description: "Shows how consumer interest in a category evolved over 5 years; detects growth vs stagnation vs decline.",
+  strategicQuestion: "Is this a category worth being in, and is demand expanding or contracting?",
+
+  dataSources: ["GoogleTrends", "SERPAPI"],
+
+  riskProfile: {
+    confidence: "medium",
+    riskIfWrong: "medium",
+    inferenceType: "external",
+  },
+
+  caching: {
+    cadence: "weekly",
+    bustOnChanges: ["category_scope", "market"],
+  },
+
+  executionGate: {
+    allowedStatuses: ["LOCKED"],
+    allowMissingOptionalSections: true,
+    requireAuditTrail: true,
+  },
+
+  contextInjection: {
+    requiredSections: ["A", "B", "G", "H"],
+    optionalSections: ["D", "E", "F", "C"],
+    sectionUsage: {
+      A: "Default geo/market assumptions; brand baseline for narrative.",
+      B: "Defines category queries (canonical query set).",
+      C: "Optional: competitor categories to compare macro demand shifts.",
+      D: "Maps category queries into themes.",
+      E: "Adjusts growth classification thresholds (aggressive vs conservative).",
+      F: "Weights implications by channel focus.",
+      G: "Hard exclusions: remove prohibited subcategories/queries.",
+      H: "Defines thresholds for CAGR/slope classification and investment signal.",
+    },
+    gates: {
+      fenceMode: "hard", // for category module, fence is the category itself
+      negativeScopeMode: "hard",
+    },
+  },
+
+  inputs: {
+    fields: [
+      { name: "queries", type: "string[]", required: true, description: "Category query set (usually derived from UCR.B)." },
+      { name: "country", type: "string", required: false, default: "US" },
+      { name: "time_range", type: "string", required: false, default: "today 5-y" },
+      { name: "interval", type: "string", required: false, default: "weekly" },
+    ],
+  },
+
+  disposition: {
+    // Category modules can still use PASS/REVIEW/OUT but at a category/theme level.
+    required: false,
+    allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"],
+  },
+
+  explainability: {
+    required: true,
+    itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"],
+    runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"],
+  },
+
+  output: {
+    entityType: "category_demand_signal",
+    visuals: [
+      { kind: "line", title: "5-Year Demand Trendline" },
+      { kind: "heatmap", title: "Seasonality Heatmap" },
+      { kind: "card", title: "Investment Signal" },
+    ],
+    summaryFields: ["cagr_5y", "trend_direction", "peak_months", "timing_recommendation"],
+  },
+
+  councilRules: {
+    ownerCouncil: "Market Trends & Forecasting Council",
+    rulePacks: [{ packId: "market_trends.demand.classification", version: "v1", appliesTo: "run" }],
+  },
+
+  guardrails: {
+    neverPromiseRevenue: true,
+    alwaysProvideNextStep: true,
+  },
+};
+
+/**
+ * Registry export (example)
+ * Add all module contracts here to make it the enforced source of truth.
+ */
+export const MODULE_REGISTRY = createModuleRegistry([
+  KeywordGapVisibilityContract,
+  CategoryDemandTrendContract,
+]);
+
+/* ---------------------------------- */
+/* Suggested Integration Points        */
+/* ---------------------------------- */
+/**
+ * In your execution gateway (server):
+ *
+ * const contract = getContract(MODULE_REGISTRY, moduleId);
+ * validateUCRForContract(ucr, contract);
+ * // buildFilters(ucr, contract.contextInjection) ...
+ * // run module ...
+ * // ensure output includes explainability + disposition if required
+ */
+
+
+Esto está alineado con el framework “UCR como contrato” y el patrón de validación/gate que ya venían usando.
+Y el contrato de Keyword Gap está directamente anclado a las reglas “exec-safe / directional / no promises” del playbook.
+
+2) Council Rules DSL (diseño)
+
+La meta del DSL: que un Council pueda expresar reglas sin tocar código, y que el sistema pueda:
+
+aplicarlas a nivel run (resumen / flags) o item (cada keyword/SKU/etc.)
+
+producir trazas (“qué regla disparó” + “qué sección del UCR la habilita”)
+
+mantener versionado y auditabilidad
+
+2.1 Formato propuesto (YAML o JSON)
+Estructura de un Rule Pack
+packId: seo_visibility.keyword_gap.core
+version: v1
+ownerCouncil: SEO Visibility & Demand
+appliesTo: both # run | item | both
+defaults:
+  severity: medium
+  dispositionOnFail: REVIEW
+
+rules:
+  - ruleId: negative_scope_hard_gate
+    appliesTo: item
+    ucrSection: G
+    severity: high
+    when:
+      op: any_match
+      left: "$item.keyword"
+      right: "$ucr.G.negative_terms"
+    then:
+      set:
+        disposition: OUT_OF_PLAY
+        reason: "Excluded by Negative Scope"
+      trace: true
+
+  - ruleId: outside_category_fence
+    appliesTo: item
+    ucrSection: B
+    severity: medium
+    when:
+      op: not_in_taxonomy
+      left: "$item.keyword"
+      right: "$ucr.B.category_taxonomy"
+    then:
+      set:
+        disposition: REVIEW
+        reason: "Outside category fence"
+        tags:
+          - "outside_fence"
+      trace: true
+
+  - ruleId: low_value_noise_filter
+    appliesTo: item
+    ucrSection: H
+    severity: low
+    when:
+      op: lt
+      left: "$item.volume"
+      right: "$ucr.H.thresholds.min_search_volume"
+    then:
+      set:
+        disposition: OUT_OF_PLAY
+        reason: "Below minimum search volume"
+      trace: true
+
+2.2 Operadores mínimos (suficientes para v1)
+
+Comparación
+
+eq, neq, lt, lte, gt, gte
+
+in, not_in
+
+Texto / listas
+
+contains, any_match, regex_match
+
+Taxonomía (para fence)
+
+in_taxonomy, not_in_taxonomy
+(implementación: mapping keywords → categorías via diccionario/embeddings si querés, pero la interfaz queda estable)
+
+Lógica
+
+and, or, not
+
+2.3 Acciones (then)
+
+set.disposition (PASS/REVIEW/OUT_OF_PLAY)
+
+set.reason (texto exec-safe)
+
+set.tags (labels)
+
+set.scores.* (ej: capabilityScore += 0.2)
+
+set.flags.* (ej: structurally_constrained=true)
+
+trace: true obliga a guardar rule trace
+
+2.4 Cómo se evalúa (runtime model)
+
+Inputs estándar del motor de reglas
+
+$ucr → UCR (versionado)
+
+$filters → filtros construidos desde UCR
+
+$run → stats del run (totales, fechas, fuentes)
