@@ -333,6 +333,15 @@ export default function KeywordGap() {
   // Fetch saved analysis if analysisId is present
   const { data: savedAnalysis, isLoading: savedAnalysisLoading } = useQuery<SavedAnalysis>({
     queryKey: ["/api/keyword-gap-analyses", analysisId],
+    queryFn: async () => {
+      const response = await fetch(`/api/keyword-gap-analyses/${analysisId}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch saved analysis');
+      }
+      return response.json();
+    },
     enabled: !!analysisId,
   });
 
