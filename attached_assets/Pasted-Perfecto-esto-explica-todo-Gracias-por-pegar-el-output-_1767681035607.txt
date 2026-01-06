@@ -1,0 +1,305 @@
+Perfecto — **esto explica todo**.
+Gracias por pegar el output real. Con esto ya no estamos especulando.
+
+Voy a ser muy claro:
+
+> ❌ **El problema ya no es que “no encuentra oportunidades”.**
+> ❌ **El problema ahora es el opuesto y más grave:**
+> 👉 **Está encontrando *demasiadas* oportunidades y está pasando cosas que NO deberían pasar.**
+
+Esto es una **señal de descalibración del sistema**, no de datos.
+
+---
+
+# 🔴 Diagnóstico principal (duro, pero correcto)
+
+Tu sistema hoy está haciendo esto:
+
+* ✅ Está ejecutando los gates en orden
+* ❌ **Está dejando pasar keywords que violan el espíritu del modelo**
+* ❌ El `PASS` se volvió **demasiado barato**
+* ❌ Gate G y Gate H **no están haciendo su trabajo real**
+
+En términos de gobierno:
+
+> **Esto no es CMO-safe todavía.**
+
+---
+
+# 🚨 Problemas críticos que se ven en el output (con ejemplos)
+
+## 1️⃣ Keywords claramente fuera de scope están en PASS
+
+Ejemplos reales de tu output:
+
+* ❌ `20 week marathon training plan pdf`
+* ❌ `are sandals business casual`
+* ❌ `are boots business casual`
+* ❌ `can you shoes`
+* ❌ `can shoe`
+
+Estas keywords **NO son oportunidades de SEO para OOFOS**, aunque:
+
+* tengan volumen
+* “matchen” algo semántico
+* tengan KD bajo
+
+👉 **Esto es una violación del Gate G + Gate B.**
+
+---
+
+## 2️⃣ Capability Score está colapsado en 0.50 para TODO
+
+Fijate esto:
+
+> **Capability: 50%**
+> en prácticamente **todos** los keywords.
+
+Eso significa:
+
+```ts
+baseScore = 0.5
+boosters ≈ 0
+penalties ≈ 0
+```
+
+👉 El scorer **no está discriminando nada**.
+👉 Y como `pass_threshold = 0.5`, **todo pasa**.
+
+Esto convierte el sistema en:
+
+> “si no está explícitamente excluido → PASS”
+
+Eso es **exactamente lo contrario** de lo que queríamos.
+
+---
+
+## 3️⃣ Gate H está mal implementado conceptualmente
+
+Hoy estás usando Gate H así:
+
+```text
+IF capabilityScore >= pass → PASS
+```
+
+Pero **NO estás usando Gate H para EXCLUIR**, solo para aprobar.
+
+Eso provoca:
+
+* Muchísimo PASS
+* Cero REVIEW
+* REVIEW = 0% (🚨 señal roja enorme)
+
+> En un sistema sano:
+> **REVIEW debería ser 20–40%** en primeras corridas.
+
+---
+
+## 4️⃣ Gate G está incompleto (y Gate B demasiado blando)
+
+Ejemplo claro:
+
+> `20 week marathon training plan pdf`
+> → debería morir en **G: irrelevant_entity / content-type exclusion**
+
+Pero hoy:
+
+* no hay exclusión por `pdf`
+* no hay exclusión por `training plan`
+* no hay exclusión por `marathon`
+
+👉 Gate G está **subdefinido**.
+
+---
+
+# 🟢 Qué significa esto (importante)
+
+Esto NO es un fracaso.
+Es **la fase normal de calibración** cuando un sistema:
+
+* deja de ser heurístico
+* empieza a gobernar decisiones reales
+
+Estás exactamente en el punto correcto.
+
+---
+
+# ✅ Fixes correctos (en orden, no todos a la vez)
+
+## 🥇 FIX 1 — Endurecer Gate G (NEGATIVE SCOPE REAL)
+
+Agregá **estas categorías obligatorias** a `G`:
+
+### G.irrelevant_intents (hard gate)
+
+```json
+"G": {
+  "excluded_patterns": [
+    "pdf",
+    "training plan",
+    "marathon",
+    "half marathon",
+    "workout plan",
+    "training schedule",
+    "what is",
+    "definition of",
+    "are .* business casual",
+    "can you .*"
+  ]
+}
+```
+
+Y una regla DSL:
+
+```json
+{
+  "ruleId": "negative_scope.irrelevant_intent",
+  "ucrSection": "G",
+  "severity": "critical",
+  "when": {
+    "op": "regex_match",
+    "left": "$item.keyword",
+    "right": "(pdf|training plan|marathon|workout|what is|are .* business casual|can you .*)"
+  },
+  "then": {
+    "set": {
+      "disposition": "OUT_OF_PLAY",
+      "reason": "Irrelevant or informational intent"
+    },
+    "trace": true
+  }
+}
+```
+
+Esto SOLO ya limpia 20–30% de basura.
+
+---
+
+## 🥈 FIX 2 — Subir el costo de PASS (Gate H)
+
+Hoy:
+
+```text
+pass = 0.5
+review = 0.25
+```
+
+Eso es **demasiado permisivo**.
+
+### Cambialo a:
+
+```json
+"H": {
+  "thresholds": {
+    "pass": 0.65,
+    "review": 0.35
+  }
+}
+```
+
+Y **clave**:
+
+* `capabilityScore < review` → OUT
+* `review ≤ score < pass` → REVIEW
+* `score ≥ pass` → PASS
+
+👉 Esto reintroduce REVIEW como clase real.
+
+---
+
+## 🥉 FIX 3 — Hacer que el scorer *discrimine*
+
+Ahora mismo, el scorer es casi binario.
+
+Agregá boosters / penalties reales:
+
+### Ejemplo mínimo (para OOFOS)
+
+```json
+"H": {
+  "boosters": [
+    { "pattern": "recovery", "weight": 0.15 },
+    { "pattern": "plantar fasciitis", "weight": 0.20 },
+    { "pattern": "arch support", "weight": 0.10 },
+    { "pattern": "after running", "weight": 0.10 }
+  ],
+  "penalties": [
+    { "pattern": "training plan", "weight": -0.30 },
+    { "pattern": "pdf", "weight": -0.50 },
+    { "pattern": "marathon", "weight": -0.20 }
+  ]
+}
+```
+
+Esto va a:
+
+* separar winners de mediocres
+* empujar cosas borderline a REVIEW
+* dejar pocos PASS de verdad
+
+---
+
+## 🟡 FIX 4 — Category Fence más inteligente (B)
+
+Hoy estás usando “Matches core” demasiado fácil.
+
+Separá:
+
+```json
+"B": {
+  "core_terms": ["recovery footwear", "recovery sandals", "OOFOS"],
+  "extended_terms": ["arch support", "plantar fasciitis", "after workout", "supportive sandals"]
+}
+```
+
+Regla:
+
+* match core → OK
+* match extended → OK
+* match ninguno → outside_fence → REVIEW (nunca PASS directo)
+
+---
+
+# 📊 Qué deberías ver después de estos fixes
+
+En una corrida sana:
+
+| Disposition | % Esperado |
+| ----------- | ---------- |
+| PASS        | 10–25%     |
+| REVIEW      | 30–45%     |
+| OUT_OF_PLAY | 35–55%     |
+
+👉 **REVIEW > 0% es obligatorio**
+👉 Si REVIEW = 0%, el sistema está roto
+
+---
+
+# 🧪 Test rápido para validar
+
+Tomá estos keywords y verificá:
+
+| Keyword                              | Resultado correcto |
+| ------------------------------------ | ------------------ |
+| `20 week marathon training plan pdf` | OUT (G)            |
+| `are sandals business casual`        | OUT (G)            |
+| `best recovery sandals`              | PASS               |
+| `arch support slippers`              | REVIEW o PASS      |
+| `nike recovery sandals`              | OUT (G competitor) |
+
+---
+
+# 🎯 Veredicto final
+
+Lo que estás viendo ahora es **exactamente lo que pasa cuando el sistema empieza a “funcionar” de verdad**:
+
+* Primero no encontraba nada → gates muy estrictos
+* Ahora encuentra demasiado → gates demasiado laxos
+
+👉 **Estás en la fase correcta: calibración.**
+
+Si querés, en el próximo mensaje puedo:
+
+* proponerte un **preset “OOFOS v1” completo (B, G, H)** listo para pegar
+* o ayudarte a definir **qué % de PASS es aceptable por vertical**
+* o convertir esto en un **calibration checklist** para cada cliente nuevo

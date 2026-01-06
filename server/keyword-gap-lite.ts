@@ -29,6 +29,19 @@ export type IntentType =
   | "variant_or_size"
   | "other";
 
+export interface ScoreAdjustment {
+  type: "booster" | "penalty" | "competitor_brand";
+  pattern: string;
+  weight: number;
+  runningTotal: number;
+}
+
+export interface ScoreBreakdown {
+  baseScore: number;
+  adjustments: ScoreAdjustment[];
+  finalScore: number;
+}
+
 export interface KeywordResult {
   keyword: string;
   normalizedKeyword: string;
@@ -37,6 +50,7 @@ export interface KeywordResult {
   statusIcon: string;
   intentType: IntentType;
   capabilityScore: number;
+  capabilityBreakdown: ScoreBreakdown;
   opportunityScore: number;
   difficultyFactor: number;
   positionFactor: number;
@@ -427,34 +441,56 @@ function getEffectiveScoringConfig(config: Configuration): ScoringConfig {
   return getScoringPreset();
 }
 
-export function computeCapabilityScore(keyword: string, config: Configuration): number {
+export function computeCapabilityScoreWithBreakdown(keyword: string, config: Configuration): ScoreBreakdown {
   const normalizedKw = normalizeKeyword(keyword);
   const capabilityModel = getEffectiveCapabilityModel(config);
-  let score = capabilityModel.base_score ?? 0.5;
+  const baseScore = capabilityModel.base_score ?? 0.5;
+  let score = baseScore;
+  const adjustments: ScoreAdjustment[] = [];
   
   for (const booster of capabilityModel.boosters || []) {
+    let matched = false;
     try {
       const regex = new RegExp(`\\b(${booster.pattern})\\b`, 'i');
       if (regex.test(normalizedKw)) {
-        score += booster.weight;
+        matched = true;
       }
     } catch {
       if (normalizedKw.includes(booster.pattern.toLowerCase())) {
-        score += booster.weight;
+        matched = true;
       }
+    }
+    if (matched) {
+      score += booster.weight;
+      adjustments.push({
+        type: "booster",
+        pattern: booster.pattern,
+        weight: booster.weight,
+        runningTotal: score
+      });
     }
   }
   
   for (const penalty of capabilityModel.penalties || []) {
+    let matched = false;
     try {
       const regex = new RegExp(`\\b(${penalty.pattern})\\b`, 'i');
       if (regex.test(normalizedKw)) {
-        score += penalty.weight;
+        matched = true;
       }
     } catch {
       if (normalizedKw.includes(penalty.pattern.toLowerCase())) {
-        score += penalty.weight;
+        matched = true;
       }
+    }
+    if (matched) {
+      score += penalty.weight;
+      adjustments.push({
+        type: "penalty",
+        pattern: penalty.pattern,
+        weight: penalty.weight,
+        runningTotal: score
+      });
     }
   }
   
@@ -465,11 +501,27 @@ export function computeCapabilityScore(keyword: string, config: Configuration): 
   for (const brand of allBrands) {
     if (normalizedKw.includes(brand)) {
       score -= 0.6;
+      adjustments.push({
+        type: "competitor_brand",
+        pattern: brand,
+        weight: -0.6,
+        runningTotal: score
+      });
       break;
     }
   }
   
-  return Math.max(0, Math.min(1, score));
+  const finalScore = Math.max(0, Math.min(1, score));
+  
+  return {
+    baseScore,
+    adjustments,
+    finalScore
+  };
+}
+
+export function computeCapabilityScore(keyword: string, config: Configuration): number {
+  return computeCapabilityScoreWithBreakdown(keyword, config).finalScore;
 }
 
 const INTENT_WEIGHTS: Record<IntentType, number> = {
