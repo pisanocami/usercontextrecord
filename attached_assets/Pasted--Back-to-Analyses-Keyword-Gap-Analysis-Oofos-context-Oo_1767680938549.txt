@@ -1,0 +1,236 @@
+
+
+
+Back to Analyses
+Keyword Gap Analysis
+Oofos context - Oofos.com
+
+UCR Guardrails Active
+Analyze Competitor
+e.g., competitor.com
+Analyze
+Configured competitors:
+
+hoka.com
+kanefootwear.com
+crocs.com
+vionicshoes.com
+birkenstock.com
+Quick Analysis
+AI ReadyReady for AI-generated analysis
+AI-Generated Mode
+
+Results will be generated automatically and must be reviewed before adoption.
+
+
+DataForSEO
+Run Keyword Gap (AI-Generated)
+Results are provisional until human validation
+
+Compare All Competitors
+Keyword Gap Lite Results
+oofos.com vs 5 competitors - Top 30 of 1000 keywords
+AI-Generated
+v1
+41% Pass (409)
+0% Review (0)
+59% Out (591)
+This analysis was generated using an AI-proposed context.
+Review context and exclusions before approving.
+UCR Context: v19-mk27d3si
+Estimated Missing Value
+$1.5K/mo
+Weighted by capture probability
+Top Themes
+Brand (160)
+Other (148)
+Category (36)
+Problem/Solution (25)
+Competitor Ownership
+vionicshoes.com
+174
+kanefootwear.com
+74
+birkenstock.com
+72
+Top Opportunities (409)
+Needs Review (0)
+Out of Play (591)
+High-capability keywords aligned with your category. Ready to target.
+
+Keyword	Intent	Volume	KD	Score	Capability	Reason	Confidence	Trace
+best footwear for nurses
+PASS
+problem solution	33.100	100	14.961	50%	Matches core: "recovery footwear"	high	
+Gate Evaluation Trace:
+B
+[low]
+category_fence.in_scope:
+Matches core: "recovery footwear"
+H
+[low]
+scoring.capability_evaluated:
+Capability score: 0.50
+(pass: 0.5, review: 0.25)
+F
+[low]
+channel.seo_context:
+SEO investment: medium
+H
+[low]
+disposition.pass:
+Matches core: "recovery footwear"
+(score: 0.50)
+arch support slippers
+PASS
+problem solution	12.100	100	6437	50%	Matches core: "supportive casual footwear"	high	
+active recovery footwear
+PASS
+problem solution	6600	-	5755	50%	Matches core: "recovery footwear"	high	
+best slippers plantar fasciitis
+PASS
+problem solution	3600	100	2448	50%	Matches core: "best recovery shoes for athletes"	high	
+arch support sandals
+PASS
+problem solution	6600	100	2350	50%	Matches core: "athletic sandals"	high	
+best walking sandals ladies
+PASS
+problem solution	5400	100	1285	50%	Matches core: "athletic sandals"	high	
+best slippers with arch support
+PASS
+problem solution	1900	100	1197	50%	Matches core: "supportive casual footwear"	high	
+best arch support sandals
+PASS
+problem solution	2400	100	936	50%	Matches core: "athletic sandals"	high	
+best sandals for arch support
+PASS
+problem solution	2400	100	936	50%	Matches core: "comfort shoes"	high	
+best support slippers for women
+PASS
+problem solution	1300	100	801	50%	Matches core: "comfort shoes"	high	
+best supportive slippers for women
+PASS
+problem solution	1300	100	801	50%	Matches core: "comfort shoes"	high	
+best supportive women's slippers
+PASS
+problem solution	1300	100	801	50%	Matches core: "supportive casual footwear"	high	
+best arch support walking shoes for women
+PASS
+problem solution	2400	100	706	50%	Matches core: "comfort shoes"	high	
+best women's walking shoes with arch support
+PASS
+problem solution	2400	100	706	50%	Matches core: "comfort shoes"	high	
+best women's slippers for arch support
+PASS
+problem solution	1300	100	686	50%	Matches core: "comfort shoes"	high	
+best women's slippers with arch support
+PASS
+problem solution	1300	100	686	50%	Matches core: "supportive casual footwear"	high	
+best arch support slippers for ladies
+PASS
+problem solution	1900	100	638	50%	Matches core: "comfort shoes"	high	
+arch support walking shoe
+PASS
+problem solution	1900	100	612	50%	Matches core: "comfort shoes"	high	
+arch support slippers for women
+PASS
+problem solution	1300	100	559	50%	Matches core: "comfort shoes"	high	
+best orthopedic sandals for women
+PASS
+problem solution	2400	100	523	50%	Matches core: "comfort shoes"	high	
+best doctors shoes
+PASS
+problem solution	720	79.00000214576721	495	50%	Matches core: "comfort shoes"	high	
+best women's walking athletic shoes
+PASS
+problem solution	1600	100	464	50%	Matches core: "comfort shoes"	high	
+best sandals with arch support for women
+PASS
+problem solution	1300	100	429	50%	Matches core: "comfort shoes"	high	
+best women's sandals with arch support
+PASS
+problem solution	1300	100	429	50%	Matches core: "athletic sandals"	high	
+can you shoes
+PASS
+product generic	30	2.9999999329447746	400	50%	Matches core: "comfort shoes"	high	
+best healthcare shoes
+PASS
+problem solution	590	100	329	50%	Matches core: "comfort shoes"	high	
+are sandals business casual
+PASS
+category capture	590	3.999999910593033	289	50%	Matches core: "athletic sandals"	high	
+best sandals for support
+PASS
+problem solution	720	100	279	50%	Matches core: "comfort shoes"	high	
+best sandals with support
+PASS
+problem solution	720	100	279	50%	Matches core: "athletic sandals"	high	
+best support sandals
+PASS
+problem solution	720	100	279	50%	Matches core: "athletic sandals"	high	
+best supportive sandals
+PASS
+problem solution	720	100	279	50%	Matches core: "athletic sandals"	high	
+arch support loafers
+PASS
+problem solution	880	100	266	50%	Matches core: "supportive casual footwear"	high	
+best orthopedic sandals
+PASS
+problem solution	590	100	264	50%	Matches core: "athletic sandals"	high	
+best orthotic sandals
+PASS
+problem solution	590	100	264	50%	Matches core: "athletic sandals"	high	
+best ballet flats arch support
+PASS
+problem solution	590	100	253	50%	Matches core: "supportive casual footwear"	high	
+best flats with arch support
+PASS
+problem solution	590	100	253	50%	Matches core: "supportive casual footwear"	high	
+arch support house shoes
+PASS
+problem solution	480	100	223	50%	Matches core: "comfort shoes"	high	
+black flats with arch support
+PASS
+problem solution	590	100	219	50%	Matches core: "supportive casual footwear"	high	
+20 week marathon training plan pdf
+PASS
+product generic	260	14.000000059604645	214	50%	Matches core: "plantar fasciitis footwear"	high	
+best comfortable women's sandals
+PASS
+problem solution	590	100	190	50%	Matches core: "comfort shoes"	high	
+best supportive sandals for women
+PASS
+problem solution	390	100	178	50%	Matches core: "comfort shoes"	high	
+bedroom slippers with arch support
+PASS
+problem solution	320	100	135	50%	Matches core: "supportive casual footwear"	high	
+are boots business casual
+PASS
+product generic	480	2.9999999329447746	132	50%	Matches core: "supportive casual footwear"	high	
+eva foam in shoes
+PASS
+product generic	480	25	113	50%	Matches core: "comfort shoes"	high	
+eva foam shoe
+PASS
+product generic	480	25	113	50%	Matches core: "comfort shoes"	high	
+eva foam shoes
+PASS
+product generic	480	25	113	50%	Matches core: "comfort shoes"	high	
+can shoe
+PASS
+product generic	170	34.00000035762787	113	50%	Matches core: "comfort shoes"	high	
+can shoes
+PASS
+product generic	170	34.00000035762787	113	50%	Matches core: "comfort shoes"	high	
+arch support house slippers
+PASS
+problem solution	210	98.00000190734863	111	50%	Matches core: "supportive casual footwear"	high	
+arch support slippers women's
+PASS
+problem solution	170	100	110	50%	Matches core: "supportive casual footwear"	high	
+Ready to adopt this analysis?
+
+This will mark the context as Human Confirmed and make results official.
+
+Approve Context & Adopt Analysis
+Made with Replit
