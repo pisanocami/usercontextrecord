@@ -263,24 +263,64 @@ interface KeywordGapExportConfig {
   brand?: {
     name?: string;
     domain?: string;
+    industry?: string;
+    business_model?: string;
+    primary_geography?: string[];
+    revenue_band?: string;
+    target_market?: string;
   };
   category_definition?: {
     primary_category?: string;
     included?: string[];
     excluded?: string[];
+    approved_categories?: string[];
   };
   competitors?: {
-    competitors?: { name?: string; domain?: string; status?: string }[];
+    competitors?: { name?: string; domain?: string; status?: string; tier?: string }[];
     direct?: string[];
     indirect?: string[];
+    marketplaces?: string[];
+  };
+  demand_definition?: {
+    brand_keywords?: {
+      seed_terms?: string[];
+      top_n?: number;
+    };
+    non_brand_keywords?: {
+      category_terms?: string[];
+      problem_terms?: string[];
+      top_n?: number;
+    };
+  };
+  strategic_intent?: {
+    growth_priority?: string;
+    risk_tolerance?: string;
+    primary_goal?: string;
+    secondary_goals?: string[];
+    avoid?: string[];
+  };
+  channel_context?: {
+    paid_media_active?: boolean;
+    seo_investment_level?: string;
+    marketplace_dependence?: string;
   };
   negative_scope?: {
     excluded_keywords?: string[];
     excluded_categories?: string[];
+    excluded_use_cases?: string[];
+    excluded_competitors?: string[];
   };
   governance?: {
     context_status?: string;
     quality_score?: { overall?: number };
+    last_reviewed?: string;
+    reviewed_by?: string;
+    context_valid_until?: string;
+    cmo_safe?: boolean;
+    context_version?: number;
+    validation_status?: string;
+    human_verified?: boolean;
+    context_confidence?: { level?: string };
   };
 }
 
@@ -341,34 +381,106 @@ export function downloadKeywordGapXLSX(
   const safeStats = stats || { passed: 0, review: 0, outOfPlay: 0, percentPassed: 0, percentReview: 0, percentOutOfPlay: 0 };
   const safeFilters = filtersApplied || {};
 
-  // Sheet 1: Context Summary
+  // Sheet 1: Context Summary - All UCR Sections
   const contextData: Record<string, unknown>[] = [
+    // BRAND CONTEXT section
+    { Field: "=== BRAND CONTEXT ===", Value: "" },
     { Field: "Configuration Name", Value: safeConfig.name || "" },
     { Field: "Brand Name", Value: safeConfig.brand?.name || "" },
-    { Field: "Brand Domain", Value: safeConfig.brand?.domain || "" },
+    { Field: "Domain", Value: safeConfig.brand?.domain || "" },
+    { Field: "Industry", Value: safeConfig.brand?.industry || "" },
+    { Field: "Business Model", Value: safeConfig.brand?.business_model || "" },
+    { Field: "Target Market", Value: safeConfig.brand?.target_market || "" },
+    { Field: "Primary Geography", Value: safeConfig.brand?.primary_geography?.join(", ") || "" },
+    { Field: "Revenue Band", Value: safeConfig.brand?.revenue_band || "" },
+    { Field: "", Value: "" },
+
+    // CATEGORY DEFINITION section
+    { Field: "=== CATEGORY DEFINITION ===", Value: "" },
     { Field: "Primary Category", Value: safeConfig.category_definition?.primary_category || "" },
-    { Field: "Context Status", Value: safeConfig.governance?.context_status || "" },
-    { Field: "Quality Score", Value: safeConfig.governance?.quality_score?.overall ?? "" },
-    { Field: "", Value: "" },
-    { Field: "CATEGORY FENCE - INCLUDED", Value: "" },
+    ...(safeConfig.category_definition?.approved_categories?.map((cat, i) => ({ Field: `  Approved Category ${i + 1}`, Value: cat })) || []),
+    { Field: "Included Terms", Value: "" },
     ...(safeConfig.category_definition?.included?.map((term, i) => ({ Field: `  Included ${i + 1}`, Value: term })) || []),
-    { Field: "", Value: "" },
-    { Field: "CATEGORY FENCE - EXCLUDED", Value: "" },
+    { Field: "Excluded Terms", Value: "" },
     ...(safeConfig.category_definition?.excluded?.map((term, i) => ({ Field: `  Excluded ${i + 1}`, Value: term })) || []),
     { Field: "", Value: "" },
-    { Field: "COMPETITORS", Value: "" },
-    ...(safeConfig.competitors?.competitors?.filter(c => c.status === "approved").map((c, i) => ({ 
-      Field: `  Competitor ${i + 1}`, 
-      Value: `${c.name || ""} (${c.domain || ""})` 
-    })) || []),
+
+    // COMPETITIVE SET section
+    { Field: "=== COMPETITIVE SET ===", Value: "" },
+    { Field: "Direct Competitors", Value: "" },
+    ...(() => {
+      const approvedCompetitors = safeConfig.competitors?.competitors?.filter(c => c.status === "approved" || c.tier === "tier1") || [];
+      if (approvedCompetitors.length > 0) {
+        return approvedCompetitors.map((c, i) => ({ 
+          Field: `  Direct ${i + 1}`, 
+          Value: `${c.name || ""} (${c.domain || ""})` 
+        }));
+      }
+      return safeConfig.competitors?.direct?.map((d, i) => ({ Field: `  Direct ${i + 1}`, Value: d })) || [];
+    })(),
+    { Field: "Indirect Competitors", Value: "" },
+    ...(safeConfig.competitors?.indirect?.map((c, i) => ({ Field: `  Indirect ${i + 1}`, Value: c })) || []),
+    { Field: "Marketplaces", Value: "" },
+    ...(safeConfig.competitors?.marketplaces?.map((m, i) => ({ Field: `  Marketplace ${i + 1}`, Value: m })) || []),
     { Field: "", Value: "" },
-    { Field: "NEGATIVE SCOPE - EXCLUDED KEYWORDS", Value: "" },
+
+    // DEMAND DEFINITION section
+    { Field: "=== DEMAND DEFINITION ===", Value: "" },
+    { Field: "Brand Seed Terms", Value: "" },
+    ...(safeConfig.demand_definition?.brand_keywords?.seed_terms?.map((term, i) => ({ Field: `  Seed Term ${i + 1}`, Value: term })) || []),
+    { Field: "Top N Brand", Value: safeConfig.demand_definition?.brand_keywords?.top_n ?? "" },
+    { Field: "Category Terms", Value: "" },
+    ...(safeConfig.demand_definition?.non_brand_keywords?.category_terms?.map((term, i) => ({ Field: `  Category Term ${i + 1}`, Value: term })) || []),
+    { Field: "Problem Terms", Value: "" },
+    ...(safeConfig.demand_definition?.non_brand_keywords?.problem_terms?.map((term, i) => ({ Field: `  Problem Term ${i + 1}`, Value: term })) || []),
+    { Field: "Top N Non-Brand", Value: safeConfig.demand_definition?.non_brand_keywords?.top_n ?? "" },
+    { Field: "", Value: "" },
+
+    // STRATEGIC INTENT section
+    { Field: "=== STRATEGIC INTENT ===", Value: "" },
+    { Field: "Growth Priority", Value: safeConfig.strategic_intent?.growth_priority || "" },
+    { Field: "Risk Tolerance", Value: safeConfig.strategic_intent?.risk_tolerance || "" },
+    { Field: "Primary Goal", Value: safeConfig.strategic_intent?.primary_goal || "" },
+    { Field: "Secondary Goals", Value: "" },
+    ...(safeConfig.strategic_intent?.secondary_goals?.map((goal, i) => ({ Field: `  Secondary Goal ${i + 1}`, Value: goal })) || []),
+    { Field: "Avoid", Value: "" },
+    ...(safeConfig.strategic_intent?.avoid?.map((item, i) => ({ Field: `  Avoid ${i + 1}`, Value: item })) || []),
+    { Field: "", Value: "" },
+
+    // CHANNEL CONTEXT section
+    { Field: "=== CHANNEL CONTEXT ===", Value: "" },
+    { Field: "Paid Media Active", Value: safeConfig.channel_context?.paid_media_active ? "Yes" : "No" },
+    { Field: "SEO Investment Level", Value: safeConfig.channel_context?.seo_investment_level || "" },
+    { Field: "Marketplace Dependence", Value: safeConfig.channel_context?.marketplace_dependence || "" },
+    { Field: "", Value: "" },
+
+    // NEGATIVE SCOPE section
+    { Field: "=== NEGATIVE SCOPE ===", Value: "" },
+    { Field: "Excluded Keywords", Value: "" },
     ...(safeConfig.negative_scope?.excluded_keywords?.map((term, i) => ({ Field: `  Excluded KW ${i + 1}`, Value: term })) || []),
-    { Field: "", Value: "" },
-    { Field: "NEGATIVE SCOPE - EXCLUDED CATEGORIES", Value: "" },
+    { Field: "Excluded Categories", Value: "" },
     ...(safeConfig.negative_scope?.excluded_categories?.map((term, i) => ({ Field: `  Excluded Cat ${i + 1}`, Value: term })) || []),
+    { Field: "Excluded Use Cases", Value: "" },
+    ...(safeConfig.negative_scope?.excluded_use_cases?.map((term, i) => ({ Field: `  Excluded UC ${i + 1}`, Value: term })) || []),
+    { Field: "Excluded Competitors", Value: "" },
+    ...(safeConfig.negative_scope?.excluded_competitors?.map((term, i) => ({ Field: `  Excluded Comp ${i + 1}`, Value: term })) || []),
+    { Field: "", Value: "" },
+
+    // GOVERNANCE section
+    { Field: "=== GOVERNANCE ===", Value: "" },
+    { Field: "Context Status", Value: safeConfig.governance?.context_status || "" },
+    { Field: "Validation Status", Value: safeConfig.governance?.validation_status || "" },
+    { Field: "Human Verified", Value: safeConfig.governance?.human_verified ? "Yes" : "No" },
+    { Field: "CMO Safe", Value: safeConfig.governance?.cmo_safe ? "Yes" : "No" },
+    { Field: "Quality Score", Value: safeConfig.governance?.quality_score?.overall ?? "" },
+    { Field: "Confidence Level", Value: safeConfig.governance?.context_confidence?.level || "" },
+    { Field: "Context Version", Value: safeConfig.governance?.context_version ?? "" },
+    { Field: "Last Reviewed", Value: safeConfig.governance?.last_reviewed || "" },
+    { Field: "Reviewed By", Value: safeConfig.governance?.reviewed_by || "" },
+    { Field: "Valid Until", Value: safeConfig.governance?.context_valid_until || "" },
   ];
   const contextSheet = XLSX.utils.json_to_sheet(contextData);
+  contextSheet["!cols"] = [{ wch: 35 }, { wch: 50 }];
   XLSX.utils.book_append_sheet(workbook, contextSheet, "Context");
 
   // Sheet 2: Analysis Summary
@@ -390,7 +502,28 @@ export function downloadKeywordGapXLSX(
     { Metric: "Total Filters Applied", Value: safeFilters.totalFilters ?? 0 },
   ];
   const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 30 }, { wch: 20 }];
   XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // Column widths for keyword sheets
+  const keywordColWidths = [
+    { wch: 40 },  // Keyword
+    { wch: 40 },  // Normalized Keyword
+    { wch: 10 },  // Status
+    { wch: 12 },  // Disposition
+    { wch: 18 },  // Intent
+    { wch: 14 },  // Search Volume
+    { wch: 8 },   // CPC
+    { wch: 18 },  // Keyword Difficulty
+    { wch: 18 },  // Competitor Position
+    { wch: 16 },  // Capability Score
+    { wch: 16 },  // Opportunity Score
+    { wch: 12 },  // Confidence
+    { wch: 15 },  // Theme
+    { wch: 50 },  // Reason
+    { wch: 30 },  // Competitors Seen
+    { wch: 25 },  // Flags
+  ];
 
   // Helper function to format keywords for export
   const formatKeywords = (keywords: KeywordGapExportKeyword[]) => {
@@ -418,6 +551,7 @@ export function downloadKeywordGapXLSX(
   if (safeOpportunities.length > 0) {
     const opportunitiesData = formatKeywords(safeOpportunities);
     const opportunitiesSheet = XLSX.utils.json_to_sheet(opportunitiesData);
+    opportunitiesSheet["!cols"] = keywordColWidths;
     XLSX.utils.book_append_sheet(workbook, opportunitiesSheet, "Top Opportunities");
   }
 
@@ -425,6 +559,7 @@ export function downloadKeywordGapXLSX(
   if (safeReview.length > 0) {
     const reviewData = formatKeywords(safeReview);
     const reviewSheet = XLSX.utils.json_to_sheet(reviewData);
+    reviewSheet["!cols"] = keywordColWidths;
     XLSX.utils.book_append_sheet(workbook, reviewSheet, "Needs Review");
   }
 
@@ -432,6 +567,7 @@ export function downloadKeywordGapXLSX(
   if (safeOutOfPlay.length > 0) {
     const outOfPlayData = formatKeywords(safeOutOfPlay);
     const outOfPlaySheet = XLSX.utils.json_to_sheet(outOfPlayData);
+    outOfPlaySheet["!cols"] = keywordColWidths;
     XLSX.utils.book_append_sheet(workbook, outOfPlaySheet, "Out of Play");
   }
 
@@ -444,6 +580,7 @@ export function downloadKeywordGapXLSX(
   if (allKeywords.length > 0) {
     const allData = formatKeywords(allKeywords);
     const allSheet = XLSX.utils.json_to_sheet(allData);
+    allSheet["!cols"] = keywordColWidths;
     XLSX.utils.book_append_sheet(workbook, allSheet, "All Keywords");
   }
 
