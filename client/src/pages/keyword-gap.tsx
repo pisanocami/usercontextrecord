@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,7 @@ import {
   HelpCircle,
   RefreshCw,
   Database,
+  ChevronRight,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -151,6 +153,16 @@ interface KeywordLiteResult {
   theme: string;
 }
 
+type UCRSection = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
+
+interface UCRContext {
+  ucr_version: string;
+  sections_used: UCRSection[];
+  rules_triggered: string[];
+  executed_at: string;
+  module_id: string;
+}
+
 interface KeywordGapLiteResult {
   brandDomain: string;
   competitors: string[];
@@ -181,6 +193,7 @@ interface KeywordGapLiteResult {
   configurationName: string;
   fromCache?: boolean;
   provider?: string;
+  ucrContext?: UCRContext;
 }
 
 // Auto-checks for AI_READY transition (determines if context can run AI analysis)
@@ -874,6 +887,38 @@ export default function KeywordGap() {
                   <br />
                   Review context and exclusions before approving.
                 </div>
+              )}
+              {/* UCR Context Traceability */}
+              {liteResult.ucrContext && (
+                <Collapsible className="mt-4">
+                  <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors" data-testid="trigger-ucr-context">
+                    <ChevronRight className="h-3 w-3 transition-transform data-[state=open]:rotate-90" />
+                    UCR Context: {liteResult.ucrContext.ucr_version}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2 p-3 rounded-md bg-muted/30 border text-xs space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-muted-foreground mr-1">Sections Used:</span>
+                      {liteResult.ucrContext.sections_used.map((section) => (
+                        <Badge key={section} variant="outline" className="text-xs">
+                          {section}
+                        </Badge>
+                      ))}
+                    </div>
+                    {liteResult.ucrContext.rules_triggered.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        <span className="text-muted-foreground mr-1">Rules Triggered:</span>
+                        {liteResult.ucrContext.rules_triggered.map((rule) => (
+                          <Badge key={rule} variant="secondary" className="text-xs">
+                            {rule}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-muted-foreground">
+                      Executed: {new Date(liteResult.ucrContext.executed_at).toLocaleString()}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </CardHeader>
             <CardContent>

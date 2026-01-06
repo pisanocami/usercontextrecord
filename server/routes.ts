@@ -12,6 +12,8 @@ import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as 
 import { getProvider, getAllProviderStatuses, type ProviderType } from "./providers";
 import { validateContext, type ContextValidationResult } from "./context-validator";
 import { validateConfiguration as validateConfigurationFull, type FullValidationResult } from "@shared/validation";
+import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES } from "@shared/module-registry";
+import { validateModuleExecution } from "./execution-gateway";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -1701,6 +1703,40 @@ IMPORTANT:
     } catch (error: any) {
       console.error("Error approving context:", error);
       res.status(500).json({ error: error.message || "Failed to approve context" });
+    }
+  });
+
+  // FON Module Registry endpoints
+  app.get("/api/modules", async (req, res) => {
+    try {
+      const includeAll = req.query.all === 'true';
+      const modules = includeAll ? getAllModules() : getActiveModules();
+      res.json({ 
+        modules: modules.map(m => ({
+          ...m,
+          requiredSectionNames: m.requiredSections.map(s => ({ section: s, name: UCR_SECTION_NAMES[s] })),
+          optionalSectionNames: m.optionalSections.map(s => ({ section: s, name: UCR_SECTION_NAMES[s] })),
+        })),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to get modules" });
+    }
+  });
+
+  app.get("/api/modules/:moduleId/validate/:configId", async (req: any, res) => {
+    try {
+      const { moduleId, configId } = req.params;
+      const userId = (req.user as any)?.id || null;
+      
+      const config = await storage.getConfigurationById(parseInt(configId, 10), userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      
+      const validation = validateModuleExecution(moduleId, config as any);
+      res.json(validation);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to validate module" });
     }
   });
 

@@ -3,6 +3,14 @@ import type { Configuration, CapabilityModel, ScoringConfig } from "@shared/sche
 import type { KeywordDataProvider, GapKeyword } from "./keyword-data-provider";
 import { getProvider } from "./providers";
 import { getCapabilityPreset, getScoringPreset } from "./capability-presets";
+import { 
+  validateModuleExecution, 
+  createExecutionContext,
+  addTriggeredRule,
+  RULES,
+  type UCRSection 
+} from "./execution-gateway";
+import { SEO_VISIBILITY_GAP, UCR_SECTION_NAMES } from "@shared/module-registry";
 
 export type KeywordStatus = "pass" | "review" | "out_of_play";
 export type ConfidenceLevel = "high" | "medium" | "low";
@@ -66,6 +74,13 @@ export interface KeywordGapResult {
   configurationName: string;
   fromCache: boolean;
   provider: string;
+  ucrContext: {
+    ucr_version: string;
+    sections_used: UCRSection[];
+    rules_triggered: string[];
+    executed_at: string;
+    module_id: string;
+  };
 }
 
 interface CacheEntry {
@@ -695,6 +710,13 @@ export async function computeKeywordGap(
     forceRefresh = false,
   } = options;
   
+  const validation = validateModuleExecution(SEO_VISIBILITY_GAP.id, config);
+  const execContext = createExecutionContext(
+    SEO_VISIBILITY_GAP.id,
+    config,
+    validation.availableSections
+  );
+  
   let usedCache = false;
   
   const keywordProvider = getProvider(provider);
@@ -738,6 +760,13 @@ export async function computeKeywordGap(
       configurationName: config.name || "Unknown",
       fromCache: false,
       provider,
+      ucrContext: {
+        ucr_version: execContext.ucrVersion,
+        sections_used: execContext.sectionsUsed,
+        rules_triggered: execContext.rulesTriggered,
+        executed_at: new Date().toISOString(),
+        module_id: execContext.moduleId,
+      },
     };
   }
   
@@ -881,6 +910,17 @@ export async function computeKeywordGap(
   const excludedKeywords = (negativeScope.excluded_keywords as string[] || []).length;
   const excludedUseCases = (negativeScope.excluded_use_cases as string[] || []).length;
   
+  if (competitorBrandCount > 0) addTriggeredRule(execContext, RULES.COMPETITOR_BRAND_DETECTED);
+  if (variantCount > 0) addTriggeredRule(execContext, RULES.SIZE_VARIANT_DETECTED);
+  if (irrelevantEntityCount > 0) addTriggeredRule(execContext, RULES.IRRELEVANT_ENTITY);
+  if (excludedCategories > 0 || excludedKeywords > 0 || excludedUseCases > 0) {
+    addTriggeredRule(execContext, RULES.NEGATIVE_SCOPE_MATCH);
+  }
+  if (lowCapabilityCount > 0) addTriggeredRule(execContext, RULES.LOW_CAPABILITY_SCORE);
+  if (config.scoring_config || config.capability_model) {
+    addTriggeredRule(execContext, RULES.GOVERNANCE_THRESHOLD);
+  }
+  
   return {
     brandDomain,
     competitors: directCompetitors,
@@ -904,6 +944,13 @@ export async function computeKeywordGap(
     configurationName: config.name || "Unknown",
     fromCache: usedCache,
     provider,
+    ucrContext: {
+      ucr_version: execContext.ucrVersion,
+      sections_used: execContext.sectionsUsed,
+      rules_triggered: execContext.rulesTriggered,
+      executed_at: new Date().toISOString(),
+      module_id: execContext.moduleId,
+    },
   };
 }
 

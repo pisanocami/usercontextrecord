@@ -7,12 +7,14 @@
  */
 
 import { 
-  UCRSection, 
   UCR_SECTION_NAMES,
   getModuleDefinition,
   canModuleExecute 
 } from '@shared/module-registry';
+import type { UCRSection } from '@shared/module-registry';
 import type { Configuration } from '@shared/schema';
+
+export type { UCRSection };
 
 export interface UCRValidationResult {
   isValid: boolean;
