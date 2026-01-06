@@ -239,6 +239,19 @@ function getCompetitorBrandTerms(config: Configuration): string[] {
   return Array.from(new Set([...terms, ...commonBrands]));
 }
 
+// Convert intent type to user-friendly theme name for display
+export function intentTypeToTheme(intentType: IntentType): string {
+  const themeMap: Record<IntentType, string> = {
+    category_capture: "Category Terms",
+    product_generic: "Product Terms",
+    problem_solution: "Problem/Solution",
+    brand_capture: "Brand Terms",
+    variant_or_size: "Variants",
+    other: "Other",
+  };
+  return themeMap[intentType] || "Other";
+}
+
 export function classifyIntent(keyword: string, config: Configuration): { intentType: IntentType; flags: string[] } {
   const normalizedKw = normalizeKeyword(keyword);
   const flags: string[] = [];
@@ -716,7 +729,12 @@ export async function computeKeywordGap(
       kw.keyword, config, kw.searchVolume, kw.cpc,
       kw.keywordDifficulty, kw.competitorPosition
     );
-    const theme = assignTheme(kw.keyword, config);
+    const demandTheme = assignTheme(kw.keyword, config);
+    
+    // Use intent type as fallback when no demand_definition match
+    const theme = demandTheme !== "Other" 
+      ? demandTheme 
+      : intentTypeToTheme(evaluation.intentType);
     
     results.push({
       keyword: kw.keyword,
