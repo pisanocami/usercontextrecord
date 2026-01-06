@@ -1,0 +1,273 @@
+*ya tenemos todo* para cerrar la definición de *cómo cada uno de estos módulos se vincula formalmente al UCR* sin ambigüedad.
+
+Voy a hacerlo en 3 capas claras:
+
+1. *Regla madre de vinculación (aplica a todos)*
+2. *Matriz módulo × UCR (A–H)*
+3. *Patrón de implementación que podés convertir directo en spec / código*
+
+No voy a repetir specs de los módulos; me enfoco *solo en el vínculo con el UCR*.
+
+---
+
+## 1. Regla madre (esto es lo que tenés que “institucionalizar”)
+
+> **Ningún módulo define contexto.
+> Todo módulo:**
+> 
+>* *lee* del UCR
+> * *traduce* el UCR a filtros / pesos / comparables
+> * *devuelve output clasificado según el UCR*
+
+Esto implica 3 cosas no negociables:
+
+### A. El UCR decide *qué mirar*
+
+* categorías
+* queries
+* competidores
+* mercados
+* exclusiones
+
+### B. El UCR decide *cómo interpretar*
+
+* agresivo vs conservador
+* qué es “oportunidad” vs “ruido”
+* qué va a PASS / REVIEW / OUT
+
+### C. El UCR decide *qué hacer con el output*
+
+* tagging por Demand Themes
+* scoring por Governance
+* prioridad por Channel Context
+
+---
+
+## 2. Matriz clara: cómo cada módulo consume el UCR
+
+Esta es la pieza que te faltaba.
+Pensala como *contrato semántico*, no técnico.
+
+---
+
+### 🧩 01. CATEGORY DEMAND SIGNAL
+
+(Category Demand Trend / Market Demand & Seasonality)
+
+*Pregunta que responde:*
+
+> “¿Vale la pena estar en esta categoría y cuándo?”
+
+#### UCR que consume
+
+| Pilar                       | Rol                                                          |
+| --------------------------- | ------------------------------------------------------------ |
+| *A – Brand Context*       | Define mercado base (geo default, idioma)                    |
+| *B – Category Definition* | Define qué queries representan la categoría                |
+| *D – Demand Definition*   | Agrupa queries en macro-temas (“Recovery”, “Comfort”)        |
+| *E – Strategic Intent*    | Sensibilidad para clasificar crecimiento (flat vs declining) |
+| *G – Negative Scope*      | Excluye categorías no estratégicas                           |
+| *H – Governance*          | Define qué % de CAGR = “inversión válida”                    |
+
+#### Regla clave
+
+* Este módulo *no decide qué es una categoría*
+* Solo mide *las categorías ya aprobadas en B*
+
+Output:
+
+* Nunca genera PASS/OUT a nivel keyword
+* Genera *Investment Signal* a nivel category/theme
+
+---
+
+### 🧩 02. BRAND ATTENTION & SHARE OF SEARCH
+
+*Pregunta:*
+
+> “¿Qué parte de la mente del mercado es nuestra?”
+
+#### UCR que consume
+
+| Pilar                       | Rol                                         |
+| --------------------------- | ------------------------------------------- |
+| *A – Brand Context*       | Define brand entity primaria                |
+| *C – Competitive Set*     | Define quién entra en la comparación        |
+| *B – Category Definition* | Limita el universo de búsqueda              |
+| *E – Strategic Intent*    | Define si perder share = alerta o tolerable |
+| *H – Governance*          | Define thresholds de “attention risk”       |
+
+#### Regla clave
+
+* Si un competidor *no está en C*, no existe
+* Si una query no está dentro del fence B → se ignora
+
+Output:
+
+* Share del brand *siempre contextualizado*
+* No hay “ganamos/perdimos” sin intent E
+
+---
+
+### 🧩 03. SEO VISIBILITY & GAP MAPPING
+
+(Keyword Gap & Visibility Overview)
+
+Este es el módulo *más UCR-dependiente*.
+
+#### UCR que consume
+
+| Pilar                       | Rol                                      |
+| --------------------------- | ---------------------------------------- |
+| *A – Brand Context*       | target_domain                            |
+| *B – Category Definition* | Soft-fence → outside_fence = REVIEW      |
+| *C – Competitive Set*     | Domains comparables                      |
+| *D – Demand Definition*   | Theme tagging automático                 |
+| *E – Strategic Intent*    | Ajusta scoring (agresivo vs conservador) |
+| *F – Channel Context*     | Pondera SEO vs Paid                      |
+| *G – Negative Scope*      | Hard gate → OUT_OF_PLAY                  |
+| *H – Governance*          | Capability / right-to-win score          |
+
+#### Regla clave
+
+* *Keyword ≠ oportunidad*
+* Keyword + UCR = PASS / REVIEW / OUT
+
+Output:
+
+* Cada keyword *debe salir clasificada*
+* No existe “raw keyword list” hacia el usuario
+
+---
+
+### 🧩 04. RETAIL AVAILABILITY & PRICING INTELLIGENCE
+
+*Pregunta:*
+
+> “¿Dónde estamos perdiendo shelf + margen?”
+
+#### UCR que consume
+
+| Pilar                    | Rol                           |
+| ------------------------ | ----------------------------- |
+| *A – Brand Context*    | Define SKUs y pricing base    |
+| *C – Competitive Set*  | Retail benchmarks             |
+| *F – Channel Context*  | Importancia del retail vs DTC |
+| *E – Strategic Intent* | Tolerancia a discounting      |
+| *G – Negative Scope*   | Retailers prohibidos          |
+| *H – Governance*       | Pricing guardrails            |
+
+#### Regla clave
+
+* No todos los retailers son “problema”
+* El UCR define *cuáles importan y por qué*
+
+Output:
+
+* Insights siempre en forma de *lever*, no diagnóstico genérico
+
+---
+
+### 🧩 05. DEMAND CAPTURE & EFFICIENCY
+
+*Pregunta:*
+
+> “¿Estamos capturando demanda o solo defendiéndonos?”
+
+#### UCR que consume
+
+| Pilar                       | Rol                           |
+| --------------------------- | ----------------------------- |
+| *A – Brand Context*       | Define branded vs non-branded |
+| *B – Category Definition* | Define universo no-brand      |
+| *D – Demand Definition*   | Mapea capture por theme       |
+| *E – Strategic Intent*    | Tolerancia a brand-dependence |
+| *F – Channel Context*     | SEO vs Paid weighting         |
+| *H – Governance*          | Efficiency benchmarks         |
+
+#### Regla clave
+
+* 95% branded *no es malo per se*
+* Es malo según el intent E del UCR
+
+Output:
+
+* Capture % siempre acompañado de *“is this acceptable?”*
+
+---
+
+### 🧩 06. STRATEGIC LEVERS & AI-AUGMENTED MOVES
+
+Este módulo *no tiene data propia*.
+Es un *orquestador*.
+
+#### UCR que consume
+
+👉 *Todos (A–H)*
+
+#### Regla clave
+
+* Nunca “inventa” recomendaciones
+* Solo *compone acciones* a partir de:
+
+  * gaps aprobados
+  * categorías validadas
+  * governance activa
+
+Output:
+
+* Cada recomendación debe poder trazarse a:
+
+  * módulo origen
+  * regla del UCR
+  * impacto estimado
+
+---
+
+## 3. Patrón técnico mínimo (para que esto no se rompa)
+
+### A. Cada módulo declara explícitamente:
+
+ts
+requiredSections: ['A','B','C','G']
+optionalSections: ['D','E','H']
+
+
+### B. El Execution Gateway:
+
+* inyecta solo esas secciones
+* bloquea ejecución si falta una crítica
+
+### C. Todo output incluye:
+
+json
+{
+  "ucr_version": "v12",
+  "sections_used": ["A","B","D","H"],
+  "rules_triggered": [
+    "negative_scope.match",
+    "outside_category_fence"
+  ]
+}
+
+
+Esto te da:
+
+* auditabilidad
+* reproducibilidad
+* confianza CMO
+
+---
+
+## Veredicto arquitectónico
+
+Con lo que compartiste:
+
+* *los módulos ya están bien definidos*
+* lo único que faltaba era *cerrar el contrato UCR → módulo*
+
+Ahora ya podés:
+
+* escalar módulos sin re-pensar el sistema
+* meter nuevos councils sin romper nada
+* vender esto como *strategy → signal → action OS*, no dashboards
