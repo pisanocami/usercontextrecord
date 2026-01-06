@@ -257,3 +257,189 @@ export function formatVersionHistoryForExport(versions: {
     Summary: v.summary ?? ""
   }));
 }
+
+interface KeywordGapExportConfig {
+  name?: string;
+  brand?: {
+    name?: string;
+    domain?: string;
+  };
+  category_definition?: {
+    primary_category?: string;
+    included?: string[];
+    excluded?: string[];
+  };
+  competitors?: {
+    competitors?: { name?: string; domain?: string; status?: string }[];
+    direct?: string[];
+    indirect?: string[];
+  };
+  negative_scope?: {
+    excluded_keywords?: string[];
+    excluded_categories?: string[];
+  };
+  governance?: {
+    context_status?: string;
+    quality_score?: { overall?: number };
+  };
+}
+
+interface KeywordGapExportKeyword {
+  keyword: string;
+  normalizedKeyword?: string;
+  status: string;
+  disposition?: string;
+  intentType?: string;
+  capabilityScore?: number;
+  opportunityScore?: number;
+  searchVolume?: number;
+  cpc?: number;
+  keywordDifficulty?: number;
+  competitorPosition?: number;
+  reason?: string;
+  reasons?: string[];
+  confidence?: string;
+  theme?: string;
+  competitorsSeen?: string[];
+  flags?: string[];
+}
+
+interface KeywordGapExportStats {
+  passed: number;
+  review: number;
+  outOfPlay: number;
+  percentPassed: number;
+  percentReview: number;
+  percentOutOfPlay: number;
+}
+
+interface KeywordGapExportFilters {
+  excludedCategories?: number;
+  excludedKeywords?: number;
+  competitorBrandTerms?: number;
+  variantTerms?: number;
+  lowCapability?: number;
+  totalFilters?: number;
+}
+
+export function downloadKeywordGapXLSX(
+  config: KeywordGapExportConfig,
+  topOpportunities: KeywordGapExportKeyword[],
+  needsReview: KeywordGapExportKeyword[],
+  outOfPlay: KeywordGapExportKeyword[],
+  stats: KeywordGapExportStats,
+  filtersApplied: KeywordGapExportFilters,
+  filename: string
+): void {
+  const workbook = XLSX.utils.book_new();
+
+  // Sheet 1: Context Summary
+  const contextData: Record<string, unknown>[] = [
+    { Field: "Configuration Name", Value: config.name || "" },
+    { Field: "Brand Name", Value: config.brand?.name || "" },
+    { Field: "Brand Domain", Value: config.brand?.domain || "" },
+    { Field: "Primary Category", Value: config.category_definition?.primary_category || "" },
+    { Field: "Context Status", Value: config.governance?.context_status || "" },
+    { Field: "Quality Score", Value: config.governance?.quality_score?.overall ?? "" },
+    { Field: "", Value: "" },
+    { Field: "CATEGORY FENCE - INCLUDED", Value: "" },
+    ...(config.category_definition?.included?.map((term, i) => ({ Field: `  Included ${i + 1}`, Value: term })) || []),
+    { Field: "", Value: "" },
+    { Field: "CATEGORY FENCE - EXCLUDED", Value: "" },
+    ...(config.category_definition?.excluded?.map((term, i) => ({ Field: `  Excluded ${i + 1}`, Value: term })) || []),
+    { Field: "", Value: "" },
+    { Field: "COMPETITORS", Value: "" },
+    ...(config.competitors?.competitors?.filter(c => c.status === "approved").map((c, i) => ({ 
+      Field: `  Competitor ${i + 1}`, 
+      Value: `${c.name || ""} (${c.domain || ""})` 
+    })) || []),
+    { Field: "", Value: "" },
+    { Field: "NEGATIVE SCOPE - EXCLUDED KEYWORDS", Value: "" },
+    ...(config.negative_scope?.excluded_keywords?.map((term, i) => ({ Field: `  Excluded KW ${i + 1}`, Value: term })) || []),
+    { Field: "", Value: "" },
+    { Field: "NEGATIVE SCOPE - EXCLUDED CATEGORIES", Value: "" },
+    ...(config.negative_scope?.excluded_categories?.map((term, i) => ({ Field: `  Excluded Cat ${i + 1}`, Value: term })) || []),
+  ];
+  const contextSheet = XLSX.utils.json_to_sheet(contextData);
+  XLSX.utils.book_append_sheet(workbook, contextSheet, "Context");
+
+  // Sheet 2: Analysis Summary
+  const summaryData: Record<string, unknown>[] = [
+    { Metric: "Total Keywords Analyzed", Value: stats.passed + stats.review + stats.outOfPlay },
+    { Metric: "Keywords Passed", Value: stats.passed },
+    { Metric: "Keywords Need Review", Value: stats.review },
+    { Metric: "Keywords Out of Play", Value: stats.outOfPlay },
+    { Metric: "Pass Rate (%)", Value: stats.percentPassed },
+    { Metric: "Review Rate (%)", Value: stats.percentReview },
+    { Metric: "Out of Play Rate (%)", Value: stats.percentOutOfPlay },
+    { Metric: "", Value: "" },
+    { Metric: "FILTERS APPLIED", Value: "" },
+    { Metric: "Excluded Categories", Value: filtersApplied.excludedCategories ?? 0 },
+    { Metric: "Excluded Keywords", Value: filtersApplied.excludedKeywords ?? 0 },
+    { Metric: "Competitor Brand Terms", Value: filtersApplied.competitorBrandTerms ?? 0 },
+    { Metric: "Variant Terms", Value: filtersApplied.variantTerms ?? 0 },
+    { Metric: "Low Capability", Value: filtersApplied.lowCapability ?? 0 },
+    { Metric: "Total Filters Applied", Value: filtersApplied.totalFilters ?? 0 },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // Helper function to format keywords for export
+  const formatKeywords = (keywords: KeywordGapExportKeyword[]) => {
+    return keywords.map(kw => ({
+      Keyword: kw.keyword,
+      "Normalized Keyword": kw.normalizedKeyword || kw.keyword,
+      Status: kw.status,
+      Disposition: kw.disposition || "",
+      Intent: kw.intentType?.replace(/_/g, " ") || "",
+      "Search Volume": kw.searchVolume ?? "",
+      CPC: kw.cpc ?? "",
+      "Keyword Difficulty": kw.keywordDifficulty ?? "",
+      "Competitor Position": kw.competitorPosition ?? "",
+      "Capability Score": kw.capabilityScore != null ? Math.round(kw.capabilityScore * 100) : "",
+      "Opportunity Score": kw.opportunityScore != null ? Math.round(kw.opportunityScore) : "",
+      Confidence: kw.confidence || "",
+      Theme: kw.theme || "",
+      Reason: kw.reasons?.join("; ") || kw.reason || "",
+      "Competitors Seen": kw.competitorsSeen?.join(", ") || "",
+      Flags: kw.flags?.join(", ") || "",
+    }));
+  };
+
+  // Sheet 3: Top Opportunities
+  if (topOpportunities.length > 0) {
+    const opportunitiesData = formatKeywords(topOpportunities);
+    const opportunitiesSheet = XLSX.utils.json_to_sheet(opportunitiesData);
+    XLSX.utils.book_append_sheet(workbook, opportunitiesSheet, "Top Opportunities");
+  }
+
+  // Sheet 4: Needs Review
+  if (needsReview.length > 0) {
+    const reviewData = formatKeywords(needsReview);
+    const reviewSheet = XLSX.utils.json_to_sheet(reviewData);
+    XLSX.utils.book_append_sheet(workbook, reviewSheet, "Needs Review");
+  }
+
+  // Sheet 5: Out of Play
+  if (outOfPlay.length > 0) {
+    const outOfPlayData = formatKeywords(outOfPlay);
+    const outOfPlaySheet = XLSX.utils.json_to_sheet(outOfPlayData);
+    XLSX.utils.book_append_sheet(workbook, outOfPlaySheet, "Out of Play");
+  }
+
+  // Sheet 6: All Keywords Combined
+  const allKeywords = [
+    ...topOpportunities,
+    ...needsReview,
+    ...outOfPlay,
+  ];
+  if (allKeywords.length > 0) {
+    const allData = formatKeywords(allKeywords);
+    const allSheet = XLSX.utils.json_to_sheet(allData);
+    XLSX.utils.book_append_sheet(workbook, allSheet, "All Keywords");
+  }
+
+  const xlsxBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([xlsxBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  triggerDownload(blob, `${filename}.xlsx`);
+}
