@@ -495,4 +495,74 @@ _Screenshot pendiente de captura_
 
 ---
 
+## Nuevas Features (v3.2)
+
+### CMO-Safe Gate Order
+
+El sistema implementa un orden estricto de evaluación de gates para garantizar decisiones auditables:
+
+| Gate | UCR Section | Type | Behavior |
+|------|-------------|------|----------|
+| G | Negative Scope | Hard | Exclusión inmediata, stop |
+| B | Category Fence | Soft | Solo flag, continúa |
+| H | Governance | Classification | PASS/REVIEW/OUT_OF_PLAY |
+| E/F | Strategic/Channel | Prioritization | Ajuste de ranking |
+
+### Item-Level Traces
+
+Cada keyword procesado incluye trazas completas de evaluación:
+
+```json
+{
+  "keyword": "recovery sandals",
+  "disposition": "PASS",
+  "trace": [
+    {
+      "ruleId": "B_OUTSIDE_FENCE",
+      "ucrSection": "B",
+      "reason": "Outside category fence",
+      "severity": "medium"
+    },
+    {
+      "ruleId": "H_CAPABILITY_PASS",
+      "ucrSection": "H",
+      "reason": "Score 0.85 > 0.55",
+      "severity": "low"
+    }
+  ]
+}
+```
+
+### Module Contract System
+
+Todas las definiciones de módulos consolidadas en `shared/module.contract.ts`:
+
+- Tipos compartidos: `Disposition`, `Severity`, `UCRSectionID`, `ItemTrace`
+- Metadatos UCR: `UCR_SECTION_NAMES`, `UCR_SECTION_ROLES`
+- Registro de módulos: `MODULE_REGISTRY`, funciones helper
+- Contratos formales: `ModuleContract` interface
+
+### UI Enhancements
+
+- Filas expandibles en tablas de keywords para ver trazas
+- Badges de disposición (PASS/REVIEW/OUT_OF_PLAY)
+- Indicadores de severidad con colores distintivos
+- Columna de confianza (high/medium/low)
+
+---
+
+## Documentación Técnica
+
+| Documento | Descripción |
+|-----------|-------------|
+| `KEYWORD_GAP_ANALYSIS.md` | Documentación completa de Keyword Gap |
+| `CONTEXT_MODULE_ARCHITECTURE.md` | Arquitectura Context-First |
+| `docs/MODULE_CONTRACTS.md` | Sistema de contratos de módulos |
+| `docs/UCR_SPECIFICATION.md` | Especificación del UCR |
+| `OOFOS_CASE_STUDY.md` | Caso de estudio DTC footwear |
+
+---
+
 *Documentación generada automáticamente por el sistema de documentación del Brand Intelligence Configuration Platform.*
+
+*Última actualización: Enero 2026 (v3.2)*

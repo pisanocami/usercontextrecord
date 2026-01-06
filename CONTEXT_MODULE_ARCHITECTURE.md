@@ -581,3 +581,110 @@ Cada módulo futuro seguirá el mismo patrón Context-First:
 3. **Graceful degradation** - Si falta una sección, usar defaults razonables
 4. **No mock data** - Solo datos reales de APIs externas
 5. **Auditabilidad** - `filtersApplied` muestra exactamente qué reglas del UCR se usaron
+
+---
+
+## Module Contract System (v3.2)
+
+Todas las definiciones de módulos están consolidadas en `shared/module.contract.ts`.
+
+### Single Source of Truth
+
+```
+shared/module.contract.ts
+├── Type Definitions
+│   ├── UCRSectionID ('A' | 'B' | ... | 'H')
+│   ├── Disposition ('PASS' | 'REVIEW' | 'OUT_OF_PLAY')
+│   ├── Severity ('low' | 'medium' | 'high' | 'critical')
+│   └── ItemTrace (ruleId, ucrSection, reason, severity, evidence)
+│
+├── UCR Metadata
+│   ├── UCR_SECTION_NAMES
+│   └── UCR_SECTION_ROLES
+│
+├── Gate Definitions
+│   ├── GATE_EVALUATION_ORDER
+│   └── GATE_TYPES
+│
+├── Module Contracts (formal)
+│   └── ModuleContract interface
+│
+└── Legacy Module Definitions
+    ├── ModuleDefinition interface
+    ├── MODULE_REGISTRY
+    └── Helper functions
+```
+
+### Import Pattern
+
+```typescript
+// Correct import (v3.2+)
+import { 
+  UCR_SECTION_NAMES,
+  getModuleDefinition,
+  canModuleExecute,
+  type UCRSectionID,
+  type Disposition,
+  type ItemTrace
+} from '@shared/module.contract';
+
+// Deprecated (do not use)
+import { ... } from '@shared/module-registry';
+```
+
+### CMO-Safe Gate Order
+
+Los módulos evalúan keywords siguiendo orden estricto:
+
+1. **Gate G** (Negative Scope) - Hard gate, early return
+2. **Gate B** (Category Fence) - Soft gate, flag only
+3. **Gate H** (Scoring) - Classification
+4. **Gate E/F** (Strategic/Channel) - Prioritization
+
+Ver `KEYWORD_GAP_ANALYSIS.md` para detalles completos.
+
+### Item-Level Traces
+
+Cada keyword incluye un array `trace` con todas las evaluaciones:
+
+```typescript
+interface ItemTrace {
+  ruleId: string;           // "G_COMPETITOR_BRAND"
+  ucrSection: UCRSectionID; // "G"
+  reason: string;           // "Contains competitor brand"
+  severity: Severity;       // "critical"
+  evidence?: string;        // "matched: walmart"
+}
+```
+
+---
+
+## Documentación Relacionada
+
+- `docs/MODULE_CONTRACTS.md` - Sistema de contratos de módulos
+- `docs/UCR_SPECIFICATION.md` - Especificación completa del UCR
+- `KEYWORD_GAP_ANALYSIS.md` - Documentación de Keyword Gap
+- `OOFOS_CASE_STUDY.md` - Caso de estudio DTC footwear
+
+---
+
+## Changelog
+
+### v3.2 (Enero 2026)
+
+- **Module Contract Consolidation**: Todas las definiciones en `module.contract.ts`
+- **CMO-Safe Gate Order**: Implementación estricta G → B → H → E/F
+- **Item-Level Traces**: Trazabilidad completa por keyword
+- **Deprecation**: `module-registry.ts` marcado como deprecated
+
+### v3.1 (Enero 2026)
+
+- Vertical presets para scoring
+- Fence override fix (capability manda)
+- Confidence levels
+
+### v3.0 (Diciembre 2025)
+
+- Arquitectura Context-First
+- 8 secciones canónicas del UCR
+- Multi-provider keyword gap

@@ -1,12 +1,43 @@
-# Sistema de Documentación
+# Documentación FON Platform
 
-Este directorio contiene herramientas para generar documentación automatizada del Brand Intelligence Configuration Platform.
+Este directorio contiene la documentación técnica del Brand Intelligence Configuration Platform (FON).
 
-## Estructura
+---
+
+## Índice de Documentación
+
+### Documentación Principal
+
+| Documento | Descripción |
+|-----------|-------------|
+| [SYSTEM_DOCUMENTATION.md](../SYSTEM_DOCUMENTATION.md) | Documentación general del sistema |
+| [CONTEXT_MODULE_ARCHITECTURE.md](../CONTEXT_MODULE_ARCHITECTURE.md) | Arquitectura Context-First |
+| [KEYWORD_GAP_ANALYSIS.md](../KEYWORD_GAP_ANALYSIS.md) | Documentación de Keyword Gap |
+| [OOFOS_CASE_STUDY.md](../OOFOS_CASE_STUDY.md) | Caso de estudio DTC footwear |
+
+### Documentación Técnica
+
+| Documento | Descripción |
+|-----------|-------------|
+| [MODULE_CONTRACTS.md](./MODULE_CONTRACTS.md) | Sistema de contratos de módulos |
+| [UCR_SPECIFICATION.md](./UCR_SPECIFICATION.md) | Especificación del User Context Record |
+
+### Configuración
+
+| Documento | Descripción |
+|-----------|-------------|
+| [replit.md](../replit.md) | Configuración del proyecto Replit |
+| [design_guidelines.md](../design_guidelines.md) | Guías de diseño UI/UX |
+
+---
+
+## Estructura del Directorio
 
 ```
 docs/
-├── README.md                    # Este archivo
+├── README.md                    # Este archivo (índice)
+├── MODULE_CONTRACTS.md          # Sistema de contratos de módulos
+├── UCR_SPECIFICATION.md         # Especificación del UCR
 ├── screens-manifest.json        # Registro de pantallas y metadatos
 ├── capture-screenshots.ts       # Script de captura de screenshots
 ├── generate-documentation.ts    # Generador de documentación Markdown

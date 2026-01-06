@@ -655,7 +655,197 @@ POST /api/keyword-gap-lite/run
 
 ---
 
+## CMO-Safe Gate Order (v3.2)
+
+El sistema evalúa keywords siguiendo un orden estricto de gates para garantizar auditoría completa y decisiones explicables.
+
+### Gate Evaluation Order
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                        CMO-SAFE GATE ORDER                                  │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│   GATE G (Negative Scope) ─► HARD GATE                                     │
+│   │  ├── Excluded keywords → OUT_OF_PLAY (immediate return)               │
+│   │  ├── Excluded categories → OUT_OF_PLAY (immediate return)             │
+│   │  └── Competitor brands → OUT_OF_PLAY (immediate return)               │
+│   │                                                                        │
+│   ▼                                                                        │
+│   GATE B (Category Fence) ─► SOFT GATE                                     │
+│   │  ├── Inside fence → continue (no flag)                                │
+│   │  └── Outside fence → continue + add "outside_fence" flag              │
+│   │                                                                        │
+│   ▼                                                                        │
+│   GATE H (Scoring) ─► CLASSIFICATION                                       │
+│   │  ├── capabilityScore >= pass_threshold → PASS                         │
+│   │  ├── capabilityScore >= review_threshold → REVIEW                     │
+│   │  └── capabilityScore < review_threshold → OUT_OF_PLAY                 │
+│   │                                                                        │
+│   ▼                                                                        │
+│   GATE E/F (Strategic/Channel) ─► PRIORITIZATION                           │
+│      ├── Goal alignment → boost opportunityScore                          │
+│      └── Channel fit → adjust ranking                                     │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Gate Types
+
+| Gate | UCR Section | Type | Behavior |
+|------|-------------|------|----------|
+| G | Negative Scope | Hard | Immediate OUT_OF_PLAY, stops evaluation |
+| B | Category Fence | Soft | Adds flag, evaluation continues |
+| H | Governance/Scoring | Classification | Determines PASS/REVIEW/OUT_OF_PLAY |
+| E/F | Strategic/Channel | Prioritization | Adjusts opportunity ranking |
+
+### Implementation
+
+```typescript
+function evaluateKeyword(keyword: KeywordData, ucr: Configuration): KeywordResult {
+  const trace: ItemTrace[] = [];
+  
+  // GATE G - Negative Scope (HARD GATE - early return)
+  if (isNegativeExclusion(keyword, ucr)) {
+    trace.push({
+      ruleId: "G_NEGATIVE_EXCLUSION",
+      ucrSection: "G",
+      reason: "Keyword matches negative scope exclusion",
+      severity: "critical",
+      evidence: matchedExclusion
+    });
+    return { disposition: "OUT_OF_PLAY", trace };
+  }
+  
+  // GATE B - Category Fence (SOFT GATE - flag only)
+  const fenceResult = checkCategoryFence(keyword, ucr);
+  if (!fenceResult.inFence) {
+    trace.push({
+      ruleId: "B_OUTSIDE_FENCE",
+      ucrSection: "B",
+      reason: "Keyword outside category fence",
+      severity: "medium"
+    });
+    flags.push("outside_fence");
+  }
+  
+  // GATE H - Scoring (determines disposition)
+  const { capabilityScore, opportunityScore } = computeScores(keyword, ucr);
+  const disposition = classifyByCapability(capabilityScore, thresholds);
+  
+  // GATE E/F - Strategic prioritization
+  const priorityBoost = computeStrategicFit(keyword, ucr);
+  
+  return { disposition, trace, opportunityScore: opportunityScore * priorityBoost };
+}
+```
+
+---
+
+## Item-Level Traces (v3.2)
+
+Cada keyword procesado incluye un array de trazas que documentan cada gate evaluado.
+
+### ItemTrace Structure
+
+```typescript
+interface ItemTrace {
+  ruleId: string;        // Identificador único del gate/regla
+  ucrSection: UCRSectionID;  // A-H, sección del UCR que activó
+  reason: string;        // Explicación human-readable
+  severity: Severity;    // critical | high | medium | low
+  evidence?: string;     // Datos específicos (ej: "matched: walmart")
+}
+```
+
+### Trace Examples
+
+**OUT_OF_PLAY por Competitor Brand:**
+```json
+{
+  "keyword": "walmart home improvement",
+  "disposition": "OUT_OF_PLAY",
+  "trace": [
+    {
+      "ruleId": "G_COMPETITOR_BRAND",
+      "ucrSection": "G",
+      "reason": "Contains competitor brand term",
+      "severity": "critical",
+      "evidence": "matched: walmart"
+    }
+  ]
+}
+```
+
+**PASS con Outside Fence Flag:**
+```json
+{
+  "keyword": "orthopedic sandals",
+  "disposition": "PASS",
+  "trace": [
+    {
+      "ruleId": "B_OUTSIDE_FENCE",
+      "ucrSection": "B",
+      "reason": "Keyword outside category fence",
+      "severity": "medium"
+    },
+    {
+      "ruleId": "H_CAPABILITY_PASS",
+      "ucrSection": "H",
+      "reason": "Capability score 0.78 exceeds pass threshold 0.55",
+      "severity": "low"
+    }
+  ]
+}
+```
+
+### Severity Levels
+
+| Severity | Color | Meaning |
+|----------|-------|---------|
+| critical | Red | Blocking issue, immediate exclusion |
+| high | Orange | Significant concern, likely exclusion |
+| medium | Amber | Moderate flag, may affect classification |
+| low | Gray | Informational, no impact on disposition |
+
+### UI Display
+
+Las trazas se muestran en filas expandibles en las tablas de keywords:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ Keyword          │ Intent   │ Volume │ Capability │ ▶ Trace │
+├──────────────────────────────────────────────────────────────┤
+│ recovery sandals │ Solution │ 12,100 │ 85%        │ ▶       │
+├──────────────────────────────────────────────────────────────┤
+│ ▼ Gate Evaluation Trace:                                    │
+│   [B] [medium] B_OUTSIDE_FENCE: Outside category fence      │
+│   [H] [low] H_CAPABILITY_PASS: Score 0.85 > 0.55 threshold  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Changelog
+
+### v3.2 (Enero 2026)
+
+**CMO-Safe Gate Order:**
+- Implementación estricta del orden de gates: G → B → H → E/F
+- Gate G (Negative Scope) como hard gate con early return
+- Gate B (Category Fence) como soft gate que solo añade flags
+- Documentación completa del flujo de evaluación
+
+**Item-Level Traces:**
+- Cada keyword incluye array `trace` con evaluaciones de gate
+- Estructura ItemTrace: ruleId, ucrSection, reason, severity, evidence
+- UI expandible para ver trazas en tablas de keywords
+- Severidades: critical, high, medium, low con colores distintivos
+
+**Module Contract Consolidation:**
+- Todas las definiciones consolidadas en `shared/module.contract.ts`
+- `module-registry.ts` marcado como deprecated
+- Tipos compartidos entre frontend y backend
 
 ### v3.1 (Enero 2026)
 
