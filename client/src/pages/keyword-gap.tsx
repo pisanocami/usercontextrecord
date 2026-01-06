@@ -99,6 +99,35 @@ interface Configuration {
 
 type IntentType = "category_capture" | "problem_solution" | "product_generic" | "brand_capture" | "variant_or_size" | "other";
 
+// Intent weights for score breakdown tooltip (must match server/keyword-gap-lite.ts)
+const INTENT_WEIGHTS: Record<IntentType, number> = {
+  category_capture: 1.0,
+  problem_solution: 1.0,
+  product_generic: 0.8,
+  brand_capture: 0.1,
+  variant_or_size: 0.1,
+  other: 0.5,
+};
+
+// Helper to format score breakdown for tooltip
+function formatScoreBreakdown(kw: KeywordLiteResult): string {
+  const volume = kw.searchVolume ?? 0;
+  const cpc = kw.cpc ?? 1;
+  const intentWeight = INTENT_WEIGHTS[kw.intentType] ?? 0.5;
+  const capability = kw.capabilityScore ?? 0;
+  const diffFactor = kw.difficultyFactor ?? 1;
+  const posFactor = kw.positionFactor ?? 1;
+  
+  return [
+    `Volume: ${volume.toLocaleString()}`,
+    `CPC: $${cpc.toFixed(2)}`,
+    `Intent: ${intentWeight.toFixed(1)}`,
+    `Capability: ${(capability * 100).toFixed(0)}%`,
+    `Difficulty: ${(diffFactor * 100).toFixed(0)}%`,
+    `Position: ${(posFactor * 100).toFixed(0)}%`,
+  ].join("\n");
+}
+
 interface KeywordLiteResult {
   keyword: string;
   normalizedKeyword: string;
@@ -814,7 +843,21 @@ export default function KeywordGap() {
                                 {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
                               </TableCell>
                               <TableCell className="text-right font-mono text-xs">
-                                {Math.round(kw.opportunityScore).toLocaleString()}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help underline decoration-dotted decoration-muted-foreground/50">
+                                        {Math.round(kw.opportunityScore).toLocaleString()}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="left" className="font-mono text-xs">
+                                      <div className="whitespace-pre-line">{formatScoreBreakdown(kw)}</div>
+                                      <div className="mt-1 pt-1 border-t border-muted text-right font-semibold">
+                                        = {Math.round(kw.opportunityScore).toLocaleString()}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </TableCell>
                               <TableCell className="text-right">
                                 <Badge variant={kw.capabilityScore >= 0.7 ? "default" : "secondary"} className="text-xs">
