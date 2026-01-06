@@ -30,6 +30,8 @@ import {
   CheckCircle,
   XCircle,
   HelpCircle,
+  RefreshCw,
+  Database,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -177,6 +179,8 @@ interface KeywordGapLiteResult {
   };
   contextVersion: number;
   configurationName: string;
+  fromCache?: boolean;
+  provider?: string;
 }
 
 // Auto-checks for AI_READY transition (determines if context can run AI analysis)
@@ -394,12 +398,23 @@ export default function KeywordGap() {
   });
 
   const liteMutation = useMutation({
-    mutationFn: async (provider: ProviderType) => {
+    mutationFn: async (params: { 
+      configurationId: number; 
+      limitPerDomain?: number;
+      locationCode?: number;
+      languageCode?: string;
+      maxCompetitors?: number;
+      provider: ProviderType;
+      forceRefresh?: boolean;
+    }) => {
       const response = await apiRequest("POST", "/api/keyword-gap-lite/run", {
-        configurationId: configId,
-        limitPerDomain: 200,
-        maxCompetitors: 5,
-        provider,
+        configurationId: params.configurationId,
+        limitPerDomain: params.limitPerDomain ?? 200,
+        locationCode: params.locationCode ?? 2840,
+        languageCode: params.languageCode ?? "en",
+        maxCompetitors: params.maxCompetitors ?? 5,
+        provider: params.provider,
+        forceRefresh: params.forceRefresh ?? false,
       });
       return response.json() as Promise<KeywordGapLiteResult>;
     },
@@ -720,7 +735,10 @@ export default function KeywordGap() {
                   </Select>
                   <Button
                     className="flex-1"
-                    onClick={() => liteMutation.mutate(selectedProvider)}
+                    onClick={() => liteMutation.mutate({
+                      configurationId: Number(id),
+                      provider: selectedProvider,
+                    })}
                     disabled={liteMutation.isPending || !canRunAnalysis}
                     data-testid="button-gap-lite"
                   >
@@ -796,7 +814,58 @@ export default function KeywordGap() {
                   <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                     {liteResult.stats.percentOutOfPlay}% Out ({liteResult.stats.outOfPlay})
                   </Badge>
+                  {liteResult.fromCache && !isViewingSavedAnalysis && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge className="flex items-center gap-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200" data-testid="badge-cached-data">
+                          <Database className="h-3 w-3" />
+                          Datos de Cache
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Estos resultados provienen del cache (24h TTL).</p>
+                        <p>Use "Regenerar" para obtener datos frescos de la API.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
+                {liteResult.fromCache && !isViewingSavedAnalysis && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          liteMutation.mutate({
+                            configurationId: Number(id),
+                            limitPerDomain: 200,
+                            locationCode: 2840,
+                            languageCode: "en",
+                            maxCompetitors: 5,
+                            provider: selectedProvider,
+                            forceRefresh: true,
+                          });
+                        }}
+                        disabled={liteMutation.isPending}
+                        data-testid="button-regenerate"
+                      >
+                        {liteMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        Regenerar
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="font-medium">Regenerar datos frescos</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Esto hara una nueva llamada a la API de {selectedProvider === "ahrefs" ? "Ahrefs" : "DataForSEO"}, 
+                        lo cual consume creditos de tu plan.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
               {/* AI-Generated warning banner */}
               {isProvisional && (
