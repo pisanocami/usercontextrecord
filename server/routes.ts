@@ -1934,7 +1934,60 @@ IMPORTANT:
         provider,
       });
 
-      res.json(result);
+      // Persist the analysis results to database
+      const passKeywords = result.keywords?.filter((k: any) => k.status === "pass") || [];
+      const reviewKeywords = result.keywords?.filter((k: any) => k.status === "review") || [];
+      const outOfPlayKeywords = result.keywords?.filter((k: any) => k.status === "out_of_play") || [];
+
+      // Extract top themes from pass keywords for summary
+      const themeMap = new Map<string, { count: number; totalVolume: number }>();
+      passKeywords.forEach((kw: any) => {
+        const theme = kw.theme || "other";
+        const existing = themeMap.get(theme);
+        if (existing) {
+          existing.count++;
+          existing.totalVolume += kw.volume || 0;
+        } else {
+          themeMap.set(theme, { count: 1, totalVolume: kw.volume || 0 });
+        }
+      });
+      const topThemes = Array.from(themeMap.entries())
+        .map(([theme, data]) => ({ theme, count: data.count, totalVolume: data.totalVolume }))
+        .sort((a, b) => b.totalVolume - a.totalVolume)
+        .slice(0, 5);
+
+      // Calculate estimated missing value
+      const estimatedMissingValue = Math.round(result.summary?.estimatedMissingValue || 0);
+
+      const savedAnalysis = await storage.createKeywordGapAnalysis({
+        userId,
+        configurationId: config.id,
+        configurationName: config.name,
+        domain: brandDomain,
+        provider: provider,
+        status: "completed",
+        totalKeywords: result.keywords?.length || 0,
+        passCount: passKeywords.length,
+        reviewCount: reviewKeywords.length,
+        outOfPlayCount: outOfPlayKeywords.length,
+        estimatedMissingValue,
+        topThemes,
+        results: result,
+        parameters: {
+          limitPerDomain,
+          locationCode,
+          languageCode,
+          maxCompetitors,
+          provider,
+        },
+      });
+
+      // Return results with saved analysis ID
+      res.json({
+        ...result,
+        analysisId: savedAnalysis.id,
+        savedAt: savedAnalysis.created_at,
+      });
     } catch (error: any) {
       console.error("Error running keyword gap lite:", error);
       res.status(500).json({ error: error.message || "Failed to run keyword gap analysis" });
@@ -1949,6 +2002,61 @@ IMPORTANT:
   app.delete("/api/keyword-gap-lite/cache", async (req, res) => {
     clearCache();
     res.json({ message: "Cache cleared" });
+  });
+
+  // ============ KEYWORD GAP ANALYSES PERSISTENCE ============
+
+  // Get all saved keyword gap analyses for user
+  app.get("/api/keyword-gap-analyses", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const analyses = await storage.getKeywordGapAnalyses(userId);
+      res.json(analyses);
+    } catch (error: any) {
+      console.error("Error fetching keyword gap analyses:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch analyses" });
+    }
+  });
+
+  // Get single keyword gap analysis by ID
+  app.get("/api/keyword-gap-analyses/:id", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const id = parseInt(req.params.id, 10);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid analysis ID" });
+      }
+
+      const analysis = await storage.getKeywordGapAnalysisById(id, userId);
+      
+      if (!analysis) {
+        return res.status(404).json({ error: "Analysis not found" });
+      }
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Error fetching keyword gap analysis:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch analysis" });
+    }
+  });
+
+  // Delete a keyword gap analysis
+  app.delete("/api/keyword-gap-analyses/:id", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const id = parseInt(req.params.id, 10);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid analysis ID" });
+      }
+
+      await storage.deleteKeywordGapAnalysis(id, userId);
+      res.json({ message: "Analysis deleted" });
+    } catch (error: any) {
+      console.error("Error deleting keyword gap analysis:", error);
+      res.status(500).json({ error: error.message || "Failed to delete analysis" });
+    }
   });
 
   app.post("/api/visibility-report", async (req: any, res) => {
