@@ -97,16 +97,22 @@ Keywords are evaluated through a series of "gates" in a specific order. **Early 
 **UCR Section Used:** B (Category Definition)
 
 **Behavior:**
-- If keyword matches category terms → In-fence (continues evaluation)
+- If keyword matches core category terms → In-fence, `matchType: "core"` (continues evaluation)
+- If keyword matches semantic extensions → In-fence, `matchType: "semantic"` (continues evaluation)
 - If keyword doesn't match → Flagged as `outside_fence` (may still PASS with high capability)
 
-**In-Scope Concepts Checked:**
+**In-Scope Concepts Checked (Core):**
 - `category_definition.primary_category`
 - `category_definition.approved_categories[]`
 - `category_definition.included[]`
 - `demand_definition.brand_keywords.seed_terms[]`
 - `demand_definition.non_brand_keywords.category_terms[]`
 - `demand_definition.non_brand_keywords.problem_terms[]`
+
+**Semantic Extensions (v3.3):**
+- `category_definition.semantic_extensions[]`
+- Use for related terms that should count as in-fence but aren't core category terms
+- Example for DTC Footwear: `["flat feet", "plantar fasciitis", "heel pain", "arch support"]`
 
 ---
 
@@ -127,14 +133,16 @@ base_score (default: 0.5)
   - 0.6 if contains competitor brand
 ```
 
-#### Thresholds by Vertical
+#### Thresholds by Vertical (v3.3 Calibration)
 
 | Vertical Preset | Pass Threshold | Review Threshold |
 |-----------------|----------------|------------------|
-| **Default** | 0.60 | 0.30 |
+| **Default** | 0.50 | 0.25 |
 | DTC Footwear | 0.55 | 0.30 |
-| Retail Big Box | 0.65 | 0.35 |
+| Retail Big Box | 0.55 | 0.30 |
 | B2B SaaS | 0.50 | 0.25 |
+
+> **Note:** v3.3 lowered thresholds from 0.60/0.30 to 0.50/0.25 to increase PASS rates and reduce over-filtering.
 
 #### Classification Logic
 
@@ -150,6 +158,26 @@ IF capabilityScore between thresholds → REVIEW
 |---------|-----------|--------|
 | `scoring.variant_filter` | Intent type is "variant_or_size" (e.g., "size 10 shoes") | OUT_OF_PLAY |
 | `scoring.capability_threshold` | Score below review threshold | OUT_OF_PLAY |
+| `scoring.priority_theme_override` | Matches a priority theme | PASS (forced) |
+
+#### Priority Themes Override (v3.3)
+
+Strategic keywords can be configured to force PASS disposition regardless of score:
+
+**Configuration:** `scoring_config.priority_themes[]`
+
+**Behavior:**
+- Keywords matching priority themes bypass score thresholds
+- Forces PASS disposition with full trace logging
+- Applied after Gate H scoring but before Gate E/F
+
+**Example Configurations:**
+
+| Vertical | Priority Themes |
+|----------|-----------------|
+| DTC Footwear | `["recovery", "plantar fasciitis", "arch support", "foot pain"]` |
+| Retail Big Box | `["diy", "home improvement", "contractor"]` |
+| B2B SaaS | `["enterprise", "integration", "automation"]` |
 
 ---
 
