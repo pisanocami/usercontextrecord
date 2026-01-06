@@ -24,6 +24,7 @@ import {
   Download,
   Printer,
   FileText,
+  FileSpreadsheet,
   CheckCircle,
   XCircle,
   Minus,
@@ -34,6 +35,7 @@ import {
   Play,
   AlertCircle,
 } from "lucide-react";
+import { downloadCSV, downloadXLSX } from "@/lib/downloadUtils";
 import { Link } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -420,18 +422,54 @@ export default function KeywordGapReport() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Badge variant="outline" className="flex items-center gap-1">
               <Shield className="h-3 w-3" />
               UCR Guardrails Active
             </Badge>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              data-testid="button-download-csv"
+              onClick={() => {
+                const exportData = visibilityData.keywordAnalysis.map(k => ({
+                  Keyword: k.keyword,
+                  "Search Volume": k.searchVolume,
+                  Difficulty: k.difficulty,
+                  "Brand Position": k.brandPosition ?? "N/R",
+                  ...Object.fromEntries(k.competitorPositions.map(cp => [cp.domain, cp.position ?? "N/R"])),
+                  Opportunity: k.opportunity,
+                  "Opportunity Reason": k.opportunityReason
+                }));
+                downloadCSV(exportData, `keyword-gap-${config.brand.domain}-${new Date().toISOString().split("T")[0]}`);
+              }}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              CSV
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              data-testid="button-download-xlsx"
+              onClick={() => {
+                const exportData = visibilityData.keywordAnalysis.map(k => ({
+                  Keyword: k.keyword,
+                  "Search Volume": k.searchVolume,
+                  Difficulty: k.difficulty,
+                  "Brand Position": k.brandPosition ?? "N/R",
+                  ...Object.fromEntries(k.competitorPositions.map(cp => [cp.domain, cp.position ?? "N/R"])),
+                  Opportunity: k.opportunity,
+                  "Opportunity Reason": k.opportunityReason
+                }));
+                downloadXLSX(exportData, `keyword-gap-${config.brand.domain}-${new Date().toISOString().split("T")[0]}`, "Keyword Gap");
+              }}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
             <Button variant="outline" size="sm" data-testid="button-print">
               <Printer className="h-4 w-4 mr-2" />
               Print
-            </Button>
-            <Button variant="outline" size="sm" data-testid="button-export">
-              <Download className="h-4 w-4 mr-2" />
-              Export PDF
             </Button>
           </div>
         </div>
