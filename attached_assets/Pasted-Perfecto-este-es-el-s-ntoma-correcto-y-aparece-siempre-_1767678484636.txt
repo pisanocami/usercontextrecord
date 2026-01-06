@@ -1,0 +1,252 @@
+Perfecto, este es el síntoma correcto y aparece siempre cuando un sistema pasa de “ideas” a decision engine gobernado.
+
+La buena noticia: no es un bug de datos.
+Es un problema de calibración de gates + defaults.
+
+Voy directo al punto.
+
+🔴 Diagnóstico claro
+
+“No está encontrando oportunidades”
+significa en la práctica:
+
+👉 Todo termina en OUT_OF_PLAY o REVIEW
+👉 Nada cruza el umbral de PASS
+
+Eso solo puede pasar por 4 causas estructurales (no hay una quinta).
+
+1️⃣ El problema #1 (el más común):
+H.thresholds.pass es demasiado alto para datos reales
+
+En tu sistema:
+
+capabilityScore ∈ [0.0 – 1.0]
+baseScore = 0.5
+boosters / penalties pequeños
+
+
+Si tenés algo como:
+
+"H": {
+  "thresholds": {
+    "pass": 0.7,
+    "review": 0.3
+  }
+}
+
+
+📉 Resultado real:
+
+La mayoría de keywords quedan entre 0.35 – 0.55
+
+Nadie llega a PASS
+
+El sistema se vuelve excesivamente conservador
+
+✅ Fix inmediato (sin romper CMO-safety)
+
+👉 Bajá pass a 0.55 (o incluso 0.50)
+👉 Mantené review igual
+
+"H": {
+  "thresholds": {
+    "pass": 0.55,
+    "review": 0.30
+  }
+}
+
+
+🔑 Regla importante:
+PASS no significa “garantía de revenue”
+Significa: “estratégicamente defendible invertir”
+
+2️⃣ El problema #2:
+El Category Fence (B) está demasiado estricto
+
+Tu Gate B hoy hace esto:
+
+if keyword NOT in fence_terms → REVIEW
+
+
+Pero en la práctica:
+
+Los fence_terms suelen ser pocos
+
+Los keywords reales son variantes semánticas
+
+Resultado: todo queda marcado como outside_fence
+
+Luego pasa Gate E:
+
+risk_tolerance = low + outside_fence → REVIEW
+
+
+📉 Resultado:
+👉 Nunca llega a PASS aunque el score sea alto
+
+✅ Fix correcto (no “relajar todo”)
+
+Separá dos conceptos:
+
+A. core_fence_terms (estrictos)
+
+Si NO matchea → REVIEW
+
+B. semantic_extensions (blandos)
+
+Si matchea → no marcar outside_fence
+
+Ejemplo en UCR:
+
+"B": {
+  "core_fence_terms": ["running shoes", "recovery shoes"],
+  "semantic_extensions": ["flat feet", "plantar fasciitis", "arch support"]
+}
+
+
+Y en Gate B:
+
+if matches core OR semantic → in-fence
+else → outside_fence
+
+
+Esto solo con esto suele desbloquear oportunidades.
+
+3️⃣ El problema #3:
+Gate G está “sobre-matcheando”
+
+Muy común cuando:
+
+"G": {
+  "excluded_keywords": ["running"]
+}
+
+
+Y el keyword es:
+
+"running shoes for flat feet"
+
+
+💥 Hard gate → OUT_OF_PLAY
+💀 Mataste toda la categoría sin querer
+
+✅ Fix inmediato
+
+Regla de oro:
+
+En G nunca excluir palabras genéricas de categoría
+
+Solo:
+
+competitor brands
+
+categorías explícitamente prohibidas
+
+entidades no comerciales
+
+Ejemplo correcto:
+
+"G": {
+  "excluded_keywords": ["nike", "adidas", "college", "bulldogs"]
+}
+
+
+Si hay duda → eso es Gate B o H, no G.
+
+4️⃣ El problema #4 (más sutil):
+No existe un “PASS por prioridad estratégica”
+
+Hoy el sistema solo deja pasar si:
+
+score ≥ pass_threshold
+
+Pero en la realidad CMO:
+
+A veces algo se prioriza aunque el score no sea perfecto
+
+✅ Fix CMO-safe (clave)
+
+Agregá un override explícito desde UCR.H:
+
+"H": {
+  "priority_themes": ["recovery", "plantar fasciitis"]
+}
+
+
+Y una regla en Gate H:
+
+{
+  "ruleId": "H.priority_theme_override",
+  "ucrSection": "H",
+  "severity": "medium",
+  "when": {
+    "op": "any_match",
+    "left": "$item.keyword",
+    "right": "$ucr.H.priority_themes"
+  },
+  "then": {
+    "set": {
+      "disposition": "PASS",
+      "reason": "Strategic priority theme override"
+    },
+    "trace": true
+  }
+}
+
+
+⚠️ Esto no rompe el sistema porque:
+
+está explícito
+
+está trazado
+
+está aprobado en UCR
+
+🧪 Debug rápido que el dev puede correr YA
+
+Pedile que loguee esto por keyword:
+
+{
+  keyword,
+  capabilityScore,
+  failedGates: [],
+  outsideFence: boolean,
+  finalDisposition
+}
+
+
+Y mirá el patrón:
+
+Si failedGates casi siempre incluye "G" → Negative Scope mal calibrado
+
+Si todo tiene outsideFence=true → Category Fence muy estrecho
+
+Si nadie llega a capabilityScore >= pass → thresholds mal puestos
+
+✅ Orden correcto de fixes (no todos a la vez)
+
+Bajá H.thresholds.pass
+
+Limpiá Negative Scope (G)
+
+Agrandá semantic fence (B)
+
+Agregá priority override (H)
+
+Con solo 1 + 2, el sistema suele empezar a encontrar PASS.
+
+Veredicto honesto
+
+👉 El sistema no está roto
+👉 Está haciendo exactamente lo que le pediste
+👉 Ahora toca calibrar para el mundo real
+
+Esto es normal cuando pasás de “ideas” a decision governance.
+
+Si querés, en el próximo mensaje puedo:
+
+ayudarte a calibrar thresholds con datos reales
+
+o simular un set de keywords y mostrarte dónde se mueren
+
+o proponerte un “warm-up mode” para primeras ejecuciones (muy recomendado)

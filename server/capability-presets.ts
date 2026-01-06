@@ -55,8 +55,8 @@ export const RETAIL_BIG_BOX_CAPABILITY: CapabilityModel = {
 };
 
 export const RETAIL_BIG_BOX_SCORING: ScoringConfig = {
-  pass_threshold: 0.65,
-  review_threshold: 0.35,
+  pass_threshold: 0.55,
+  review_threshold: 0.30,
   difficulty_weight: 0.4,
   position_weight: 0.6,
   vertical_preset: "retail_big_box",
@@ -94,8 +94,8 @@ export const DEFAULT_CAPABILITY: CapabilityModel = {
 };
 
 export const DEFAULT_SCORING: ScoringConfig = {
-  pass_threshold: 0.60,
-  review_threshold: 0.30,
+  pass_threshold: 0.50,
+  review_threshold: 0.25,
   difficulty_weight: 0.5,
   position_weight: 0.5,
   vertical_preset: "custom",
