@@ -1,0 +1,147 @@
+Ya está clarísimo por tus logs: Ahrefs no está devolviendo “pocas keywords”.
+Está devolviendo ERROR 400 y ustedes lo están tragando/ocultando → por eso el resultado final queda en 0 keywords.
+
+El error exacto:
+
+[Ahrefs] API error: 400 - { "error": "missing argument select" }
+
+Eso significa: la request que está saliendo desde el server NO incluye select=, aunque en tu provider “parezca” que sí.
+
+Abajo van instrucciones para el dev + patch exacto.
+
+1) Fix #1 (bloqueante): Loggear la URL final que se está llamando
+
+En fetchOrganicKeywords() justo antes del fetch(...), agregar:
+
+const url = `https://api.ahrefs.com/v3/site-explorer/organic-keywords?${params.toString()}`;
+console.log("[Ahrefs] URL:", url);
+console.log("[Ahrefs] Has select?", params.has("select"), "select=", params.get("select"));
+
+
+Objetivo: confirmar si select realmente está en la URL.
+Ahora mismo, por el error, no está.
+
+2) Fix #2 (bloqueante): Forzar select siempre (y fallar fuerte si falta)
+
+Reemplazar tu creación de params por esta versión a prueba de cambios:
+
+const params = new URLSearchParams();
+params.set("target", normalizedDomain);
+params.set("mode", "domain");
+params.set("country", country);
+params.set("limit", String(Math.min(limit * 2, 10000)));
+params.set("order_by", "volume:desc");
+
+// OBLIGATORIO para este endpoint (según tu error)
+params.set("select", "keyword,best_position,volume,keyword_difficulty,cpc");
+
+params.set("output", "json");
+
+// Si querés, mientras debuguean: NO manden date
+// params.set("date", dateStr);
+
+if (!params.get("select")) {
+  throw new Error("[Ahrefs] Missing required param: select");
+}
+
+
+✅ Esto elimina el riesgo de que select se pierda por refactors (que es lo que parece que pasó).
+
+3) Fix #3: No “tragues” el error y devuelvas 200 con vacío (esto te está matando el debugging)
+
+Tu endpoint /api/keyword-gap-lite/run está devolviendo 200 con provider=ahrefs y 0 keywords, aunque Ahrefs falló.
+
+Acción dev:
+
+Si falla Ahrefs para cualquier competidor → el run debe:
+
+o fallar con 502 y mensaje claro,
+
+o hacer fallback a DataForSEO y marcar providerFallback: true.
+
+Opción A (recomendada para debug): fallar fuerte
+
+En donde hacen el loop de competidores:
+
+try {
+  // call ahrefsProvider.getGapKeywords(...)
+} catch (err) {
+  console.error("[Ahrefs] fatal gap error", err);
+  throw err; // <-- no devolver vacío
+}
+
+Opción B (prod-safe): fallback automático
+let providerUsed = "ahrefs";
+try {
+  // ahrefs...
+} catch (e) {
+  providerUsed = "dataforseo";
+  // ejecutar dataforseo...
+}
+
+
+Y en el response incluir:
+
+{
+  "provider": "dataforseo",
+  "providerFallback": true,
+  "providerError": "Ahrefs API error: 400 missing argument select"
+}
+
+4) Fix #4: Ajustar tu AhrefsProvider para que no rompa Promise.all
+
+Hoy tenés:
+
+const [clientKeywords, competitorKeywords] = await Promise.all([...]);
+
+
+Si una de las dos llamadas tira error → explota todo el par.
+
+Para debug está bien, pero para prod normalmente querés:
+
+si falla competitor: devolver gap vacío para ese competitor pero seguir los demás.
+
+Patch:
+
+const [clientRes, compRes] = await Promise.allSettled([
+  this.fetchOrganicKeywords(brandDomain, { country, limit: 5000, positionLimit: 100 }),
+  this.fetchOrganicKeywords(competitorDomain, { country, limit: 5000, positionLimit: 100 }),
+]);
+
+if (clientRes.status === "rejected") throw clientRes.reason; // client es crítico
+if (compRes.status === "rejected") {
+  console.warn("[Ahrefs] competitor fetch failed:", competitorDomain, compRes.reason);
+  return { brandDomain, competitorDomain, gapKeywords: [], totalCount: 0 };
+}
+
+const clientKeywords = clientRes.value;
+const competitorKeywords = compRes.value;
+
+5) Por qué “Ahrefs encuentra pocas keywords” (tu pregunta original)
+
+Con los logs actuales, la respuesta es simple:
+
+✅ No es que encuentra pocas.
+❌ No encuentra ninguna porque el request está inválido (falta select) y ustedes retornan vacío igual.
+
+Una vez que arregles select, recién ahí tiene sentido volver a calibrar:
+
+positionLimit (20 vs 100)
+
+filtros minVolume/maxKd
+
+parsing shape
+
+Pero ahora mismo el problema es request inválida.
+
+Checklist para el dev (DONE)
+
+[Ahrefs] URL: muestra select= en la query ✅
+
+La API deja de devolver 400 missing argument select ✅
+
+Si falla Ahrefs, no devuelve 200 con 0 keywords silencioso ✅
+
+/api/keyword-gap-lite/run muestra totalGapKeywords > 0 (o error explícito) ✅
+
+Si me pegás una sola línea: el log de [Ahrefs] URL: que salga después de este cambio, te confirmo si ya está bien formado o si el endpoint espera otro nombre de parámetro (pero por tu error, es 99% esto).
