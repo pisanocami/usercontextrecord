@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -124,13 +124,23 @@ function TimelineStep({ step, title, isLast = false }: { step: number; title: st
 export default function OnePager() {
   const [, params] = useRoute("/one-pager/:id");
   const configId = params?.id;
+  const isLatest = configId === "latest";
   const [showJson, setShowJson] = useState(false);
   const { toast } = useToast();
 
-  const { data: config, isLoading, error } = useQuery<Configuration>({
-    queryKey: ["/api/configuration", Number(configId)],
-    enabled: !!configId,
+  const { data: allConfigs, isLoading: isLoadingAll } = useQuery<Configuration[]>({
+    queryKey: ["/api/configurations"],
+    enabled: isLatest,
   });
+
+  const resolvedId = isLatest && allConfigs?.length ? allConfigs[0].id : (configId && !isLatest ? Number(configId) : null);
+
+  const { data: config, isLoading: isLoadingConfig, error } = useQuery<Configuration>({
+    queryKey: ["/api/configurations", resolvedId],
+    enabled: !!resolvedId && !isNaN(Number(resolvedId)),
+  });
+
+  const isLoading = isLoadingAll || isLoadingConfig;
 
   const copyToClipboard = async (text: string, label: string) => {
     try {

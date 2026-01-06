@@ -50,17 +50,26 @@ export default function VersionHistory() {
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<ConfigurationVersion | null>(null);
 
-  const configId = id ? parseInt(id, 10) : null;
+  const isLatest = id === "latest";
+
+  const { data: allConfigs, isLoading: allConfigsLoading } = useQuery<Configuration[]>({
+    queryKey: ["/api/configurations"],
+    enabled: isLatest,
+  });
+
+  const resolvedId = isLatest && allConfigs?.length ? allConfigs[0].id : (id && !isLatest ? parseInt(id, 10) : null);
 
   const { data: config, isLoading: configLoading } = useQuery<Configuration>({
-    queryKey: [`/api/configurations/${configId}`],
-    enabled: !!configId,
+    queryKey: ["/api/configurations", resolvedId],
+    enabled: !!resolvedId && !isNaN(Number(resolvedId)),
   });
 
   const { data: versions, isLoading: versionsLoading } = useQuery<ConfigurationVersion[]>({
-    queryKey: [`/api/configurations/${configId}/versions`],
-    enabled: !!configId,
+    queryKey: [`/api/configurations/${resolvedId}/versions`],
+    enabled: !!resolvedId && !isNaN(Number(resolvedId)),
   });
+
+  const isLoading = allConfigsLoading || configLoading || versionsLoading;
 
   const restoreMutation = useMutation({
     mutationFn: async (versionId: number) => {
@@ -96,7 +105,7 @@ export default function VersionHistory() {
     }
   };
 
-  if (configLoading || versionsLoading) {
+  if (isLoading) {
     return (
       <div className="h-full p-6">
         <Skeleton className="h-8 w-48 mb-4" />

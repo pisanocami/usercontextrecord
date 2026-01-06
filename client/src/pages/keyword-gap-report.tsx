@@ -231,20 +231,29 @@ function generateMockVisibilityData(config: Configuration): VisibilityData {
 
 export default function KeywordGapReport() {
   const params = useParams<{ id: string }>();
-  const configId = params.id ? parseInt(params.id) : null;
+  const isLatest = params.id === "latest" || params.id === "gap";
   const [activeTab, setActiveTab] = useState("visibility");
   const [visibilityData, setVisibilityData] = useState<VisibilityData | null>(null);
   const { toast } = useToast();
 
-  const { data: config, isLoading } = useQuery<Configuration>({
-    queryKey: ["/api/configurations", configId],
-    enabled: !!configId,
+  const { data: allConfigs, isLoading: allConfigsLoading } = useQuery<Configuration[]>({
+    queryKey: ["/api/configurations"],
+    enabled: isLatest,
   });
+
+  const resolvedId = isLatest && allConfigs?.length ? allConfigs[0].id : (params.id && !isLatest ? parseInt(params.id) : null);
+
+  const { data: config, isLoading: configLoading } = useQuery<Configuration>({
+    queryKey: ["/api/configurations", resolvedId],
+    enabled: !!resolvedId && !isNaN(Number(resolvedId)),
+  });
+
+  const isLoading = allConfigsLoading || configLoading;
 
   const visibilityMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/visibility-report", {
-        configurationId: configId,
+        configurationId: resolvedId,
         limitPerDomain: 100,
       });
       return response.json() as Promise<VisibilityData>;
