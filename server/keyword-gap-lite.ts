@@ -885,11 +885,14 @@ export function evaluateKeyword(
   // FINAL DISPOSITION
   // ============================================
   
-  // CRITICAL: outsideFence can NEVER produce PASS - maximum is REVIEW
-  if (outsideFence && capabilityScore >= reviewThreshold) {
+  // CRITICAL: outsideFence can NEVER produce PASS or OUT_OF_PLAY - always REVIEW
+  // This ensures all fence exceptions get human review regardless of score
+  if (outsideFence) {
     const reason = capabilityScore >= passThreshold
       ? "Outside category fence - requires human validation (score would pass)"
-      : "Outside category fence - requires human validation";
+      : capabilityScore >= reviewThreshold
+        ? "Outside category fence - requires human validation"
+        : "Outside category fence - low score but needs human validation";
     trace.push(createTrace("disposition.review_fence_cap", "B", reason, "medium", `score: ${capabilityScore.toFixed(2)}`));
     reasons.push(reason);
     return {
@@ -900,7 +903,7 @@ export function evaluateKeyword(
       reason,
       reasons,
       flags: resultFlags,
-      confidence: "medium",
+      confidence: capabilityScore >= reviewThreshold ? "medium" : "low",
       trace,
     };
   }
