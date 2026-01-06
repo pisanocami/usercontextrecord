@@ -1,0 +1,264 @@
+🚩 Lo que falta / lo que hay que corregir (3 cosas grandes)
+🚩 FLAG 1 — El capabilityScore es demasiado “hardcoded”
+
+Hoy el capabilityScore depende de regex boosters/penalties fijos.
+
+Eso en DTC y retail funciona… pero te va a romper cuando:
+
+cambies de vertical (B2B SaaS)
+
+cambies de categoría (vitaminas, skincare, etc.)
+
+cambies de client (OOFOS vs Marine Layer vs Halo Collar)
+
+✅ Lo que hay que hacer:
+
+✅ Mover boosters y penalties a configuración (por UCR)
+
+En vez de:
+
+if (/\b(recovery)\b/.test(kw)) score += 0.55
+
+
+hacer:
+
+capability_model: {
+  boosters: [
+    { pattern: "recovery", weight: 0.55 },
+    { pattern: "nurses", weight: 0.25 }
+  ],
+  penalties: [
+    { pattern: "marathon", weight: -0.60 }
+  ]
+}
+
+
+📌 Ventaja:
+
+mismo motor
+
+distintos verticales
+
+sin re-deploy para cada categoría
+
+🚩 FLAG 2 — OpportunityScore no incluye “rank difficulty reality”
+
+Tu fórmula actual:
+
+volume × cpc × intentWeight × capability
+
+Pero faltan 2 variables clave:
+
+✅ KD (keyword difficulty)
+✅ competitor_position
+
+Porque no es lo mismo:
+
+keyword volumen alto / KD 80 / competidor posición 1
+que
+
+keyword volumen medio / KD 20 / competidor posición 8
+
+📌 El ranking final se vuelve mucho más “operator-grade” si incluyes:
+
+✅ Add: difficultyFactor
+
+Ejemplo:
+
+difficultyFactor = 1 - (kd / 100)
+
+✅ Add: positionFactor
+
+Ejemplo:
+
+positionFactor =
+  competitorPosition <= 3 ? 0.6 :
+  competitorPosition <= 10 ? 1.0 :
+  0.8
+
+✅ Fórmula recomendada:
+opportunityScore =
+  volume *
+  cpc *
+  intentWeight *
+  capabilityScore *
+  difficultyFactor *
+  positionFactor
+
+
+📌 Resultado:
+menos “términos imposibles” arriba.
+
+🚩 FLAG 3 — Pass rate 3% es una señal de que estás siendo demasiado agresivo
+
+Que el sistema diga:
+
+0 pass
+
+33 review
+
+55 out
+
+es MUY probable en retail (HomeDepot example)
+pero si en OOFOS te da 3% pass, puede ser que:
+
+estás penalizando demasiado términos amplios
+
+estás metiendo demasiado “brand competitor”
+
+estás tratando “product_generic” como demasiado bajo
+
+✅ Lo que conviene:
+
+✅ Cambiar thresholds (por vertical)
+
+No debería ser fijo:
+
+capability >= 0.60 = pass
+
+
+Debe ser configurable:
+
+DTC Footwear: pass >= 0.55
+
+Retail big box: pass >= 0.65
+
+B2B SaaS: pass >= 0.50
+
+📌 esto te permite normalizar el output para que siempre produzca:
+
+✅ 10–30 Top Opportunities
+⚠️ 40–120 Review
+💤 resto Out of play
+
+Eso hace que el producto se sienta “completo” para un ejecutivo.
+
+✅ Ahrefs vs DataForSEO: sí, pero con cuidado (costos)
+
+Tu enfoque de Ahrefs usando:
+
+organic-keywords (tu dominio)
+
+organic-keywords (cada competidor)
+
+gap en memoria
+
+✅ funciona perfecto
+
+Pero hay que optimizar costo porque Ahrefs puede volverse caro si:
+
+pides 2000 keywords × 5 competidores × muchos clientes
+
+sin caching
+
+sin límites por posición
+
+✅ Instrucciones para Dev (Ahrefs + control de costos)
+1) Límites estrictos por posición
+
+Competidores: solo keywords donde rankean <= 20
+
+Cliente: keywords donde rankea <= 100
+
+Esto reduce universo y costo.
+
+2) Limit keyword rows por dominio
+
+No pidas 2000 si el output final solo muestra 50.
+
+📌 Sugerencia:
+
+Competidor: limit=500
+
+Cliente: limit=2000 (porque es set base)
+
+3) Caching obligatorio
+
+TTL 7 días ✅
+
+key:
+(provider, domain, country, limit, max_position)
+
+Si no existe cache = llama API
+si existe = no llama
+
+4) Normalización + dedupe antes de scoring
+
+Antes de computar gap:
+
+lowercase
+
+trim
+
+dedupe
+
+Esto reduce output y cálculos.
+
+5) NO usar Keywords Explorer salvo que sea necesario
+
+El 80% lo resolvés con organic-keywords.
+
+Keywords Explorer solo si:
+
+top 50 gaps necesitan KD real más preciso
+
+o querés validar un cluster específico
+
+Eso evita llamadas extra.
+
+✅ Output/UI: cómo mejorar la experiencia (para Susan)
+
+Tu UI actual de 3 tabs está bien, pero faltan 3 cosas que explican “por qué”:
+
+1) Mostrar “Reason” y “Flag” en la tabla
+
+Ej:
+
+Keyword	Intent	Cap Score	Why
+best footwear for nurses	problem_solution	0.75	nurses + comfort
+2) Mostrar “Confidence” del sistema
+
+No todo debe ser 100% automático.
+
+Ej:
+
+Pass = High confidence
+
+Review = Medium confidence
+
+Out = High confidence
+
+3) Un “Executive Summary Card”
+
+Antes de las tablas:
+
+“You are missing X keywords worth ~$Y/mo”
+
+“Top 3 themes: nurses / arch support / recovery”
+
+“Competitors owning these terms: Hoka, Birkenstock”
+
+Esto convierte el output en algo que un CMO entiende en 8 segundos.
+
+✅ Conclusión
+✅ Esto es mucho mejor.
+
+Pero para que sea “real Growth OS quality”:
+
+Cambios mínimos necesarios:
+
+capabilityScore configurable por vertical
+
+opportunityScore incorpora KD + position factor
+
+thresholds ajustables para no tener 0 pass
+
+Ahrefs cost discipline (limit + cache + position filters)
+
+Si implementan esos 4, el output deja de ser “keyword list”
+y se convierte en decision engine.
+
+Si querés, te armo:
+✅ un spec “v3.1” ya escrito para el dev
+✅ con pseudocódigo + payloads + defaults
+✅ y un set de UCR configs para OOFOS (recovery footwear)

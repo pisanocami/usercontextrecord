@@ -225,6 +225,37 @@ export const channelContextSchema = z.object({
   marketplace_dependence: lowercaseEnum(["low", "medium", "high"] as const),
 });
 
+// Capability Model Schema - configurable boosters/penalties for keyword scoring
+export const capabilityPatternSchema = z.object({
+  pattern: z.string(), // Regex pattern or keyword to match
+  weight: z.number().min(-1).max(1), // Weight adjustment (-1 to +1)
+  label: z.string().default(""), // Human-readable label for UI
+});
+
+export const capabilityModelSchema = z.object({
+  // Boosters increase capability score (positive weights)
+  boosters: z.array(capabilityPatternSchema).default([]),
+  // Penalties decrease capability score (negative weights)
+  penalties: z.array(capabilityPatternSchema).default([]),
+  // Base score for all keywords (default 0.5)
+  base_score: z.number().min(0).max(1).default(0.5),
+  // Common competitor brands to auto-detect (beyond UCR competitors)
+  common_brands: z.array(z.string()).default([]),
+});
+
+// Scoring Config Schema - configurable thresholds and weights
+export const scoringConfigSchema = z.object({
+  // Thresholds for pass/review/out_of_play
+  pass_threshold: z.number().min(0).max(1).default(0.60), // DTC: 0.55, Retail: 0.65
+  review_threshold: z.number().min(0).max(1).default(0.30), // Below this = out_of_play
+  // Difficulty weighting (0 = ignore KD, 1 = full weight)
+  difficulty_weight: z.number().min(0).max(1).default(0.5),
+  // Position weighting (0 = ignore position, 1 = full weight)
+  position_weight: z.number().min(0).max(1).default(0.5),
+  // Vertical preset name (for display)
+  vertical_preset: z.string().default("custom"),
+});
+
 // Phase 3: Enhanced exclusion entry with match type and TTL
 export const exclusionEntrySchema = z.object({
   value: z.string(),
@@ -441,6 +472,9 @@ export const configurationSchema = z.object({
   channel_context: channelContextSchema,
   negative_scope: negativeScopeSchema,
   governance: governanceSchema,
+  // v3.1: Configurable capability model and scoring
+  capability_model: capabilityModelSchema.optional(),
+  scoring_config: scoringConfigSchema.optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -492,6 +526,9 @@ export type NegativeScope = z.infer<typeof negativeScopeSchema>;
 export type ContextQualityScore = z.infer<typeof contextQualityScoreSchema>;
 export type AIBehaviorContract = z.infer<typeof aiBehaviorContractSchema>;
 export type Governance = z.infer<typeof governanceSchema>;
+export type CapabilityPattern = z.infer<typeof capabilityPatternSchema>;
+export type CapabilityModel = z.infer<typeof capabilityModelSchema>;
+export type ScoringConfig = z.infer<typeof scoringConfigSchema>;
 export type Configuration = z.infer<typeof configurationSchema>;
 export type InsertConfiguration = z.infer<typeof insertConfigurationSchema>;
 
