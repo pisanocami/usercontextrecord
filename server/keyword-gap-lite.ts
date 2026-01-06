@@ -11,6 +11,12 @@ import {
   type UCRSection 
 } from "./execution-gateway";
 import { SEO_VISIBILITY_GAP, UCR_SECTION_NAMES } from "@shared/module-registry";
+import type { 
+  Disposition, 
+  Severity, 
+  ItemTrace,
+  UCRSectionID 
+} from "@shared/module.contract";
 
 export type KeywordStatus = "pass" | "review" | "out_of_play";
 export type ConfidenceLevel = "high" | "medium" | "low";
@@ -27,6 +33,7 @@ export interface KeywordResult {
   keyword: string;
   normalizedKeyword: string;
   status: KeywordStatus;
+  disposition: Disposition;
   statusIcon: string;
   intentType: IntentType;
   capabilityScore: number;
@@ -34,6 +41,7 @@ export interface KeywordResult {
   difficultyFactor: number;
   positionFactor: number;
   reason: string;
+  reasons: string[];
   flags: string[];
   confidence: ConfidenceLevel;
   competitorsSeen: string[];
@@ -42,6 +50,7 @@ export interface KeywordResult {
   keywordDifficulty?: number;
   competitorPosition: number;
   theme: string;
+  trace: ItemTrace[];
 }
 
 export interface KeywordGapResult {
@@ -506,6 +515,7 @@ export function computeOpportunityScore(
 
 export interface KeywordEvaluation {
   status: KeywordStatus;
+  disposition: Disposition;
   statusIcon: string;
   intentType: IntentType;
   capabilityScore: number;
@@ -513,10 +523,37 @@ export interface KeywordEvaluation {
   difficultyFactor: number;
   positionFactor: number;
   reason: string;
+  reasons: string[];
   flags: string[];
   confidence: ConfidenceLevel;
+  trace: ItemTrace[];
 }
 
+function statusToDisposition(status: KeywordStatus): Disposition {
+  switch (status) {
+    case "pass": return "PASS";
+    case "review": return "REVIEW";
+    case "out_of_play": return "OUT_OF_PLAY";
+  }
+}
+
+function createTrace(
+  ruleId: string, 
+  ucrSection: UCRSectionID, 
+  reason: string, 
+  severity: Severity,
+  evidence?: string
+): ItemTrace {
+  return { ruleId, ucrSection, reason, severity, evidence };
+}
+
+/**
+ * Evaluates a keyword following CMO-safe gate order:
+ * 1. G (Negative Scope) - Hard gate, runs first
+ * 2. B (Fence/Category) - Soft gate  
+ * 3. H (Scoring/Governance) - Thresholds
+ * 4. E/F (Strategic/Channel) - Prioritization
+ */
 export function evaluateKeyword(
   keyword: string,
   config: Configuration,
@@ -538,58 +575,21 @@ export function evaluateKeyword(
     keywordDifficulty, competitorPosition, scoringConfig
   );
   
+  const trace: ItemTrace[] = [];
+  const reasons: string[] = [];
+  const resultFlags = [...flags];
+  
   const baseResult = {
     intentType,
     capabilityScore,
     opportunityScore,
     difficultyFactor,
     positionFactor,
-    flags,
   };
-  
-  if (flags.includes("competitor_brand")) {
-    return {
-      ...baseResult,
-      status: "out_of_play",
-      statusIcon: "💤",
-      reason: "Competitor brand term",
-      confidence: "high",
-    };
-  }
-  
-  // Check for irrelevant entities (sports teams, influencers, idioms)
-  const irrelevantCheck = detectIrrelevantEntity(keyword);
-  if (irrelevantCheck.isIrrelevant) {
-    return {
-      ...baseResult,
-      status: "out_of_play",
-      statusIcon: "💤",
-      reason: irrelevantCheck.reason,
-      flags: [...flags, "irrelevant_entity"],
-      confidence: "high",
-    };
-  }
-  
-  if (intentType === "variant_or_size") {
-    return {
-      ...baseResult,
-      status: "out_of_play",
-      statusIcon: "💤",
-      reason: "Size/variant query",
-      confidence: "high",
-    };
-  }
-  
-  if (capabilityScore < reviewThreshold) {
-    return {
-      ...baseResult,
-      status: "out_of_play",
-      statusIcon: "💤",
-      reason: "Low capability fit",
-      confidence: "high",
-    };
-  }
-  
+
+  // ============================================
+  // GATE 1: G (Negative Scope) - HARD GATE FIRST
+  // ============================================
   const exclusions = {
     excludedCategories: config.negative_scope?.excluded_categories || [],
     excludedKeywords: config.negative_scope?.excluded_keywords || [],
@@ -599,16 +599,64 @@ export function evaluateKeyword(
   
   const exclusionResult = checkExclusions(keyword, exclusions);
   if (exclusionResult.hasMatch) {
+    const reason = exclusionResult.reason;
+    trace.push(createTrace("negative_scope.hard_gate", "G", reason, "critical", keyword));
+    reasons.push(reason);
+    resultFlags.push("excluded");
     return {
       ...baseResult,
       status: "out_of_play",
-      statusIcon: "💤",
-      reason: exclusionResult.reason,
-      flags: [...flags, "excluded"],
+      disposition: "OUT_OF_PLAY",
+      statusIcon: "X",
+      reason,
+      reasons,
+      flags: resultFlags,
       confidence: "high",
+      trace,
     };
   }
   
+  // Check competitor brand terms (also part of G - hard exclusion)
+  if (flags.includes("competitor_brand")) {
+    const reason = "Competitor brand term";
+    trace.push(createTrace("negative_scope.competitor_brand", "G", reason, "high", keyword));
+    reasons.push(reason);
+    return {
+      ...baseResult,
+      status: "out_of_play",
+      disposition: "OUT_OF_PLAY",
+      statusIcon: "X",
+      reason,
+      reasons,
+      flags: resultFlags,
+      confidence: "high",
+      trace,
+    };
+  }
+  
+  // Check for irrelevant entities (part of G - hard gate)
+  const irrelevantCheck = detectIrrelevantEntity(keyword);
+  if (irrelevantCheck.isIrrelevant) {
+    const reason = irrelevantCheck.reason;
+    trace.push(createTrace("negative_scope.irrelevant_entity", "G", reason, "high", keyword));
+    reasons.push(reason);
+    resultFlags.push("irrelevant_entity");
+    return {
+      ...baseResult,
+      status: "out_of_play",
+      disposition: "OUT_OF_PLAY",
+      statusIcon: "X",
+      reason,
+      reasons,
+      flags: resultFlags,
+      confidence: "high",
+      trace,
+    };
+  }
+
+  // ============================================
+  // GATE 2: B (Category Fence) - SOFT GATE
+  // ============================================
   const inScopeConcepts = [
     ...(config.category_definition?.included || []),
     config.category_definition?.primary_category || "",
@@ -622,47 +670,155 @@ export function evaluateKeyword(
   ];
   
   const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes);
-  const resultFlags = [...flags];
+  let outsideFence = false;
   
   if (!fenceResult.inFence) {
+    outsideFence = true;
     resultFlags.push("outside_fence");
+    trace.push(createTrace("category_fence.soft_gate", "B", fenceResult.reason, "medium", keyword));
+    reasons.push(fenceResult.reason);
+  } else {
+    trace.push(createTrace("category_fence.in_scope", "B", fenceResult.reason, "low"));
+  }
+
+  // ============================================
+  // GATE 3: H (Scoring/Governance) - THRESHOLDS
+  // ============================================
+  
+  // Size/variant check (scoring decision)
+  if (intentType === "variant_or_size") {
+    const reason = "Size/variant query - low commercial value";
+    trace.push(createTrace("scoring.variant_filter", "H", reason, "medium", keyword));
+    reasons.push(reason);
+    return {
+      ...baseResult,
+      status: "out_of_play",
+      disposition: "OUT_OF_PLAY",
+      statusIcon: "X",
+      reason,
+      reasons,
+      flags: resultFlags,
+      confidence: "high",
+      trace,
+    };
   }
   
+  // Capability score check
+  if (capabilityScore < reviewThreshold) {
+    const reason = "Low capability fit";
+    trace.push(createTrace("scoring.capability_threshold", "H", reason, "medium", `score: ${capabilityScore.toFixed(2)}`));
+    reasons.push(reason);
+    return {
+      ...baseResult,
+      status: "out_of_play",
+      disposition: "OUT_OF_PLAY",
+      statusIcon: "X",
+      reason,
+      reasons,
+      flags: resultFlags,
+      confidence: "high",
+      trace,
+    };
+  }
+  
+  // Record scoring trace
+  trace.push(createTrace(
+    "scoring.capability_evaluated", 
+    "H", 
+    `Capability score: ${capabilityScore.toFixed(2)}`,
+    "low",
+    `pass: ${passThreshold}, review: ${reviewThreshold}`
+  ));
+
+  // ============================================
+  // GATE 4: E/F (Strategic/Channel) - PRIORITIZATION
+  // ============================================
+  const strategicIntent = config.strategic_intent;
+  const channelContext = config.channel_context;
+  
+  // Apply strategic posture adjustments
+  if (strategicIntent?.risk_tolerance === "low" && outsideFence) {
+    const reason = "Conservative posture + outside fence = needs review";
+    trace.push(createTrace("strategic.conservative_posture", "E", reason, "medium"));
+    reasons.push(reason);
+    return {
+      ...baseResult,
+      status: "review",
+      disposition: "REVIEW",
+      statusIcon: "?",
+      reason,
+      reasons,
+      flags: resultFlags,
+      confidence: "medium",
+      trace,
+    };
+  }
+  
+  // Channel context (SEO investment level)
+  if (channelContext?.seo_investment_level) {
+    trace.push(createTrace(
+      "channel.seo_context", 
+      "F", 
+      `SEO investment: ${channelContext.seo_investment_level}`,
+      "low"
+    ));
+  }
+
+  // ============================================
+  // FINAL DISPOSITION
+  // ============================================
   if (capabilityScore >= passThreshold) {
-    const reason = fenceResult.inFence 
-      ? fenceResult.reason 
-      : "Strong capability fit — verify category alignment";
+    const reason = outsideFence 
+      ? "Strong capability fit - verify category alignment"
+      : (fenceResult.reason || "High capability match");
+    trace.push(createTrace("disposition.pass", "H", reason, "low", `score: ${capabilityScore.toFixed(2)}`));
+    reasons.push(reason);
     return {
       ...baseResult,
       status: "pass",
-      statusIcon: "✅",
+      disposition: "PASS",
+      statusIcon: "Y",
       reason,
+      reasons,
       flags: resultFlags,
-      confidence: "high",
+      confidence: outsideFence ? "medium" : "high",
+      trace,
     };
   }
   
   if (capabilityScore >= reviewThreshold) {
     const confidence: ConfidenceLevel = capabilityScore >= (passThreshold - 0.1) ? "medium" : "low";
-    const reason = fenceResult.inFence 
-      ? "Medium capability" 
-      : "Medium capability — outside fence";
+    const reason = outsideFence 
+      ? "Medium capability - outside fence"
+      : "Medium capability - needs review";
+    trace.push(createTrace("disposition.review", "H", reason, "medium", `score: ${capabilityScore.toFixed(2)}`));
+    reasons.push(reason);
     return {
       ...baseResult,
       status: "review",
-      statusIcon: "⚠️",
+      disposition: "REVIEW",
+      statusIcon: "?",
       reason,
+      reasons,
       flags: resultFlags,
       confidence,
+      trace,
     };
   }
   
+  const reason = "Low relevance";
+  trace.push(createTrace("disposition.out_of_play", "H", reason, "low"));
+  reasons.push(reason);
   return {
     ...baseResult,
     status: "out_of_play",
-    statusIcon: "💤",
-    reason: "Low relevance",
+    disposition: "OUT_OF_PLAY",
+    statusIcon: "X",
+    reason,
+    reasons,
+    flags: resultFlags,
     confidence: "high",
+    trace,
   };
 }
 
@@ -853,6 +1009,7 @@ export async function computeKeywordGap(
       keyword: kw.keyword,
       normalizedKeyword: normalizeKeyword(kw.keyword),
       status: evaluation.status,
+      disposition: evaluation.disposition,
       statusIcon: evaluation.statusIcon,
       intentType: evaluation.intentType,
       capabilityScore: evaluation.capabilityScore,
@@ -860,6 +1017,7 @@ export async function computeKeywordGap(
       difficultyFactor: evaluation.difficultyFactor,
       positionFactor: evaluation.positionFactor,
       reason: evaluation.reason,
+      reasons: evaluation.reasons,
       flags: evaluation.flags,
       confidence: evaluation.confidence,
       competitorsSeen: competitors,
@@ -868,6 +1026,7 @@ export async function computeKeywordGap(
       keywordDifficulty: kw.keywordDifficulty,
       competitorPosition: kw.competitorPosition,
       theme,
+      trace: evaluation.trace,
     });
     
     if (evaluation.status === "pass") stats.passed++;
