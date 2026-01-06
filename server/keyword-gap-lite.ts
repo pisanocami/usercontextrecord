@@ -593,6 +593,7 @@ export interface KeywordEvaluation {
   statusIcon: string;
   intentType: IntentType;
   capabilityScore: number;
+  capabilityBreakdown: ScoreBreakdown;
   opportunityScore: number;
   difficultyFactor: number;
   positionFactor: number;
@@ -634,7 +635,8 @@ export function evaluateKeyword(
   const reviewThreshold = scoringConfig.review_threshold;
   
   const { intentType, flags } = classifyIntent(keyword, config);
-  const capabilityScore = computeCapabilityScore(keyword, config);
+  const capabilityBreakdown = computeCapabilityScoreWithBreakdown(keyword, config);
+  const capabilityScore = capabilityBreakdown.finalScore;
   const difficultyFactor = computeDifficultyFactor(keywordDifficulty, scoringConfig.difficulty_weight);
   const positionFactor = computePositionFactor(competitorPosition, scoringConfig.position_weight);
   const opportunityScore = computeOpportunityScore(
@@ -649,6 +651,7 @@ export function evaluateKeyword(
   const baseResult = {
     intentType,
     capabilityScore,
+    capabilityBreakdown,
     opportunityScore,
     difficultyFactor,
     positionFactor,
@@ -791,13 +794,21 @@ export function evaluateKeyword(
     };
   }
   
-  // Record scoring trace
+  // Record scoring trace with breakdown
+  const breakdownParts: string[] = [`Base: ${capabilityBreakdown.baseScore.toFixed(2)}`];
+  for (const adj of capabilityBreakdown.adjustments) {
+    const sign = adj.weight > 0 ? "+" : "";
+    const typeLabel = adj.type === "booster" ? "boost" : adj.type === "penalty" ? "penalty" : "competitor";
+    breakdownParts.push(`${sign}${adj.weight.toFixed(2)} (${typeLabel}: "${adj.pattern}")`);
+  }
+  breakdownParts.push(`Final: ${capabilityBreakdown.finalScore.toFixed(2)}`);
+  
   trace.push(createTrace(
-    "scoring.capability_evaluated", 
+    "scoring.capability_breakdown", 
     "H", 
-    `Capability score: ${capabilityScore.toFixed(2)}`,
+    breakdownParts.join(" | "),
     "low",
-    `pass: ${passThreshold}, review: ${reviewThreshold}`
+    `thresholds: pass=${passThreshold}, review=${reviewThreshold}`
   ));
 
   // ============================================
@@ -1111,6 +1122,7 @@ export async function computeKeywordGap(
       statusIcon: evaluation.statusIcon,
       intentType: evaluation.intentType,
       capabilityScore: evaluation.capabilityScore,
+      capabilityBreakdown: evaluation.capabilityBreakdown,
       opportunityScore: evaluation.opportunityScore,
       difficultyFactor: evaluation.difficultyFactor,
       positionFactor: evaluation.positionFactor,
