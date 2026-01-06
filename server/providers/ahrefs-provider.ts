@@ -254,10 +254,11 @@ export class AhrefsProvider implements KeywordDataProvider {
       this.fetchOrganicKeywords(competitorDomain, { country, limit: 2000, positionLimit: 20 }),
     ]);
 
-    // Client fetch is critical - if it fails, throw
+    // Client fetch is critical - if it fails, throw with clear fatal marker
     if (clientRes.status === "rejected") {
-      console.error(`[Ahrefs] FATAL: Client domain fetch failed for ${brandDomain}:`, clientRes.reason);
-      throw clientRes.reason;
+      const originalError = clientRes.reason instanceof Error ? clientRes.reason.message : String(clientRes.reason);
+      console.error(`[Ahrefs] FATAL: Client domain fetch failed for ${brandDomain}:`, originalError);
+      throw new Error(`[FATAL] Brand Domain Failed: ${originalError}`);
     }
     
     // Competitor fetch failure is non-critical - return empty gap for this competitor

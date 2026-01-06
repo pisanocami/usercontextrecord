@@ -1031,9 +1031,20 @@ export async function computeKeywordGap(
             console.log(`[${keywordProvider.displayName}] Got ${cachedKeywords.length} gap keywords from ${competitorDomain}`);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(`[${keywordProvider.displayName}] FATAL error fetching gap for ${competitorDomain}:`, error);
             
-            // Track the error for reporting - do NOT swallow silently
+            // Check if this is a fatal brand-domain error (critical - should propagate)
+            const isBrandDomainError = errorMessage.includes("Brand Domain Failed") || 
+                                        errorMessage.includes("brand fetch") ||
+                                        errorMessage.includes("client domain");
+            
+            if (isBrandDomainError) {
+              console.error(`[${keywordProvider.displayName}] FATAL brand-domain error - re-throwing:`, error);
+              throw error; // Don't swallow brand-domain errors - they're critical
+            }
+            
+            // Non-fatal competitor error - track but continue
+            console.warn(`[${keywordProvider.displayName}] Competitor fetch error for ${competitorDomain}:`, errorMessage);
+            
             providerErrors.push({
               competitor: competitorDomain,
               error: errorMessage,
