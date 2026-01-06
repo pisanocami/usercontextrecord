@@ -31,7 +31,9 @@ import {
   Loader2,
   CheckCircle,
   Clock,
+  Download,
 } from "lucide-react";
+import { downloadCSV } from "@/lib/downloadUtils";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -173,7 +175,7 @@ export default function VersionHistory() {
           </Button>
         </Link>
 
-        <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <History className="h-6 w-6" />
@@ -183,9 +185,33 @@ export default function VersionHistory() {
               {config.name} - {config.brand?.name || config.brand?.domain}
             </p>
           </div>
-          <Badge variant="secondary">
-            {versions?.length || 0} versiones
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-download-csv"
+              onClick={() => {
+                if (!versions || versions.length === 0) return;
+                const exportData = versions.map(v => ({
+                  "Versión": v.versionNumber,
+                  "Fecha": format(new Date(v.created_at), "dd/MM/yyyy HH:mm", { locale: es }),
+                  "Marca": v.brand?.name || "-",
+                  "Categoría": v.category_definition?.primary_category || "-",
+                  "Competidores Directos": (v.competitors?.direct?.length || 0),
+                  "Competidores Indirectos": (v.competitors?.indirect?.length || 0),
+                  "Keywords Excluidos": (v.negative_scope?.excluded_keywords?.length || 0),
+                  "Estado Contexto": v.governance?.context_status || "DRAFT_AI",
+                }));
+                downloadCSV(exportData, `version-history-${config.name}-${new Date().toISOString().split("T")[0]}`);
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              CSV
+            </Button>
+            <Badge variant="secondary">
+              {versions?.length || 0} versiones
+            </Badge>
+          </div>
         </div>
 
         {versions && versions.length > 0 ? (
