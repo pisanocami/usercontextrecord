@@ -405,22 +405,34 @@ export default function MarketDemandPage() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Peak:</span>
-                            <span className="ml-1 font-medium">{analysis.peakMonth || "N/A"}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Low:</span>
-                            <span className="ml-1 font-medium">{analysis.lowMonth || "N/A"}</span>
-                          </div>
-                        </div>
-                        {analysis.seasonalityType && (
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">Seasonality:</span>
-                            <Badge variant="outline" className="ml-2">
-                              {analysis.seasonalityType}
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          {analysis.totalKeywords > 0 && (
+                            <Badge variant="secondary">
+                              {analysis.totalKeywords} keyword{analysis.totalKeywords > 1 ? 's' : ''}
                             </Badge>
+                          )}
+                          {analysis.seasonalityType && (
+                            <Badge variant="outline">
+                              {analysis.seasonalityType} consistency
+                            </Badge>
+                          )}
+                        </div>
+                        {(analysis.peakMonth || analysis.lowMonth) && (
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            {analysis.peakMonth && (
+                              <div className="flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3 text-primary" />
+                                <span className="text-muted-foreground">Peak:</span>
+                                <span className="font-medium">{analysis.peakMonth}</span>
+                              </div>
+                            )}
+                            {analysis.lowMonth && (
+                              <div className="flex items-center gap-1">
+                                <TrendingDown className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-muted-foreground">Low:</span>
+                                <span className="font-medium">{analysis.lowMonth}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                         <div className="flex items-center justify-end pt-2">

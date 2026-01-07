@@ -2395,16 +2395,57 @@ IMPORTANT:
         return res.status(400).json({ error: "configurationId, results, and parameters are required" });
       }
 
+      // Helper to normalize month names to short format (Jan, Feb, etc.)
+      const normalizeMonth = (monthStr: string | null | undefined): string | null => {
+        if (!monthStr) return null;
+        const monthMap: Record<string, string> = {
+          'january': 'Jan', 'february': 'Feb', 'march': 'Mar', 'april': 'Apr',
+          'may': 'May', 'june': 'Jun', 'july': 'Jul', 'august': 'Aug',
+          'september': 'Sep', 'october': 'Oct', 'november': 'Nov', 'december': 'Dec'
+        };
+        const lower = monthStr.toLowerCase();
+        if (monthMap[lower]) return monthMap[lower];
+        // If already short format, capitalize first letter
+        if (monthStr.length <= 3) return monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
+        return monthStr;
+      };
+
+      // Extract peak month from peakWindow.months array (first month is primary peak)
+      const rawPeakMonth = results.seasonality?.peakWindow?.months?.[0] || null;
+      const peakMonth = normalizeMonth(rawPeakMonth);
+      
+      // Extract decline start as the "low" indicator
+      let lowMonth: string | null = null;
+      if (results.seasonality?.declinePhase?.start) {
+        try {
+          const declineDate = new Date(results.seasonality.declinePhase.start);
+          if (!isNaN(declineDate.getTime())) {
+            lowMonth = declineDate.toLocaleString('en-US', { month: 'short' });
+          }
+        } catch {
+          lowMonth = null;
+        }
+      }
+      
+      // Use YoY consistency as seasonality type indicator
+      const seasonalityType = results.seasonality?.yoyConsistency || null;
+      
+      // Use YoY consistency for trend indicator
+      const yoyTrend = results.yoyAnalysis?.consistency || null;
+      
+      // Count demand curves as total keywords analyzed
+      const totalKeywords = results.demandCurves?.length || 0;
+
       const analysis = await storage.createMarketDemandAnalysis({
         userId,
         configurationId,
         configurationName: configurationName || `Analysis ${configurationId}`,
         status: "completed",
-        peakMonth: results.seasonality?.peakMonth || null,
-        lowMonth: results.seasonality?.lowMonth || null,
-        seasonalityType: results.seasonality?.pattern || null,
-        yoyTrend: results.yoyAnalysis?.trend || null,
-        totalKeywords: results.trends?.length || 0,
+        peakMonth,
+        lowMonth,
+        seasonalityType,
+        yoyTrend,
+        totalKeywords,
         results,
         parameters,
       });
