@@ -53,6 +53,7 @@ import {
   BarChart3,
   History,
   Eye,
+  Calendar,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -307,6 +308,16 @@ function ConfigurationCard({
                     data-testid={`button-versions-${config.id}`}
                   >
                     <History className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href={`/market-demand/${config.id}`} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Market Demand & Seasonality"
+                    data-testid={`button-market-demand-${config.id}`}
+                  >
+                    <Calendar className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Button

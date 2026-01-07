@@ -642,6 +642,136 @@ export const BrandAttentionContract: ModuleContract = {
   }
 };
 
+export const MarketDemandSeasonalityContract: ModuleContract = {
+  moduleId: "market.demand_seasonality.v1",
+  name: "Market Demand & Seasonality",
+  category: "Market Intelligence",
+  layer: "Signal",
+  version: "contract.v1",
+
+  description: "Surfaces historical and near-term demand cycles using Google Trends data for timing decisions. Answers WHEN to act, not HOW MUCH to spend.",
+  strategicQuestion: "When does our market actually wake up — and when should we act?",
+
+  dataSources: ["DataForSEO", "GoogleTrends"],
+
+  riskProfile: {
+    confidence: "high",
+    riskIfWrong: "medium",
+    inferenceType: "external"
+  },
+
+  caching: {
+    cadence: "monthly",
+    ttlSeconds: 2592000,
+    bustOnChanges: ["category_scope", "market"]
+  },
+
+  executionGate: {
+    allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED", "AI_ANALYSIS_RUN"],
+    allowMissingOptionalSections: true,
+    requireAuditTrail: true
+  },
+
+  contextInjection: {
+    requiredSections: ["A", "B"],
+    optionalSections: ["C", "D", "E", "G", "H"],
+    sectionUsage: {
+      A: "Defines brand domain and geo for market context.",
+      B: "Defines category queries for demand tracking.",
+      C: "Optional: competitor brands for trend comparison.",
+      D: "Maps demand themes for trend classification.",
+      E: "Adjusts timing sensitivity (aggressive vs conservative).",
+      G: "Hard exclusions for prohibited categories.",
+      H: "Defines confidence thresholds for timing recommendations."
+    },
+    gates: {
+      fenceMode: "soft",
+      negativeScopeMode: "hard"
+    }
+  },
+
+  inputs: {
+    fields: [
+      {
+        name: "query_groups",
+        type: "string[]",
+        required: true,
+        description: "Category-level clusters, not single keywords"
+      },
+      {
+        name: "country_code",
+        type: "string",
+        required: false,
+        default: "US",
+        description: "Demand timing varies by geography"
+      },
+      {
+        name: "time_range",
+        type: "string",
+        required: false,
+        default: "today 5-y",
+        description: "Captures multi-year seasonality"
+      },
+      {
+        name: "interval",
+        type: "string",
+        required: false,
+        default: "weekly",
+        description: "Balances resolution and stability",
+        constraints: { enum: ["daily", "weekly", "monthly"] }
+      },
+      {
+        name: "forecast_enabled",
+        type: "boolean",
+        required: false,
+        default: false,
+        description: "Enable 8-12 week forecast"
+      }
+    ]
+  },
+
+  disposition: {
+    required: false,
+    allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"]
+  },
+
+  explainability: {
+    required: true,
+    itemTraceFields: ["ruleId", "ucrSection", "reason", "severity"],
+    runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"]
+  },
+
+  output: {
+    entityType: "demand_timing_signal",
+    visuals: [
+      { kind: "line", title: "5-Year Demand Curve", description: "Historical weekly demand" },
+      { kind: "heatmap", title: "Seasonality Heatmap", description: "Monthly average patterns" },
+      { kind: "card", title: "Timing Recommendation", description: "When to act" }
+    ],
+    summaryFields: [
+      "peak_months",
+      "inflection_point",
+      "yoy_consistency",
+      "timing_recommendation",
+      "confidence_level"
+    ]
+  },
+
+  councilRules: {
+    ownerCouncil: "Strategic Intelligence",
+    supportingCouncils: ["Growth Strategy & Planning", "Performance Media & Messaging"],
+    rulePacks: [
+      { packId: "strategic_intel.timing", version: "v1", appliesTo: "run" }
+    ]
+  },
+
+  guardrails: {
+    neverPromiseRevenue: true,
+    neverDumpRawEntitiesWithoutFraming: true,
+    alwaysProvideNextStep: true
+  }
+};
+
 /* ---------------------------------- */
 /* Default Registry                    */
 /* ---------------------------------- */
@@ -649,7 +779,8 @@ export const BrandAttentionContract: ModuleContract = {
 export const CONTRACT_REGISTRY = createContractRegistry([
   KeywordGapVisibilityContract,
   CategoryDemandTrendContract,
-  BrandAttentionContract
+  BrandAttentionContract,
+  MarketDemandSeasonalityContract
 ]);
 
 export function getAllContracts(): ModuleContract[] {
@@ -744,13 +875,25 @@ export const STRATEGIC_LEVERS: ModuleDefinition = {
   status: 'planned'
 };
 
+export const MARKET_DEMAND_SEASONALITY: ModuleDefinition = {
+  id: 'market_demand_seasonality',
+  name: 'Market Demand & Seasonality',
+  description: 'Timing signals from demand cycles - when to act, not how much to spend',
+  question: 'When does our market wake up and when should we act?',
+  requiredSections: ['A', 'B'],
+  optionalSections: ['C', 'D', 'E', 'G', 'H'],
+  outputType: 'signal',
+  status: 'active'
+};
+
 export const MODULE_REGISTRY: Record<string, ModuleDefinition> = {
   'category_demand_signal': CATEGORY_DEMAND_SIGNAL,
   'brand_attention': BRAND_ATTENTION,
   'seo_visibility_gap': SEO_VISIBILITY_GAP,
   'retail_pricing': RETAIL_PRICING,
   'demand_capture': DEMAND_CAPTURE,
-  'strategic_levers': STRATEGIC_LEVERS
+  'strategic_levers': STRATEGIC_LEVERS,
+  'market_demand_seasonality': MARKET_DEMAND_SEASONALITY
 };
 
 export function getModuleDefinition(moduleId: string): ModuleDefinition | undefined {
