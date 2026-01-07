@@ -2301,9 +2301,6 @@ IMPORTANT:
   // ==================== MARKET DEMAND & SEASONALITY ENDPOINTS ====================
 
   app.get("/api/market-demand/status", async (req: any, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
     try {
       const providers = getAllTrendsProviderStatuses();
       const hasDataForSEOCreds = !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD);
@@ -2318,11 +2315,7 @@ IMPORTANT:
   });
 
   app.post("/api/market-demand/analyze", async (req: any, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const userId = req.user!.id;
+    const userId = "anonymous-user";
     const { configurationId, timeRange, countryCode, queryGroups, forecastEnabled } = req.body;
 
     if (!configurationId) {
@@ -2358,11 +2351,7 @@ IMPORTANT:
   });
 
   app.get("/api/market-demand/:configurationId", async (req: any, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const userId = req.user!.id;
+    const userId = "anonymous-user";
     const configurationId = parseInt(req.params.configurationId, 10);
     if (isNaN(configurationId)) {
       return res.status(400).json({ error: "Invalid configuration ID" });
