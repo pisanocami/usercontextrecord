@@ -98,24 +98,32 @@ function getLocationCode(country: string): number {
   return locationCodes[country.toUpperCase()] || 2840;
 }
 
-interface DataForSEOTrendsItem {
-  date_from: string;
-  date_to: string;
-  timestamp: number;
-  values: number[];
+interface ExploreResultItem {
+  type: string;
+  position: number;
+  title: string;
+  keywords: string[];
+  data: Array<{
+    keyword: string;
+    values: number[];
+    date_from: string;
+    date_to: string;
+  }>;
 }
 
-interface DataForSEOTrendsResponse {
+interface ExploreResponse {
+  status_code: number;
+  status_message: string;
   tasks: Array<{
     id: string;
     status_code: number;
     status_message: string;
     result: Array<{
-      keyword: string;
+      keywords: string[];
       type: string;
       location_code: number;
       language_code: string;
-      items: DataForSEOTrendsItem[];
+      items: ExploreResultItem[];
     }>;
   }>;
 }
@@ -129,54 +137,12 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
   }
 
   async fetchTrends(query: TrendsQuery): Promise<TrendsResponse> {
-    const { date_from, date_to } = convertTimeRange(query.timeRange);
-    const locationCode = getLocationCode(query.country);
-
-    const body = [
-      {
-        keywords: [query.query],
-        location_code: locationCode,
-        language_code: "en",
-        date_from,
-        date_to,
-        time_range: query.interval === "daily" ? "past_day" : query.interval === "monthly" ? "past_12_months" : "past_4_hours",
-        type: "web_search",
-      },
-    ];
-
-    try {
-      console.log(`[DataForSEO Trends] Fetching trends for "${query.query}" in ${query.country}`);
-
-      const response = await makeRequest<DataForSEOTrendsResponse>(
-        "/keywords_data/google_trends/explore/live",
-        body
-      );
-
-      const result = response.tasks?.[0]?.result?.[0];
-
-      if (!result || !result.items || result.items.length === 0) {
-        console.log(`[DataForSEO Trends] No data returned for "${query.query}"`);
-        return this.createEmptyResponse(query.query);
-      }
-
-      const data: TrendsDataPoint[] = result.items.map((item) => ({
-        date: item.date_from.split(" ")[0],
-        value: item.values?.[0] ?? 0,
-      }));
-
-      return {
-        query: query.query,
-        data,
-        metadata: {
-          fetchedAt: new Date().toISOString(),
-          source: "DataForSEO",
-          cached: false,
-        },
-      };
-    } catch (error) {
-      console.error(`[DataForSEO Trends] Error fetching trends for "${query.query}":`, error);
-      throw error;
-    }
+    const results = await this.fetchBatch([query.query], {
+      timeRange: query.timeRange,
+      country: query.country,
+      interval: query.interval,
+    });
+    return results[0] || this.createEmptyResponse(query.query);
   }
 
   async compareQueries(
@@ -215,39 +181,94 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
 
     try {
       console.log(`[DataForSEO Trends] Fetching batch of ${queries.length} queries`);
+      console.log(`[DataForSEO Trends] Date range: ${date_from} to ${date_to}`);
 
-      const response = await makeRequest<DataForSEOTrendsResponse>(
+      const response = await makeRequest<ExploreResponse>(
         "/keywords_data/google_trends/explore/live",
         body
       );
 
-      const taskResults = response.tasks?.[0]?.result || [];
+      const task = response.tasks?.[0];
+      if (!task || task.status_code !== 20000) {
+        console.log(`[DataForSEO Trends] Task failed:`, task?.status_message);
+        return queries.map((query) => this.createEmptyResponse(query));
+      }
 
-      return queries.map((query, index) => {
-        const result = taskResults[index];
-        if (!result || !result.items || result.items.length === 0) {
-          return this.createEmptyResponse(query);
+      const result = task.result?.[0];
+      if (!result || !result.items) {
+        console.log(`[DataForSEO Trends] No result items returned`);
+        return queries.map((query) => this.createEmptyResponse(query));
+      }
+
+      const timelineItem = result.items.find(
+        (item) => item.type === "google_trends_graph" || item.type === "interest_over_time"
+      );
+
+      if (!timelineItem || !timelineItem.data || timelineItem.data.length === 0) {
+        console.log(`[DataForSEO Trends] No timeline data found in items. Types:`, 
+          result.items.map(i => i.type).join(", "));
+        
+        for (const item of result.items) {
+          if (item.data && item.data.length > 0) {
+            console.log(`[DataForSEO Trends] Found data in item type "${item.type}":`, 
+              JSON.stringify(item.data.slice(0, 2)));
+          }
         }
+        
+        const anyDataItem = result.items.find(item => item.data && item.data.length > 0);
+        if (anyDataItem) {
+          return this.extractDataFromItem(anyDataItem, queries);
+        }
+        
+        return queries.map((query) => this.createEmptyResponse(query));
+      }
 
-        const data: TrendsDataPoint[] = result.items.map((item) => ({
-          date: item.date_from.split(" ")[0],
-          value: item.values?.[0] ?? 0,
-        }));
-
-        return {
-          query,
-          data,
-          metadata: {
-            fetchedAt: new Date().toISOString(),
-            source: "DataForSEO" as const,
-            cached: false,
-          },
-        };
-      });
+      return this.extractDataFromItem(timelineItem, queries);
     } catch (error) {
       console.error(`[DataForSEO Trends] Batch fetch error:`, error);
       return queries.map((query) => this.createEmptyResponse(query));
     }
+  }
+
+  private extractDataFromItem(item: ExploreResultItem, queries: string[]): TrendsResponse[] {
+    const fetchedAt = new Date().toISOString();
+    
+    return queries.map((query) => {
+      const keywordData = item.data.find(
+        (d) => d.keyword.toLowerCase() === query.toLowerCase()
+      );
+
+      if (!keywordData || !keywordData.values || keywordData.values.length === 0) {
+        console.log(`[DataForSEO Trends] No values for keyword "${query}"`);
+        return this.createEmptyResponse(query);
+      }
+
+      const startDate = new Date(keywordData.date_from);
+      const endDate = new Date(keywordData.date_to);
+      const totalPoints = keywordData.values.length;
+      const totalDays = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysPerPoint = totalDays / totalPoints;
+
+      const data: TrendsDataPoint[] = keywordData.values.map((value, index) => {
+        const pointDate = new Date(startDate.getTime() + index * daysPerPoint * 24 * 60 * 60 * 1000);
+        return {
+          date: pointDate.toISOString().split("T")[0],
+          value: value ?? 0,
+        };
+      });
+
+      console.log(`[DataForSEO Trends] Extracted ${data.length} data points for "${query}"`);
+
+      return {
+        query,
+        data,
+        metadata: {
+          fetchedAt,
+          source: "DataForSEO" as const,
+          cached: false,
+        },
+      };
+    });
   }
 
   private createEmptyResponse(query: string): TrendsResponse {
