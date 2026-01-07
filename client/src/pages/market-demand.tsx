@@ -118,7 +118,7 @@ export default function MarketDemandPage() {
 
   const analyzeMutation = useMutation({
     mutationFn: async (configId: string) => {
-      return apiRequest("/api/market-demand/analyze", "POST", {
+      return apiRequest("POST", "/api/market-demand/analyze", {
         configurationId: configId,
         timeRange,
         forecastEnabled,
