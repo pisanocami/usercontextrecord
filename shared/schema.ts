@@ -920,3 +920,77 @@ export interface MarketDemandAnalysis {
 }
 
 export type InsertMarketDemandAnalysis = Omit<MarketDemandAnalysis, "id" | "created_at">;
+
+// ==========================================
+// Market Demand By Category Types (v2)
+// ==========================================
+
+export type Month = "Jan" | "Feb" | "Mar" | "Apr" | "May" | "Jun" | "Jul" | "Aug" | "Sep" | "Oct" | "Nov" | "Dec";
+
+export interface CategoryCacheTrace {
+  hit: boolean;
+  key: string;
+  ttlSeconds: number;
+}
+
+export interface CategoryDemandTrace {
+  ucrSectionsUsed: string[];
+  provider: "dataforseo";
+  cache: CategoryCacheTrace;
+}
+
+export interface CategoryDemandSlice {
+  categoryName: string;
+  queries: string[];
+  peakMonth: Month | null;
+  lowMonth: Month | null;
+  stabilityScore: number;
+  consistencyLabel: "low" | "medium" | "high";
+  variance: number;
+  inflectionMonth: Month | null;
+  peakWindow: Month[];
+  recommendedLaunchByISO: string | null;
+  recommendationRationale: string;
+  series: TrendsDataPoint[];
+  heatmap: Record<Month, number>;
+  trace: CategoryDemandTrace;
+}
+
+export interface OverallDemandAggregate {
+  method: "weighted_average";
+  weights: Record<string, number>;
+  peakMonth: Month | null;
+  lowMonth: Month | null;
+  stabilityScore: number;
+  recommendedLaunchByISO: string | null;
+  series: TrendsDataPoint[];
+  heatmap: Record<Month, number>;
+}
+
+export interface MarketDemandByCategoryResult {
+  configurationId: number;
+  ucrVersion: string;
+  provider: "dataforseo";
+  timeRange: string;
+  country: string;
+  granularity: "weekly" | "monthly";
+  byCategory: CategoryDemandSlice[];
+  overall?: OverallDemandAggregate;
+  executiveSummary: string;
+  trace: {
+    sectionsUsed: string[];
+    sectionsMissing: string[];
+    filtersApplied: string[];
+    rulesTriggered: string[];
+  };
+  metadata: {
+    fetchedAt: string;
+    cached: boolean;
+    dataSource: string;
+  };
+}
+
+export interface CategoryQueryGroup {
+  categoryName: string;
+  queries: string[];
+}

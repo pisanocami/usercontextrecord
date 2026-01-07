@@ -1,0 +1,108 @@
+Sí: **es totalmente posible** que con “el mismo contexto” te salga **Peak/Low distinto**, pero en tu caso hay **dos causas separadas**:
+
+## 1) Variación real del proveedor (normalización de Trends)
+
+Cuando consultas DataForSEO/Google Trends, los valores están **normalizados y pueden recalcularse**. Pequeños cambios en la serie semanal pueden hacer que el “mes ganador” cambie (pico/valle).
+Eso explica variaciones *pequeñas*.
+
+**Pero** pasar de **Peak Apr → Peak Oct** con el mismo día/contexto suele indicar otra cosa…
+
+---
+
+## 2) Bug de producto: estás promediando múltiples categorías en un solo “resultado genérico”
+
+Tu propio hallazgo es el clave:
+
+> “No está contemplando que el análisis puede ser por varias categorías y está dando un resultado genérico”
+
+Si tu UCR/inputs incluyen 5 keywords de **categorías distintas** (p.ej. *Recovery footwear*, *Athletic sandals*, *Orthopedic sandals*, *Comfort shoes*, *Active lifestyle*), cada una puede tener estacionalidad diferente.
+
+Si el sistema:
+
+* junta todo,
+* calcula un promedio,
+* y luego extrae peak/low del agregado,
+
+entonces el “peak” puede cambiar *muchísimo* según:
+
+* cuál keyword tuvo más ruido esa corrida,
+* cómo se normalizó esa consulta,
+* cómo se agruparon/ordenaron los términos.
+
+👉 Resultado: **un peak “genérico” que no representa ninguna categoría bien**, y además es inestable.
+
+---
+
+# Instrucciones concretas para el dev (lo que hay que hacer)
+
+## A) Cambiar el output: de “1 resultado” → “resultado por categoría”
+
+En vez de:
+
+```ts
+MarketDemandResult { peakMonth, lowMonth, ... } // único
+```
+
+hacer:
+
+```ts
+MarketDemandResult {
+  overall?: { ... }        // opcional, solo si lo quieren
+  byCategory: Array<{
+    categoryName: string
+    queries: string[]
+    peakMonth: string
+    lowMonth: string
+    stabilityScore: number
+    timingRecommendation: { launchBy: string, rationale: string }
+    series: Array<{ date: string, value: number }>
+    heatmap: Record<string, number> // month -> intensity
+    trace: RunTrace
+  }>
+}
+```
+
+## B) Ejecutar Trends por categoría (no mezclado)
+
+Si hoy haces 1 llamada con 5 términos mezclados, hay que pasar a:
+
+* por cada categoría:
+
+  * armar su set de queries
+  * llamar DataForSEO Trends
+  * calcular peak/low y estabilidad **por esa serie**
+* luego renderizar cards por categoría
+
+## C) UX: tarjetas por categoría + un “overall” opcional
+
+En UI:
+
+* “Recovery footwear — Peak Apr/May”
+* “Athletic sandals — Peak Jul”
+* “Orthopedic sandals — Peak Oct”
+  y debajo, si quieren:
+* “Overall (weighted) — informational only”
+
+## D) Para consistencia: cache por (ucr_hash + category + timeframe)
+
+Esto evita que un rerun inmediato cambie el peak por ruido.
+
+Cache key ejemplo:
+
+```
+marketDemand:{ucrHash}:{categoryName}:{country}:{timeRange}:{granularity}
+ttl: 24h (o 7d)
+```
+
+---
+
+# Qué decirle al equipo (explicación simple)
+
+“Hoy el módulo está agregando múltiples categorías en un solo promedio. Eso genera un pico ‘genérico’ que puede cambiar entre corridas y no representa bien ninguna categoría. La solución es segmentar por categoría y devolver un peak/low por cada una, con cache por configuración.”
+
+---
+
+Si querés, te dejo también:
+
+* el **pseudo-código exacto** de `runMarketDemandByCategory()`
+* y el **contrato** actualizado en `module.contract.ts` para Market Demand (output spec + required UCR sections).

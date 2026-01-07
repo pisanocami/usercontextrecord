@@ -1,0 +1,312 @@
+Perfecto — acá tenés (1) pseudo-código exacto para runMarketDemandByCategory() + (2) contrato actualizado (output + inputs) + (3) checklist de UI y migración para que el dev lo implemente sin ambigüedad.
+
+1) Backend: runMarketDemandByCategory() (pseudo-código exacto)
+Tipos sugeridos
+type Month = "Jan"|"Feb"|"Mar"|"Apr"|"May"|"Jun"|"Jul"|"Aug"|"Sep"|"Oct"|"Nov"|"Dec";
+
+type TrendPoint = { date: string; value: number }; // date ISO or YYYY-MM
+type Heatmap = Record<Month, number>; // 0..100
+
+type CategoryDemandSlice = {
+  categoryName: string;
+  queries: string[];
+
+  // Core outputs (no N/A)
+  peakMonth: Month | null;
+  lowMonth: Month | null;
+
+  stabilityScore: number; // 0..100 (or 0..1; pick ONE and stick)
+  consistencyLabel: "low"|"medium"|"high";
+  variance: number; // 0..100 (or 0..1)
+
+  inflectionMonth: Month | null;
+  peakWindow: Month[];
+
+  recommendedLaunchByISO: string | null; // YYYY-MM-DD
+  recommendationRationale: string;
+
+  series: TrendPoint[];
+  heatmap: Heatmap;
+
+  trace: {
+    ucrSectionsUsed: string[];
+    provider: "dataforseo";
+    cache: { hit: boolean; key: string; ttlSeconds: number };
+  };
+};
+
+type MarketDemandByCategoryResult = {
+  configurationId: number;
+  ucrVersion: string;
+  provider: "dataforseo";
+  timeRange: string;        // e.g. "today 5-y"
+  country: string;          // e.g. "US"
+  granularity: "weekly"|"monthly";
+
+  byCategory: CategoryDemandSlice[];
+
+  overall?: {
+    method: "weighted_average";
+    weights: Record<string, number>; // categoryName -> weight
+    peakMonth: Month | null;
+    lowMonth: Month | null;
+    stabilityScore: number;
+    recommendedLaunchByISO: string | null;
+    series: TrendPoint[];
+    heatmap: Heatmap;
+  };
+};
+
+Función principal
+export async function runMarketDemandByCategory(params: {
+  configurationId: number;
+  ucr: any; // full UCR
+  country: string;          // "US"
+  timeRange: string;        // "today 5-y"
+  granularity: "weekly"|"monthly";
+  providerClient: DataForSeoTrendsClient;
+  cache: Cache;             // Redis or in-memory
+}): Promise<MarketDemandByCategoryResult> {
+
+  // 1) Build category query groups from UCR.B (or input)
+  const groups = buildCategoryGroups(params.ucr);
+  // Example output:
+  // [{ categoryName:"Recovery footwear", queries:["recovery footwear",...]} , ...]
+  if (groups.length === 0) throw new Error("No category groups found in UCR.B");
+
+  // 2) Run each category independently (and cache per category)
+  const slices: CategoryDemandSlice[] = [];
+  for (const g of groups) {
+    const cacheKey = makeDemandCacheKey({
+      ucrHash: params.ucr.H?.context_hash ?? stableHash(params.ucr),
+      categoryName: g.categoryName,
+      queries: g.queries,
+      country: params.country,
+      timeRange: params.timeRange,
+      granularity: params.granularity
+    });
+
+    const cached = await params.cache.get< CategoryDemandSlice >(cacheKey);
+    if (cached) {
+      slices.push({
+        ...cached,
+        trace: { ...cached.trace, cache: { ...cached.trace.cache, hit: true } }
+      });
+      continue;
+    }
+
+    // 2a) Provider call
+    // IMPORTANT: if provider requires <=5 queries, chunk and merge.
+    const trendSeries = await fetchTrendsSeries({
+      client: params.providerClient,
+      queries: g.queries,
+      country: params.country,
+      timeRange: params.timeRange,
+      granularity: params.granularity
+    });
+
+    // 2b) Compute heatmap, peak/low, inflection, stability
+    const heatmap = computeMonthlyHeatmap(trendSeries);
+    const { peakMonth, lowMonth, peakWindow } = computePeakLow(heatmap);
+    const inflectionMonth = computeInflectionMonth(trendSeries); // first sustained rise
+
+    const { stabilityScore, variance, consistencyLabel } =
+      computeYoYStability(trendSeries); // returns stable metrics
+
+    const { recommendedLaunchByISO, recommendationRationale } =
+      computeTimingRecommendation({
+        inflectionMonth,
+        peakWindow,
+        stabilityScore,
+        ucr: params.ucr
+      });
+
+    const slice: CategoryDemandSlice = {
+      categoryName: g.categoryName,
+      queries: g.queries,
+      peakMonth,
+      lowMonth,
+      peakWindow,
+      inflectionMonth,
+      stabilityScore,
+      variance,
+      consistencyLabel,
+      recommendedLaunchByISO,
+      recommendationRationale,
+      series: trendSeries,
+      heatmap,
+      trace: {
+        ucrSectionsUsed: ["A","B","E","H","G"], // whatever you actually used
+        provider: "dataforseo",
+        cache: { hit: false, key: cacheKey, ttlSeconds: 86400 }
+      }
+    };
+
+    await params.cache.set(cacheKey, slice, 86400);
+    slices.push(slice);
+  }
+
+  // 3) Optional overall roll-up (weighted)
+  const overall = computeOverallOptional(slices, params.ucr);
+
+  return {
+    configurationId: params.configurationId,
+    ucrVersion: params.ucr?.H?.ucr_version ?? "unknown",
+    provider: "dataforseo",
+    timeRange: params.timeRange,
+    country: params.country,
+    granularity: params.granularity,
+    byCategory: slices,
+    overall
+  };
+}
+
+buildCategoryGroups(ucr) (regla simple y segura)
+function buildCategoryGroups(ucr: any): Array<{categoryName: string; queries: string[]}> {
+  // Preferred: UCR.B.category_query_groups (explicit)
+  const explicit = ucr?.B?.category_query_groups;
+  if (Array.isArray(explicit) && explicit.length) {
+    return explicit
+      .map((g: any) => ({
+        categoryName: String(g.name ?? "").trim(),
+        queries: (g.queries ?? []).map((q: any) => String(q).trim()).filter(Boolean)
+      }))
+      .filter(g => g.categoryName && g.queries.length);
+  }
+
+  // Fallback: derive from existing fields (least-bad)
+  const primary = ucr?.B?.primary_category ? [String(ucr.B.primary_category)] : [];
+  const approved = Array.isArray(ucr?.B?.approved_categories) ? ucr.B.approved_categories : [];
+  const included = Array.isArray(ucr?.B?.included_categories) ? ucr.B.included_categories : [];
+  const all = [...primary, ...approved, ...included].map((s) => String(s).trim()).filter(Boolean);
+
+  // If they give 5 categories, treat each as its own group with 1 query (simple)
+  return all.map((c) => ({ categoryName: c, queries: [c] }));
+}
+
+2) Contract update (Market Demand module)
+Qué cambia
+
+Output ya no es un “card” genérico único.
+
+Output es byCategory[] + overall?.
+
+Contrato (ejemplo)
+export const MarketDemandByCategoryContract: ModuleContract = {
+  moduleId: "market.demand_seasonality_by_category.v2",
+  name: "Market Demand & Seasonality (By Category)",
+  category: "Market Trends",
+  layer: "Signal",
+  version: "contract.v2",
+
+  description: "Runs seasonality and trend analysis per category group to avoid generic blended results.",
+  strategicQuestion: "When does demand rise and peak for each priority category, and when should we launch content/TOF media?",
+
+  dataSources: ["DataForSEO"],
+
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "external" },
+
+  caching: { cadence: "daily", bustOnChanges: ["category_scope", "market", "governance"] },
+
+  executionGate: {
+    allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"],
+    allowMissingOptionalSections: true,
+    requireAuditTrail: true
+  },
+
+  contextInjection: {
+    requiredSections: ["A", "B", "H"],
+    optionalSections: ["E", "G"],
+    sectionUsage: {
+      A: "Geo/market defaults and narrative context.",
+      B: "Category query groups (core input).",
+      E: "Adjusts timing aggressiveness and risk posture.",
+      G: "Hard exclusions for query groups/terms.",
+      H: "Thresholds for stability classification + caching policy."
+    },
+    gates: { fenceMode: "hard", negativeScopeMode: "hard" }
+  },
+
+  inputs: {
+    fields: [
+      { name: "country", type: "string", required: false, default: "US" },
+      { name: "time_range", type: "string", required: false, default: "today 5-y" },
+      { name: "granularity", type: "string", required: false, default: "weekly" },
+      {
+        name: "category_query_groups",
+        type: "json",
+        required: false,
+        description: "Optional override. If omitted, derives from UCR.B."
+      }
+    ]
+  },
+
+  disposition: { required: false, allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"] },
+
+  explainability: {
+    required: true,
+    itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"],
+    runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"]
+  },
+
+  output: {
+    entityType: "category_demand_by_category",
+    visuals: [
+      { kind: "line", title: "Demand Trendline (per category)" },
+      { kind: "heatmap", title: "Seasonality Heatmap (per category)" },
+      { kind: "card", title: "Timing Recommendation (per category)" }
+    ],
+    summaryFields: ["by_category_peak_months", "by_category_launch_by", "overall_recommendation_optional"]
+  },
+
+  guardrails: { neverPromiseRevenue: true, alwaysProvideNextStep: true }
+};
+
+3) UI: qué cambiar para que no haya N/A y no sea genérico
+Cards
+
+Renderizar una card por byCategory[i]
+
+Mostrar:
+
+Peak / Low / Inflection
+
+Stability (score + label)
+
+Launch-by
+
+Queries usadas (tooltip “view inputs”)
+
+“Overall”
+
+Mostrarlo como “Optional roll-up (informational)” con etiqueta clara
+
+Nunca como el único resultado
+
+Backward compatibility
+
+Si hay análisis viejos guardados con results:
+
+Si byCategory no existe:
+
+derivar 1 slice “Overall” desde results y mostrar warning “legacy run”
+
+4) Caching: para evitar que el mismo contexto cambie en minutos
+
+Implementar cache per category:
+
+TTL: 24h (daily)
+
+Key: ucrHash + categoryName + queries + country + timeRange + granularity
+
+5) Definition of Done
+
+Ejecutar con 5 categorías → devolver 5 slices (no 1 promedio)
+
+UI muestra 5 cards, cada una con Peak/Low reales (no N/A)
+
+Dos runs consecutivos con mismo UCR → mismo resultado (cache hit)
+
+Overall (si existe) se marca “informational”
+
+Si querés, te armo también el shape exacto del JSON de
