@@ -240,9 +240,85 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
   private extractDataFromItem(item: ExploreResultItem, queries: string[]): TrendsResponse[] {
     const fetchedAt = new Date().toISOString();
     
+    console.log(`[DataForSEO Trends] Item type: ${item.type}`);
+    console.log(`[DataForSEO Trends] Item data sample:`, JSON.stringify(item.data?.slice(0, 2)));
+    console.log(`[DataForSEO Trends] Item keys:`, Object.keys(item));
+    
+    if (!item.data || item.data.length === 0) {
+      console.log(`[DataForSEO Trends] No data in item`);
+      return queries.map((query) => this.createEmptyResponse(query));
+    }
+
+    const firstDataEntry = item.data[0];
+    console.log(`[DataForSEO Trends] First data entry keys:`, Object.keys(firstDataEntry || {}));
+
+    if (firstDataEntry && 'keyword' in firstDataEntry) {
+      return queries.map((query) => {
+        const keywordData = item.data.find(
+          (d: any) => d.keyword?.toLowerCase() === query.toLowerCase()
+        );
+
+        if (!keywordData || !keywordData.values || keywordData.values.length === 0) {
+          console.log(`[DataForSEO Trends] No values for keyword "${query}"`);
+          return this.createEmptyResponse(query);
+        }
+
+        const startDate = new Date(keywordData.date_from);
+        const endDate = new Date(keywordData.date_to);
+        const totalPoints = keywordData.values.length;
+        const totalDays = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysPerPoint = totalDays / totalPoints;
+
+        const data: TrendsDataPoint[] = keywordData.values.map((value: number, index: number) => {
+          const pointDate = new Date(startDate.getTime() + index * daysPerPoint * 24 * 60 * 60 * 1000);
+          return {
+            date: pointDate.toISOString().split("T")[0],
+            value: value ?? 0,
+          };
+        });
+
+        console.log(`[DataForSEO Trends] Extracted ${data.length} data points for "${query}"`);
+
+        return {
+          query,
+          data,
+          metadata: {
+            fetchedAt,
+            source: "DataForSEO" as const,
+            cached: false,
+          },
+        };
+      });
+    }
+
+    if (firstDataEntry && ('date_from' in firstDataEntry || 'timestamp' in firstDataEntry || 'values' in firstDataEntry)) {
+      console.log(`[DataForSEO Trends] Using timeline data format`);
+      const timelineData: TrendsDataPoint[] = item.data.map((d: any) => ({
+        date: d.date_from || d.timestamp || d.date || new Date().toISOString().split("T")[0],
+        value: typeof d.values === 'number' ? d.values : (d.values?.[0] ?? d.value ?? 0),
+      }));
+
+      return queries.map((query) => ({
+        query,
+        data: timelineData,
+        metadata: {
+          fetchedAt,
+          source: "DataForSEO" as const,
+          cached: false,
+        },
+      }));
+    }
+
+    console.log(`[DataForSEO Trends] Unknown data format, returning empty`);
+    return queries.map((query) => this.createEmptyResponse(query));
+  }
+
+  private extractDataFromItemOld(item: ExploreResultItem, queries: string[]): TrendsResponse[] {
+    const fetchedAt = new Date().toISOString();
+    
     return queries.map((query) => {
       const keywordData = item.data.find(
-        (d) => d.keyword.toLowerCase() === query.toLowerCase()
+        (d) => d.keyword?.toLowerCase() === query.toLowerCase()
       );
 
       if (!keywordData || !keywordData.values || keywordData.values.length === 0) {
