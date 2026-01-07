@@ -14,6 +14,7 @@ export interface GapResult {
   competitorDomain: string;
   gapKeywords: GapKeyword[];
   totalCount: number;
+  error?: string;
 }
 
 export interface RankedKeyword {

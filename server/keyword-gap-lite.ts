@@ -67,6 +67,12 @@ export interface KeywordResult {
   trace: ItemTrace[];
 }
 
+export interface ProviderError {
+  competitor: string;
+  error: string;
+  timestamp: string;
+}
+
 export interface KeywordGapResult {
   brandDomain: string;
   competitors: string[];
@@ -97,6 +103,7 @@ export interface KeywordGapResult {
   configurationName: string;
   fromCache: boolean;
   provider: string;
+  providerErrors?: ProviderError[];
   ucrContext: {
     ucr_version: string;
     sections_used: UCRSection[];
@@ -1070,6 +1077,9 @@ export async function computeKeywordGap(
     competitors: string[];
   }>();
   
+  // Track provider errors for reporting
+  const providerErrors: ProviderError[] = [];
+  
   await Promise.all(
     directCompetitors.map(competitor =>
       limit(async () => {
@@ -1094,11 +1104,44 @@ export async function computeKeywordGap(
                 limit: limitPerDomain,
               }
             );
+            
+            // Check if provider returned an error (from Promise.allSettled handling)
+            if (result.error) {
+              console.warn(`[${keywordProvider.displayName}] Provider returned error for ${competitorDomain}: ${result.error}`);
+              providerErrors.push({
+                competitor: competitorDomain,
+                error: result.error,
+                timestamp: new Date().toISOString(),
+              });
+            }
+            
             cachedKeywords = result.gapKeywords;
-            setCache(cacheKey, cachedKeywords);
+            if (cachedKeywords.length > 0) {
+              setCache(cacheKey, cachedKeywords);
+            }
             console.log(`[${keywordProvider.displayName}] Got ${cachedKeywords.length} gap keywords from ${competitorDomain}`);
           } catch (error) {
-            console.error(`[${keywordProvider.displayName}] Error fetching gap for ${competitorDomain}:`, error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            // Check if this is a fatal brand-domain error (critical - should propagate)
+            const isBrandDomainError = errorMessage.includes("Brand Domain Failed") || 
+                                        errorMessage.includes("brand fetch") ||
+                                        errorMessage.includes("client domain");
+            
+            if (isBrandDomainError) {
+              console.error(`[${keywordProvider.displayName}] FATAL brand-domain error - re-throwing:`, error);
+              throw error; // Don't swallow brand-domain errors - they're critical
+            }
+            
+            // Non-fatal competitor error - track but continue
+            console.warn(`[${keywordProvider.displayName}] Competitor fetch error for ${competitorDomain}:`, errorMessage);
+            
+            providerErrors.push({
+              competitor: competitorDomain,
+              error: errorMessage,
+              timestamp: new Date().toISOString(),
+            });
+            
             cachedKeywords = [];
           }
         }
@@ -1218,6 +1261,11 @@ export async function computeKeywordGap(
     addTriggeredRule(execContext, RULES.GOVERNANCE_THRESHOLD);
   }
   
+  // If all competitors failed and we have no results, log a strong warning
+  if (results.length === 0 && providerErrors.length > 0) {
+    console.error(`[KeywordGapLite] ALL competitors failed! Provider errors:`, providerErrors);
+  }
+  
   return {
     brandDomain,
     competitors: directCompetitors,
@@ -1241,6 +1289,7 @@ export async function computeKeywordGap(
     configurationName: config.name || "Unknown",
     fromCache: usedCache,
     provider,
+    providerErrors: providerErrors.length > 0 ? providerErrors : undefined,
     ucrContext: {
       ucr_version: execContext.ucrVersion,
       sections_used: execContext.sectionsUsed,

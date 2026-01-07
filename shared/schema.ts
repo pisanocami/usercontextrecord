@@ -753,3 +753,125 @@ export const defaultConfiguration: InsertConfiguration = {
     },
   },
 };
+
+// ==========================================
+// Market Demand & Seasonality Types
+// ==========================================
+
+export interface TrendsDataPoint {
+  date: string;
+  value: number;
+}
+
+export interface TrendsQuery {
+  query: string;
+  country: string;
+  timeRange: string;
+  interval: "daily" | "weekly" | "monthly";
+}
+
+export interface TrendsResponse {
+  query: string;
+  data: TrendsDataPoint[];
+  metadata: {
+    fetchedAt: string;
+    source: "DataForSEO" | "GoogleTrends";
+    cached: boolean;
+  };
+}
+
+export interface SeasonalityPattern {
+  inflectionPoint: {
+    month: number;
+    week: number;
+    date: string;
+  };
+  peakWindow: {
+    start: string;
+    end: string;
+    months: string[];
+  };
+  declinePhase: {
+    start: string;
+  };
+  yoyConsistency: "high" | "medium" | "low";
+  consistencyScore: number;
+}
+
+export interface TimingRecommendation {
+  inflectionMonth: string;
+  peakMonths: string[];
+  recommendedActionDate: string;
+  reasoning: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface YoYAnalysis {
+  consistency: "high" | "medium" | "low";
+  variance: number;
+  anomalies: string[];
+}
+
+export interface DemandCurve {
+  query: string;
+  data: TrendsDataPoint[];
+  forecast?: TrendsDataPoint[];
+}
+
+export interface MarketDemandResult {
+  configurationId: number;
+  contextVersion: number;
+  demandCurves: DemandCurve[];
+  seasonality: SeasonalityPattern;
+  timingRecommendation: TimingRecommendation;
+  yoyAnalysis: YoYAnalysis;
+  executiveSummary: string;
+  trace: {
+    sectionsUsed: string[];
+    sectionsMissing: string[];
+    filtersApplied: string[];
+    rulesTriggered: string[];
+  };
+  metadata: {
+    fetchedAt: string;
+    cached: boolean;
+    dataSource: string;
+  };
+}
+
+export interface MarketDemandAnalysisParams {
+  configurationId: number;
+  queryGroups?: string[];
+  countryCode?: string;
+  timeRange?: string;
+  interval?: "daily" | "weekly" | "monthly";
+  forecastEnabled?: boolean;
+  forceRefresh?: boolean;
+}
+
+// Market Demand Cache table
+export const marketDemandCache = pgTable("market_demand_cache", {
+  id: serial("id").primaryKey(),
+  configurationId: integer("configuration_id").notNull(),
+  queryGroup: text("query_group").notNull(),
+  country: text("country").notNull(),
+  timeRange: text("time_range").notNull(),
+  data: jsonb("data").notNull(),
+  analysis: jsonb("analysis").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export interface MarketDemandCacheEntry {
+  id: number;
+  configurationId: number;
+  queryGroup: string;
+  country: string;
+  timeRange: string;
+  data: TrendsResponse[];
+  analysis: MarketDemandResult;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+export type InsertMarketDemandCache = Omit<MarketDemandCacheEntry, "id" | "createdAt">;

@@ -1,0 +1,205 @@
+Veo exactamente qué está pasando en tu corrida de OOFOS con Ahrefs:
+
+* **69% PASS, 0% REVIEW**
+* **Capability score clavado en 0.50 en todos**
+* Keywords claramente “info / definiciones / compliance / wide shoes” pasando como oportunidad
+* Gate B siempre “Matches core: comfort shoes” (demasiado broad)
+* Gate H con `pass: 0.5` y `review: 0.25` → **cualquier keyword con baseScore 0.5 pasa**
+
+Esto confirma 3 bugs/calibraciones **muy específicas**.
+
+Abajo van **instrucciones para el dev** (con cambios concretos).
+
+---
+
+# 1) BUG #1: “CapabilityScore” no está usando boosters/penalties (o no existen en el UCR)
+
+### Síntoma
+
+Todos los keywords salen con `capabilityScore = 0.50`.
+
+### Qué hacer (dev)
+
+1. En el scorer, loguear:
+
+```ts
+console.log("[Capability] base", baseScore, "boosters", ucr?.H?.boosters?.length, "penalties", ucr?.H?.penalties?.length);
+```
+
+2. Si boosters/penalties vienen vacíos, **agregar preset mínimo en UCR.H** para OOFOS (ejemplo):
+
+```json
+"H": {
+  "thresholds": { "pass": 0.65, "review": 0.35 },
+  "boosters": [
+    { "pattern": "recovery", "weight": 0.15 },
+    { "pattern": "plantar fasciitis", "weight": 0.20 },
+    { "pattern": "arch support", "weight": 0.10 },
+    { "pattern": "standing all day", "weight": 0.10 }
+  ],
+  "penalties": [
+    { "pattern": "what is", "weight": -0.20 },
+    { "pattern": "how long", "weight": -0.15 },
+    { "pattern": "wide vs", "weight": -0.20 }
+  ]
+}
+```
+
+✅ Resultado esperado: capability pasa de “plano 0.50” a rango real (0.2–0.9).
+
+---
+
+# 2) BUG #2: Thresholds están mal (PASS demasiado barato) → REVIEW se vuelve 0
+
+### Síntoma
+
+Con `pass=0.5`, `review=0.25` y baseScore=0.5:
+
+* casi todo queda PASS
+
+### Qué hacer (dev)
+
+Cambiar los thresholds del preset (como arriba):
+
+* `pass = 0.65`
+* `review = 0.35`
+
+Y asegurar lógica:
+
+```ts
+if (score < review) disposition = "OUT_OF_PLAY";
+else if (score >= pass) disposition = "PASS";
+else disposition = "REVIEW";
+```
+
+✅ Resultado esperado: REVIEW vuelve a existir (ideal 25–45%).
+
+---
+
+# 3) BUG #3: Category Fence está sobre-generalizando (“comfort shoes” = match universal)
+
+### Síntoma
+
+Casi cualquier query de “shoes” cae en core.
+
+Ejemplos de basura que hoy están PASS por fence broad:
+
+* `what are water shoes`
+* `wide vs regular shoes`
+* `how long should walking shoes last`
+* `what is eva foam`
+* `best post workout meal`
+
+### Qué hacer (dev)
+
+**Separar en UCR.B dos listas:**
+
+* `core_terms` (estrictos, categoría real)
+* `extended_terms` (permitidos pero NO core)
+
+Ejemplo OOFOS:
+
+```json
+"B": {
+  "core_terms": ["recovery sandals", "recovery shoes", "recovery footwear", "recovery slides", "oofos"],
+  "extended_terms": ["arch support", "plantar fasciitis", "standing all day", "foot pain", "orthotic", "comfort sandals"]
+}
+```
+
+Implementar Gate B así:
+
+```ts
+const inCore = anyMatch(keyword, ucr.B.core_terms);
+const inExtended = anyMatch(keyword, ucr.B.extended_terms);
+
+item.in_fence = inCore || inExtended;
+item.outside_fence = !item.in_fence;
+
+// Para explainability:
+if (inCore) trace("category_fence.in_scope_core", "B", `Matches core: ${matched}`);
+else if (inExtended) trace("category_fence.in_scope_extended", "B", `Matches extended: ${matched}`);
+else trace("category_fence.soft_gate", "B", "Outside category fence", "medium");
+```
+
+✅ Resultado: “water shoes” deja de matchear core si no está en listas.
+
+---
+
+# 4) FALTA: Gate G “irrelevant intent” (hard gate) para queries informacionales
+
+Tenés queries claramente informacionales que no deberían pasar:
+
+* `what is eva foam`
+* `what are water shoes`
+* `how long should walking shoes last`
+* `wide vs regular shoes`
+
+### Qué hacer (dev)
+
+Agregar un regex hard gate en el pack de Negative Scope:
+
+```json
+{
+  "ruleId": "negative_scope.irrelevant_intent",
+  "appliesTo": "item",
+  "ucrSection": "G",
+  "severity": "critical",
+  "when": {
+    "op": "regex_match",
+    "left": "$item.keyword",
+    "right": "^(what is|what are|how long|wide vs|how to|definition of)\\b"
+  },
+  "then": {
+    "set": { "disposition": "OUT_OF_PLAY", "reason": "Informational intent (not an SEO capture target)" },
+    "trace": true
+  }
+}
+```
+
+✅ Resultado: esas queries pasan a OUT_OF_PLAY aunque tengan buen KD.
+
+---
+
+# 5) Regla adicional para garantizar REVIEW > 0 (sanity guardrail)
+
+Si `outside_fence = true`, **no puede quedar PASS** salvo override explícito.
+
+En pack de scoring:
+
+```json
+{
+  "ruleId": "scoring.no_pass_outside_fence",
+  "appliesTo": "item",
+  "ucrSection": "B",
+  "severity": "medium",
+  "when": {
+    "op": "and",
+    "conditions": [
+      { "op": "eq", "left": "$item.outside_fence", "right": true },
+      { "op": "eq", "left": "$item.disposition", "right": "PASS" }
+    ]
+  },
+  "then": {
+    "set": { "disposition": "REVIEW", "reason": "Outside fence requires human validation" },
+    "trace": true
+  }
+}
+```
+
+---
+
+# ✅ “Definition of Done” (para el dev)
+
+Después de implementar los 5 puntos, correr OOFOS de nuevo y chequear:
+
+* REVIEW **ya no es 0%**
+* PASS baja a ~10–25%
+* OUT_OF_PLAY sube (normal)
+* capabilityScore deja de ser 0.50 fijo
+* queries “what is / how long / wide vs” se van a OUT
+
+---
+
+## Si querés, te paso un preset completo “OOFOS UCR v1” (B/G/H) listo para pegar
+
+Con eso el dev puede validar end-to-end sin inventar nada.

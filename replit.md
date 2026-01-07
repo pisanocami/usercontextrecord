@@ -29,6 +29,7 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
 - **AI-Powered Suggestions**: Integrated "Generate with AI" functionality across configuration sections.
 - **One Pager Visualization**: Executive summary view of User Context Records (UCR).
 - **Keyword Gap Analysis**: Comprehensive competitor keyword analysis with UCR-based filtering and a 3-tier classification system (Pass, Review, Out of Play) based on capability and opportunity scoring. Features include intent classification, configurable scoring models, vertical presets, and detailed result breakdowns with confidence levels.
+- **Market Demand & Seasonality Module**: Timing intelligence using Google Trends data via DataForSEO. Answers "When does our market wake up - and when should we act?" with seasonality detection, YoY consistency analysis, and actionable timing recommendations. Features include demand curve visualization, monthly heatmap, inflection point detection, and executive summary.
 - **Item-Level Traces**: Every keyword carries an ItemTrace array with ruleId, ucrSection, reason, severity, and evidence for complete CMO-safe auditability. Traces are displayed in expandable table rows.
 - **CMO-Safe Gate Order**: Keyword evaluation follows strict gate order - G (Negative Scope) hard gate first, then B (Category Fence) soft gate, then H (Scoring), finally E/F (Strategic/Channel) with proper early returns.
 - **Context Workflow**: State machine for managing context lifecycle (DRAFT_AI to LOCKED) with validation gates and approval workflows.
@@ -47,3 +48,4 @@ The architecture emphasizes modularity with clear separation of concerns (fronte
 - **Form & Validation**: React Hook Form, Zod, `zod-validation-error`
 - **Fonts**: IBM Plex Sans, IBM Plex Mono
 - **Keyword Data Providers**: DataForSEO, Ahrefs (integrated through a factory pattern)
+- **Trends Data Providers**: DataForSEO Google Trends API (for Market Demand module)

@@ -14,6 +14,8 @@ import { validateContext, type ContextValidationResult } from "./context-validat
 import { validateConfiguration as validateConfigurationFull, type FullValidationResult } from "@shared/validation";
 import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES } from "@shared/module.contract";
 import { validateModuleExecution } from "./execution-gateway";
+import { marketDemandAnalyzer } from "./market-demand-analyzer";
+import { getAllTrendsProviderStatuses } from "./providers/trends-index";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -2293,6 +2295,91 @@ IMPORTANT:
     } catch (error: any) {
       console.error("Error generating visibility report:", error);
       res.status(500).json({ error: error.message || "Failed to generate visibility report" });
+    }
+  });
+
+  // ==================== MARKET DEMAND & SEASONALITY ENDPOINTS ====================
+
+  app.get("/api/market-demand/status", async (req: any, res) => {
+    try {
+      const providers = getAllTrendsProviderStatuses();
+      const hasDataForSEOCreds = !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD);
+      console.log(`[Market Demand Status] DataForSEO creds present: ${hasDataForSEOCreds}, Providers:`, JSON.stringify(providers));
+      res.json({
+        available: providers.some(p => p.configured),
+        providers,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to get market demand status" });
+    }
+  });
+
+  app.post("/api/market-demand/analyze", async (req: any, res) => {
+    const userId = "anonymous-user";
+    const { configurationId, timeRange, countryCode, queryGroups, forecastEnabled } = req.body;
+
+    if (!configurationId) {
+      return res.status(400).json({ error: "configurationId is required" });
+    }
+
+    try {
+      const config = await storage.getConfigurationById(parseInt(configurationId, 10), userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const configForAnalyzer = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString(),
+      } as any;
+
+      const result = await marketDemandAnalyzer.analyze(configForAnalyzer, {
+        timeRange: timeRange || "today 5-y",
+        countryCode: countryCode,
+        queryGroups: queryGroups,
+        forecastEnabled: forecastEnabled || false,
+        interval: "weekly",
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error analyzing market demand:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze market demand" });
+    }
+  });
+
+  app.get("/api/market-demand/:configurationId", async (req: any, res) => {
+    const userId = "anonymous-user";
+    const configurationId = parseInt(req.params.configurationId, 10);
+    if (isNaN(configurationId)) {
+      return res.status(400).json({ error: "Invalid configuration ID" });
+    }
+
+    try {
+      const config = await storage.getConfigurationById(configurationId, userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const configForAnalyzer = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString(),
+      } as any;
+
+      const result = await marketDemandAnalyzer.analyze(configForAnalyzer, {
+        timeRange: "today 5-y",
+        interval: "weekly",
+        forecastEnabled: false,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error getting market demand analysis:", error);
+      res.status(500).json({ error: error.message || "Failed to get market demand analysis" });
     }
   });
 

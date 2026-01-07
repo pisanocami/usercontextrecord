@@ -34,8 +34,10 @@ import {
   RefreshCw,
   Database,
   ChevronRight,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Link } from "wouter";
+import { downloadKeywordGapXLSX } from "@/lib/downloadUtils";
 
 interface RankedKeyword {
   keyword: string;
@@ -997,43 +999,75 @@ export default function KeywordGap() {
                     </Tooltip>
                   )}
                 </div>
-                {liteResult.fromCache && !isViewingSavedAnalysis && (
+                <div className="flex gap-2">
+                  {liteResult.fromCache && !isViewingSavedAnalysis && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            liteMutation.mutate({
+                              configurationId: Number(id),
+                              limitPerDomain: 200,
+                              locationCode: 2840,
+                              languageCode: "en",
+                              maxCompetitors: 5,
+                              provider: selectedProvider,
+                              forceRefresh: true,
+                            });
+                          }}
+                          disabled={liteMutation.isPending}
+                          data-testid="button-regenerate"
+                        >
+                          {liteMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                          )}
+                          Regenerar
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="font-medium">Regenerar datos frescos</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Esto hara una nueva llamada a la API de {selectedProvider === "ahrefs" ? "Ahrefs" : "DataForSEO"}, 
+                          lo cual consume creditos de tu plan.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          liteMutation.mutate({
-                            configurationId: Number(id),
-                            limitPerDomain: 200,
-                            locationCode: 2840,
-                            languageCode: "en",
-                            maxCompetitors: 5,
-                            provider: selectedProvider,
-                            forceRefresh: true,
-                          });
+                          if (!config || !liteResult) return;
+                          downloadKeywordGapXLSX(
+                            config,
+                            liteResult.topOpportunities,
+                            liteResult.needsReview,
+                            liteResult.outOfPlay,
+                            liteResult.stats,
+                            liteResult.filtersApplied,
+                            `keyword-gap-${config.brand?.domain || "report"}-${new Date().toISOString().split("T")[0]}`
+                          );
                         }}
-                        disabled={liteMutation.isPending}
-                        data-testid="button-regenerate"
+                        data-testid="button-download-xlsx"
                       >
-                        {liteMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                        )}
-                        Regenerar
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Descargar Excel
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p className="font-medium">Regenerar datos frescos</p>
+                      <p className="font-medium">Descargar reporte completo en Excel</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Esto hara una nueva llamada a la API de {selectedProvider === "ahrefs" ? "Ahrefs" : "DataForSEO"}, 
-                        lo cual consume creditos de tu plan.
+                        Incluye el contexto, resumen del analisis, y todas las keywords organizadas por hojas.
                       </p>
                     </TooltipContent>
                   </Tooltip>
-                )}
+                </div>
               </div>
               {/* AI-Generated warning banner */}
               {isProvisional && (
