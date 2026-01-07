@@ -17,6 +17,7 @@ import {
   BarChart3,
   Zap,
   History,
+  TrendingUp,
 } from "lucide-react";
 import {
   Sidebar,
@@ -273,6 +274,24 @@ export function AppSidebar({
                     <Zap className="h-4 w-4" />
                     <div className="flex flex-1 flex-col items-start">
                       <span className="text-sm font-medium">Keyword Gap</span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/market-demand">
+                  <SidebarMenuButton
+                    isActive={activeSection === "market-demand"}
+                    className={`group relative ${
+                      activeSection === "market-demand"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                        : ""
+                    }`}
+                    data-testid="nav-market-demand"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    <div className="flex flex-1 flex-col items-start">
+                      <span className="text-sm font-medium">Market Demand</span>
                     </div>
                   </SidebarMenuButton>
                 </Link>

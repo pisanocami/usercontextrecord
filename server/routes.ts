@@ -2383,6 +2383,92 @@ IMPORTANT:
     }
   });
 
+  // ==================== MARKET DEMAND ANALYSIS SAVED RUNS ====================
+
+  // Save a market demand analysis
+  app.post("/api/market-demand-analyses", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const { configurationId, configurationName, results, parameters } = req.body;
+
+      if (!configurationId || !results || !parameters) {
+        return res.status(400).json({ error: "configurationId, results, and parameters are required" });
+      }
+
+      const analysis = await storage.createMarketDemandAnalysis({
+        userId,
+        configurationId,
+        configurationName: configurationName || `Analysis ${configurationId}`,
+        status: "completed",
+        peakMonth: results.seasonality?.peakMonth || null,
+        lowMonth: results.seasonality?.lowMonth || null,
+        seasonalityType: results.seasonality?.pattern || null,
+        yoyTrend: results.yoyAnalysis?.trend || null,
+        totalKeywords: results.trends?.length || 0,
+        results,
+        parameters,
+      });
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Error saving market demand analysis:", error);
+      res.status(500).json({ error: error.message || "Failed to save analysis" });
+    }
+  });
+
+  // Get all saved market demand analyses for user
+  app.get("/api/market-demand-analyses", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const analyses = await storage.getMarketDemandAnalyses(userId);
+      res.json(analyses);
+    } catch (error: any) {
+      console.error("Error fetching market demand analyses:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch analyses" });
+    }
+  });
+
+  // Get single market demand analysis by ID
+  app.get("/api/market-demand-analyses/:id", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const id = parseInt(req.params.id, 10);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid analysis ID" });
+      }
+
+      const analysis = await storage.getMarketDemandAnalysisById(id, userId);
+      
+      if (!analysis) {
+        return res.status(404).json({ error: "Analysis not found" });
+      }
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Error fetching market demand analysis:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch analysis" });
+    }
+  });
+
+  // Delete a market demand analysis
+  app.delete("/api/market-demand-analyses/:id", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const id = parseInt(req.params.id, 10);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid analysis ID" });
+      }
+
+      await storage.deleteMarketDemandAnalysis(id, userId);
+      res.json({ message: "Analysis deleted" });
+    } catch (error: any) {
+      console.error("Error deleting market demand analysis:", error);
+      res.status(500).json({ error: error.message || "Failed to delete analysis" });
+    }
+  });
+
   return httpServer;
 }
 

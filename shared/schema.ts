@@ -875,3 +875,48 @@ export interface MarketDemandCacheEntry {
 }
 
 export type InsertMarketDemandCache = Omit<MarketDemandCacheEntry, "id" | "createdAt">;
+
+// Market Demand Analyses table - stores saved analysis runs
+export const marketDemandAnalyses = pgTable("market_demand_analyses", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  configurationId: integer("configuration_id").notNull(),
+  configurationName: text("configuration_name").notNull(),
+  status: varchar("status").notNull().default("completed"),
+  // Summary metrics
+  peakMonth: text("peak_month"),
+  lowMonth: text("low_month"),
+  seasonalityType: text("seasonality_type"),
+  yoyTrend: text("yoy_trend"),
+  totalKeywords: integer("total_keywords").notNull().default(0),
+  // Full results stored as JSONB
+  results: jsonb("results").notNull(),
+  // Parameters used for the run
+  parameters: jsonb("parameters").notNull(),
+  // Timestamps
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export interface MarketDemandAnalysisParameters {
+  queryGroups: string[];
+  countryCode: string;
+  timeRange: string;
+}
+
+export interface MarketDemandAnalysis {
+  id: number;
+  userId: string;
+  configurationId: number;
+  configurationName: string;
+  status: string;
+  peakMonth: string | null;
+  lowMonth: string | null;
+  seasonalityType: string | null;
+  yoyTrend: string | null;
+  totalKeywords: number;
+  results: MarketDemandResult;
+  parameters: MarketDemandAnalysisParameters;
+  created_at: Date;
+}
+
+export type InsertMarketDemandAnalysis = Omit<MarketDemandAnalysis, "id" | "created_at">;

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses } from "@shared/schema";
+import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses } from "@shared/schema";
 import { eq, and, desc, max } from "drizzle-orm";
 import type {
   Brand,
@@ -20,6 +20,8 @@ import type {
   InsertKeywordGapAnalysis,
   KeywordGapAnalysisTheme,
   KeywordGapAnalysisParameters,
+  MarketDemandAnalysis,
+  InsertMarketDemandAnalysis,
 } from "@shared/schema";
 
 // Database brand type (global brand entity)
@@ -86,6 +88,11 @@ export interface IStorage {
   getKeywordGapAnalyses(userId: string): Promise<KeywordGapAnalysis[]>;
   getKeywordGapAnalysisById(id: number, userId: string): Promise<KeywordGapAnalysis | undefined>;
   deleteKeywordGapAnalysis(id: number, userId: string): Promise<void>;
+  // Market Demand Analysis operations
+  createMarketDemandAnalysis(analysis: InsertMarketDemandAnalysis): Promise<MarketDemandAnalysis>;
+  getMarketDemandAnalyses(userId: string): Promise<MarketDemandAnalysis[]>;
+  getMarketDemandAnalysisById(id: number, userId: string): Promise<MarketDemandAnalysis | undefined>;
+  deleteMarketDemandAnalysis(id: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -918,6 +925,99 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(keywordGapAnalyses)
       .where(and(eq(keywordGapAnalyses.id, id), eq(keywordGapAnalyses.userId, userId)));
+  }
+
+  // ============ MARKET DEMAND ANALYSIS OPERATIONS ============
+
+  async createMarketDemandAnalysis(analysis: InsertMarketDemandAnalysis): Promise<MarketDemandAnalysis> {
+    const [result] = await db
+      .insert(marketDemandAnalyses)
+      .values({
+        userId: analysis.userId,
+        configurationId: analysis.configurationId,
+        configurationName: analysis.configurationName,
+        status: analysis.status,
+        peakMonth: analysis.peakMonth,
+        lowMonth: analysis.lowMonth,
+        seasonalityType: analysis.seasonalityType,
+        yoyTrend: analysis.yoyTrend,
+        totalKeywords: analysis.totalKeywords,
+        results: analysis.results,
+        parameters: analysis.parameters,
+      })
+      .returning();
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      configurationName: result.configurationName,
+      status: result.status,
+      peakMonth: result.peakMonth,
+      lowMonth: result.lowMonth,
+      seasonalityType: result.seasonalityType,
+      yoyTrend: result.yoyTrend,
+      totalKeywords: result.totalKeywords,
+      results: result.results as any,
+      parameters: result.parameters as any,
+      created_at: result.created_at,
+    };
+  }
+
+  async getMarketDemandAnalyses(userId: string): Promise<MarketDemandAnalysis[]> {
+    const results = await db
+      .select()
+      .from(marketDemandAnalyses)
+      .where(eq(marketDemandAnalyses.userId, userId))
+      .orderBy(desc(marketDemandAnalyses.created_at));
+
+    return results.map(r => ({
+      id: r.id,
+      userId: r.userId,
+      configurationId: r.configurationId,
+      configurationName: r.configurationName,
+      status: r.status,
+      peakMonth: r.peakMonth,
+      lowMonth: r.lowMonth,
+      seasonalityType: r.seasonalityType,
+      yoyTrend: r.yoyTrend,
+      totalKeywords: r.totalKeywords,
+      results: r.results as any,
+      parameters: r.parameters as any,
+      created_at: r.created_at,
+    }));
+  }
+
+  async getMarketDemandAnalysisById(id: number, userId: string): Promise<MarketDemandAnalysis | undefined> {
+    const [result] = await db
+      .select()
+      .from(marketDemandAnalyses)
+      .where(and(eq(marketDemandAnalyses.id, id), eq(marketDemandAnalyses.userId, userId)))
+      .limit(1);
+
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      configurationName: result.configurationName,
+      status: result.status,
+      peakMonth: result.peakMonth,
+      lowMonth: result.lowMonth,
+      seasonalityType: result.seasonalityType,
+      yoyTrend: result.yoyTrend,
+      totalKeywords: result.totalKeywords,
+      results: result.results as any,
+      parameters: result.parameters as any,
+      created_at: result.created_at,
+    };
+  }
+
+  async deleteMarketDemandAnalysis(id: number, userId: string): Promise<void> {
+    await db
+      .delete(marketDemandAnalyses)
+      .where(and(eq(marketDemandAnalyses.id, id), eq(marketDemandAnalyses.userId, userId)));
   }
 }
 
