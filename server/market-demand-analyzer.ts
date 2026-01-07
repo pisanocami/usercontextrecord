@@ -10,12 +10,75 @@ import type {
   MarketDemandResult,
   MarketDemandAnalysisParams,
   Configuration,
+  Month,
+  CategoryDemandSlice,
+  CategoryQueryGroup,
+  MarketDemandByCategoryResult,
+  CategoryCacheTrace,
+  CategoryDemandTrace,
+  OverallDemandAggregate,
 } from "@shared/schema";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
+
+const SHORT_MONTHS: Month[] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+interface CategoryCacheEntry {
+  slice: CategoryDemandSlice;
+  expiresAt: number;
+}
+
+const categoryCache = new Map<string, CategoryCacheEntry>();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function buildCacheKey(configId: number, categoryName: string, queries: string[], country: string, timeRange: string): string {
+  const sortedQueries = [...queries].sort().join("|");
+  return `${configId}:${categoryName}:${sortedQueries}:${country}:${timeRange}`;
+}
+
+function buildCategoryGroups(config: Configuration): CategoryQueryGroup[] {
+  const groups: CategoryQueryGroup[] = [];
+  const catDef = config.category_definition;
+
+  if (catDef?.primary_category) {
+    groups.push({
+      categoryName: catDef.primary_category,
+      queries: [catDef.primary_category],
+    });
+  }
+
+  if (catDef?.included?.length) {
+    for (const included of catDef.included) {
+      groups.push({
+        categoryName: included,
+        queries: [included],
+      });
+    }
+  }
+
+  if (catDef?.approved_categories?.length) {
+    for (const approved of catDef.approved_categories) {
+      if (!groups.some(g => g.categoryName === approved)) {
+        groups.push({
+          categoryName: approved,
+          queries: [approved],
+        });
+      }
+    }
+  }
+
+  if (catDef?.semantic_extensions?.length) {
+    groups.push({
+      categoryName: "Semantic Extensions",
+      queries: catDef.semantic_extensions.slice(0, 5),
+    });
+  }
+
+  return groups;
+}
 
 export class MarketDemandAnalyzer {
   private provider: TrendsDataProvider;
@@ -24,6 +87,9 @@ export class MarketDemandAnalyzer {
     this.provider = provider || getDefaultTrendsProvider();
   }
 
+  /**
+   * @deprecated Legacy method - use analyzeByCategory() for per-category analysis with caching
+   */
   async analyze(
     config: Configuration,
     params: Partial<MarketDemandAnalysisParams> = {}
@@ -77,6 +143,304 @@ export class MarketDemandAnalyzer {
         dataSource: this.provider.displayName,
       },
     };
+  }
+
+  async analyzeByCategory(
+    config: Configuration,
+    params: Partial<MarketDemandAnalysisParams> = {}
+  ): Promise<MarketDemandByCategoryResult> {
+    const countryCode = params.countryCode || this.extractCountryCode(config);
+    const timeRange = params.timeRange || "today 5-y";
+    const interval = params.interval || "weekly";
+    const configId = parseInt(config.id, 10) || 0;
+
+    const categoryGroups = buildCategoryGroups(config);
+
+    if (categoryGroups.length === 0) {
+      throw new Error("No category groups available for analysis. Please define category terms in the configuration.");
+    }
+
+    console.log(`[MarketDemandAnalyzer] Analyzing ${categoryGroups.length} category groups for ${countryCode}`);
+
+    const byCategory: CategoryDemandSlice[] = [];
+    const sectionsUsed: string[] = ["B"];
+    const filtersApplied: string[] = [];
+
+    if (config.negative_scope?.excluded_keywords?.length || config.negative_scope?.excluded_categories?.length) {
+      filtersApplied.push("negative_scope");
+    }
+
+    for (const group of categoryGroups) {
+      const filteredQueries = this.applyNegativeScope(group.queries, config);
+      if (filteredQueries.length === 0) continue;
+
+      const cacheKey = buildCacheKey(configId, group.categoryName, filteredQueries, countryCode, timeRange);
+      const now = Date.now();
+
+      const cached = categoryCache.get(cacheKey);
+      if (cached && cached.expiresAt > now) {
+        console.log(`[MarketDemandAnalyzer] Cache hit for ${group.categoryName}`);
+        byCategory.push(cached.slice);
+        continue;
+      }
+
+      console.log(`[MarketDemandAnalyzer] Cache miss for ${group.categoryName}, fetching data...`);
+
+      const trendsData = await this.fetchTrendsData(filteredQueries, countryCode, timeRange, interval);
+      const aggregatedData = this.aggregateTrendsData(trendsData);
+
+      const heatmap = this.buildHeatmap(aggregatedData);
+      const { peak, low } = this.findPeakAndLowMonths(heatmap);
+
+      const stabilityScore = this.calculateYoYConsistencyScore(aggregatedData);
+      const consistencyLabel: "low" | "medium" | "high" = 
+        stabilityScore > 0.7 ? "high" : stabilityScore > 0.4 ? "medium" : "low";
+      const variance = Math.round((1 - stabilityScore) * 100) / 100;
+
+      const monthlyAvg = this.calculateMonthlyAverages(aggregatedData);
+      const inflectionPoint = this.findInflectionPoint(monthlyAvg);
+      const peakWindow = this.findPeakWindow(monthlyAvg);
+
+      const inflectionMonth = this.getShortMonth(inflectionPoint.month);
+      const peakWindowMonths = peakWindow.months.map(m => {
+        const idx = MONTH_NAMES.indexOf(m);
+        return idx >= 0 ? SHORT_MONTHS[idx] : null;
+      }).filter((m): m is Month => m !== null);
+
+      let recommendedLaunchByISO: string | null = null;
+      let recommendationRationale = "";
+
+      if (consistencyLabel !== "low" && peak) {
+        const actionMonth = (inflectionPoint.month - 1 + 12) % 12;
+        const today = new Date();
+        const actionDate = new Date(today.getFullYear(), actionMonth, 15);
+        if (actionDate < today) {
+          actionDate.setFullYear(today.getFullYear() + 1);
+        }
+        recommendedLaunchByISO = actionDate.toISOString().split("T")[0];
+        recommendationRationale = `Launch content 2-4 weeks before ${inflectionMonth} when demand begins rising. Peak demand in ${peak}.`;
+      } else {
+        recommendationRationale = "Timing neutral - demand pattern shows low year-over-year consistency.";
+      }
+
+      const cacheTrace: CategoryCacheTrace = {
+        hit: false,
+        key: cacheKey,
+        ttlSeconds: CACHE_TTL_MS / 1000,
+      };
+
+      const trace: CategoryDemandTrace = {
+        ucrSectionsUsed: ["B"],
+        provider: "dataforseo",
+        cache: cacheTrace,
+      };
+
+      const slice: CategoryDemandSlice = {
+        categoryName: group.categoryName,
+        queries: filteredQueries,
+        peakMonth: peak,
+        lowMonth: low,
+        stabilityScore: Math.round(stabilityScore * 100) / 100,
+        consistencyLabel,
+        variance,
+        inflectionMonth,
+        peakWindow: peakWindowMonths,
+        recommendedLaunchByISO,
+        recommendationRationale,
+        series: aggregatedData,
+        heatmap,
+        trace,
+      };
+
+      categoryCache.set(cacheKey, {
+        slice,
+        expiresAt: now + CACHE_TTL_MS,
+      });
+
+      byCategory.push(slice);
+    }
+
+    const overall = this.buildOverallAggregate(byCategory);
+
+    const executiveSummary = this.generateCategorySummary(byCategory);
+
+    const sectionsMissing: string[] = [];
+    if (!config.strategic_intent?.risk_tolerance) {
+      sectionsMissing.push("E");
+    } else {
+      sectionsUsed.push("E");
+    }
+
+    return {
+      configurationId: configId,
+      ucrVersion: `v${config.governance?.context_version || 1}`,
+      provider: "dataforseo",
+      timeRange,
+      country: countryCode,
+      granularity: interval === "monthly" ? "monthly" : "weekly",
+      byCategory,
+      overall,
+      executiveSummary,
+      trace: {
+        sectionsUsed,
+        sectionsMissing,
+        filtersApplied,
+        rulesTriggered: ["per_category_analysis", "timing_consistency_check"],
+      },
+      metadata: {
+        fetchedAt: new Date().toISOString(),
+        cached: byCategory.some(c => c.trace.cache.hit),
+        dataSource: this.provider.displayName,
+      },
+    };
+  }
+
+  private buildHeatmap(data: TrendsDataPoint[]): Record<Month, number> {
+    const heatmap: Record<Month, number> = {
+      Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0,
+      Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0,
+    };
+    const counts: Record<Month, number> = {
+      Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0,
+      Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0,
+    };
+
+    for (const point of data) {
+      const monthIdx = new Date(point.date).getMonth();
+      const shortMonth = SHORT_MONTHS[monthIdx];
+      heatmap[shortMonth] += point.value;
+      counts[shortMonth]++;
+    }
+
+    for (const month of SHORT_MONTHS) {
+      if (counts[month] > 0) {
+        heatmap[month] = Math.round(heatmap[month] / counts[month]);
+      }
+    }
+
+    return heatmap;
+  }
+
+  private getShortMonth(monthIndex: number): Month {
+    return SHORT_MONTHS[monthIndex % 12];
+  }
+
+  private findPeakAndLowMonths(heatmap: Record<Month, number>): { peak: Month | null; low: Month | null } {
+    let peakMonth: Month | null = null;
+    let lowMonth: Month | null = null;
+    let maxVal = -Infinity;
+    let minVal = Infinity;
+
+    for (const month of SHORT_MONTHS) {
+      const val = heatmap[month];
+      if (val > maxVal) {
+        maxVal = val;
+        peakMonth = month;
+      }
+      if (val < minVal && val > 0) {
+        minVal = val;
+        lowMonth = month;
+      }
+    }
+
+    return { peak: peakMonth, low: lowMonth };
+  }
+
+  private buildOverallAggregate(slices: CategoryDemandSlice[]): OverallDemandAggregate | undefined {
+    if (slices.length === 0) return undefined;
+
+    const weights: Record<string, number> = {};
+    const totalWeight = slices.length;
+    for (const slice of slices) {
+      weights[slice.categoryName] = 1 / totalWeight;
+    }
+
+    const aggregatedHeatmap: Record<Month, number> = {
+      Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0,
+      Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0,
+    };
+
+    for (const slice of slices) {
+      const weight = weights[slice.categoryName];
+      for (const month of SHORT_MONTHS) {
+        aggregatedHeatmap[month] += slice.heatmap[month] * weight;
+      }
+    }
+
+    for (const month of SHORT_MONTHS) {
+      aggregatedHeatmap[month] = Math.round(aggregatedHeatmap[month]);
+    }
+
+    const { peak, low } = this.findPeakAndLowMonths(aggregatedHeatmap);
+
+    const avgStability = slices.reduce((sum, s) => sum + s.stabilityScore, 0) / slices.length;
+
+    const seriesMap = new Map<string, number[]>();
+    for (const slice of slices) {
+      for (const point of slice.series) {
+        if (!seriesMap.has(point.date)) {
+          seriesMap.set(point.date, []);
+        }
+        seriesMap.get(point.date)!.push(point.value);
+      }
+    }
+
+    const aggregatedSeries: TrendsDataPoint[] = [];
+    for (const [date, values] of seriesMap) {
+      const avg = values.reduce((s, v) => s + v, 0) / values.length;
+      aggregatedSeries.push({ date, value: Math.round(avg) });
+    }
+    aggregatedSeries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let recommendedLaunchByISO: string | null = null;
+    if (avgStability > 0.4 && peak) {
+      const peakIdx = SHORT_MONTHS.indexOf(peak);
+      const actionMonth = (peakIdx - 1 + 12) % 12;
+      const today = new Date();
+      const actionDate = new Date(today.getFullYear(), actionMonth, 15);
+      if (actionDate < today) {
+        actionDate.setFullYear(today.getFullYear() + 1);
+      }
+      recommendedLaunchByISO = actionDate.toISOString().split("T")[0];
+    }
+
+    return {
+      method: "weighted_average",
+      weights,
+      peakMonth: peak,
+      lowMonth: low,
+      stabilityScore: Math.round(avgStability * 100) / 100,
+      recommendedLaunchByISO,
+      series: aggregatedSeries,
+      heatmap: aggregatedHeatmap,
+    };
+  }
+
+  private generateCategorySummary(slices: CategoryDemandSlice[]): string {
+    if (slices.length === 0) {
+      return "No category data available for analysis.";
+    }
+
+    const parts: string[] = [];
+    parts.push(`Analyzed ${slices.length} category groups:`);
+
+    for (const slice of slices) {
+      if (slice.peakMonth) {
+        parts.push(`- ${slice.categoryName}: peaks in ${slice.peakMonth} (${slice.consistencyLabel} consistency)`);
+      } else {
+        parts.push(`- ${slice.categoryName}: timing neutral (${slice.consistencyLabel} consistency)`);
+      }
+    }
+
+    const highConsistency = slices.filter(s => s.consistencyLabel === "high");
+    if (highConsistency.length > 0) {
+      const firstHigh = highConsistency[0];
+      if (firstHigh.recommendedLaunchByISO) {
+        parts.push(`Recommended launch: ${firstHigh.recommendedLaunchByISO} based on ${firstHigh.categoryName} timing.`);
+      }
+    }
+
+    return parts.join(" ");
   }
 
   private extractQueryGroups(config: Configuration): string[] {
