@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
-import type { MarketDemandResult, MarketDemandAnalysis } from "@shared/schema";
+import type { MarketDemandResult, MarketDemandAnalysis, MarketDemandByCategoryResult, CategoryDemandSlice, Month } from "@shared/schema";
 import {
   ArrowLeft,
   Calendar,
@@ -158,6 +158,76 @@ function getAnalysisMetadata(analysis: MarketDemandAnalysis) {
   return { peakMonth, lowMonth, seasonalityType, totalKeywords };
 }
 
+function isByCategoryResult(result: any): result is MarketDemandByCategoryResult {
+  return result && Array.isArray(result.byCategory) && result.byCategory.length > 0;
+}
+
+function CategoryDemandCard({ slice, index }: { slice: CategoryDemandSlice; index: number }) {
+  return (
+    <Card data-testid={`card-category-${index}`}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center justify-between gap-2">
+          <span>{slice.categoryName}</span>
+          <Badge variant={slice.consistencyLabel === 'high' ? 'default' : slice.consistencyLabel === 'medium' ? 'secondary' : 'destructive'}>
+            {slice.consistencyLabel} stability
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          {slice.queries.length} query term{slice.queries.length > 1 ? 's' : ''}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="h-3 w-3 text-green-500" />
+              Peak Month
+            </span>
+            <span className="font-semibold">{slice.peakMonth || 'N/A'}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground flex items-center gap-1">
+              <TrendingDown className="h-3 w-3 text-red-500" />
+              Low Month
+            </span>
+            <span className="font-semibold">{slice.lowMonth || 'N/A'}</span>
+          </div>
+        </div>
+        
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Monthly Pattern</p>
+          <div className="grid grid-cols-12 gap-0.5">
+            {MONTH_NAMES.map((month) => {
+              const value = slice.heatmap?.[month as Month] ?? 0;
+              const intensity = value / 100;
+              const bgClass = intensity > 0.7 
+                ? "bg-green-500" 
+                : intensity > 0.4 
+                  ? "bg-amber-400" 
+                  : "bg-slate-200 dark:bg-slate-700";
+              return (
+                <div
+                  key={month}
+                  className={`h-6 rounded-sm ${bgClass}`}
+                  style={{ opacity: 0.4 + (intensity * 0.6) }}
+                  title={`${month}: ${Math.round(value)}`}
+                  data-testid={`heatmap-cell-${month}-${index}`}
+                />
+              );
+            })}
+          </div>
+        </div>
+        
+        {slice.recommendationRationale && (
+          <p className="text-xs text-muted-foreground" data-testid={`text-rationale-${index}`}>
+            {slice.recommendationRationale}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function MarketDemandPage() {
   const params = useParams<{ configId?: string }>();
   const [, setLocation] = useLocation();
@@ -195,12 +265,12 @@ export default function MarketDemandPage() {
 
   const analyzeMutation = useMutation({
     mutationFn: async (configId: string) => {
-      const response = await apiRequest("POST", "/api/market-demand/analyze", {
+      const response = await apiRequest("POST", "/api/market-demand/analyze-by-category", {
         configurationId: configId,
         timeRange,
-        forecastEnabled,
+        countryCode: "US",
       });
-      return response.json() as Promise<MarketDemandResult>;
+      return response.json() as Promise<MarketDemandByCategoryResult>;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/market-demand", selectedConfigId], data);
@@ -215,13 +285,20 @@ export default function MarketDemandPage() {
   });
 
   const saveAnalysisMutation = useMutation({
-    mutationFn: async (data: { configurationId: string; configurationName: string; results: MarketDemandResult; parameters: { timeRange: string } }) => {
+    mutationFn: async (data: { configurationId: string; configurationName: string; results: MarketDemandByCategoryResult | MarketDemandResult; parameters: { timeRange: string } }) => {
+      let queryGroups: string[] = [];
+      if (isByCategoryResult(data.results)) {
+        queryGroups = data.results.byCategory.flatMap(cat => cat.queries);
+      } else if ((data.results as MarketDemandResult).demandCurves) {
+        queryGroups = (data.results as MarketDemandResult).demandCurves.map(c => c.query);
+      }
+      
       const response = await apiRequest("POST", "/api/market-demand-analyses", {
         configurationId: parseInt(data.configurationId, 10),
         configurationName: data.configurationName,
         results: data.results,
         parameters: {
-          queryGroups: data.results.demandCurves.map(c => c.query),
+          queryGroups,
           countryCode: "US",
           timeRange: data.parameters.timeRange,
         },
@@ -267,7 +344,7 @@ export default function MarketDemandPage() {
     },
   });
 
-  const { data: analysisResult, isLoading: analysisLoading } = useQuery<MarketDemandResult>({
+  const { data: analysisResult, isLoading: analysisLoading } = useQuery<MarketDemandByCategoryResult | MarketDemandResult>({
     queryKey: ["/api/market-demand", selectedConfigId],
     enabled: !!selectedConfigId && activeTab === "run",
   });
@@ -286,11 +363,12 @@ export default function MarketDemandPage() {
   };
 
   const handleSaveAnalysis = () => {
-    if (selectedConfigId && selectedConfig && analysisResult) {
+    const resultToSave = analyzeMutation.data;
+    if (selectedConfigId && selectedConfig && resultToSave) {
       saveAnalysisMutation.mutate({
         configurationId: selectedConfigId,
         configurationName: selectedConfig.name,
-        results: analysisResult,
+        results: resultToSave,
         parameters: { timeRange },
       });
     }
@@ -314,18 +392,38 @@ export default function MarketDemandPage() {
     setSelectedAnalysisId(analysis.id);
   };
 
-  const displayedResult = selectedAnalysisId && selectedSavedAnalysis 
+  const displayedResult: MarketDemandByCategoryResult | MarketDemandResult | undefined = selectedAnalysisId && selectedSavedAnalysis 
     ? selectedSavedAnalysis.results 
-    : analysisResult;
+    : (analyzeMutation.data || analysisResult);
   const isDisplayLoading = selectedAnalysisId ? selectedAnalysisLoading : (analysisLoading || analyzeMutation.isPending);
 
-  const aggregatedChartData = displayedResult?.demandCurves?.[0]?.data.map((point, index) => {
-    const entry: Record<string, any> = { date: point.date };
-    displayedResult.demandCurves.forEach((curve) => {
-      entry[curve.query] = curve.data[index]?.value ?? 0;
-    });
-    return entry;
-  }) || [];
+  const aggregatedChartData = (() => {
+    if (!displayedResult) return [];
+    
+    if (isByCategoryResult(displayedResult)) {
+      const firstCat = displayedResult.byCategory[0];
+      if (!firstCat?.series?.length) return [];
+      
+      return firstCat.series.map((point, index) => {
+        const entry: Record<string, any> = { date: point.date };
+        displayedResult.byCategory.forEach((cat) => {
+          entry[cat.categoryName] = cat.series[index]?.value ?? 0;
+        });
+        return entry;
+      });
+    } else {
+      const legacyResult = displayedResult as MarketDemandResult;
+      if (!legacyResult.demandCurves?.[0]?.data) return [];
+      
+      return legacyResult.demandCurves[0].data.map((point, index) => {
+        const entry: Record<string, any> = { date: point.date };
+        legacyResult.demandCurves.forEach((curve) => {
+          entry[curve.query] = curve.data[index]?.value ?? 0;
+        });
+        return entry;
+      });
+    }
+  })();
 
   const monthlyHeatmapData = aggregatedChartData.length > 0 
     ? generateMonthlyHeatmap(aggregatedChartData)
@@ -595,7 +693,7 @@ export default function MarketDemandPage() {
                 Run Analysis
               </Button>
 
-              {analysisResult && !analysisLoading && !analyzeMutation.isPending && selectedConfigId && (
+              {analyzeMutation.data && !analyzeMutation.isPending && selectedConfigId && (
                 <Button
                   variant="outline"
                   onClick={handleSaveAnalysis}
@@ -613,9 +711,9 @@ export default function MarketDemandPage() {
             </CardContent>
           </Card>
 
-          {renderAnalysisResults(analysisResult, analysisLoading || analyzeMutation.isPending, aggregatedChartData, monthlyHeatmapData)}
+          {renderAnalysisResults(displayedResult, isDisplayLoading && activeTab === "run", aggregatedChartData, monthlyHeatmapData)}
 
-          {!analysisResult && !analysisLoading && !analyzeMutation.isPending && selectedConfigId && (
+          {!displayedResult && !isDisplayLoading && !analyzeMutation.isPending && selectedConfigId && (
             <Card>
               <CardContent className="py-12 text-center">
                 <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -664,7 +762,7 @@ export default function MarketDemandPage() {
 }
 
 function renderAnalysisResults(
-  analysisResult: MarketDemandResult | undefined,
+  analysisResult: MarketDemandByCategoryResult | MarketDemandResult | undefined,
   isLoading: boolean,
   aggregatedChartData: Record<string, any>[],
   monthlyHeatmapData: { value: number }[]
@@ -686,13 +784,20 @@ function renderAnalysisResults(
     return null;
   }
 
+  const isByCategory = isByCategoryResult(analysisResult);
+  const byCategoryResult = isByCategory ? analysisResult as MarketDemandByCategoryResult : null;
+  const legacyResult = !isByCategory ? analysisResult as MarketDemandResult : null;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="results-container">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
             Executive Summary
+            {!isByCategory && (
+              <Badge variant="secondary" data-testid="badge-legacy-analysis">Legacy Analysis</Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -700,266 +805,466 @@ function renderAnalysisResults(
             {analysisResult.executiveSummary}
           </p>
           <div className="flex flex-wrap gap-2 mt-4">
-            {analysisResult.timingRecommendation?.confidence && (
-              <Badge variant={getConfidenceBadgeVariant(analysisResult.timingRecommendation.confidence)}>
-                {analysisResult.timingRecommendation.confidence.toUpperCase()} Confidence
-              </Badge>
-            )}
-            {analysisResult.metadata?.dataSource && (
+            {isByCategory && byCategoryResult?.metadata?.dataSource && (
               <Badge variant="outline">
-                {analysisResult.metadata.dataSource}
+                {byCategoryResult.metadata.dataSource}
               </Badge>
             )}
-            {analysisResult.metadata?.cached && (
+            {!isByCategory && legacyResult?.timingRecommendation?.confidence && (
+              <Badge variant={getConfidenceBadgeVariant(legacyResult.timingRecommendation.confidence)}>
+                {legacyResult.timingRecommendation.confidence.toUpperCase()} Confidence
+              </Badge>
+            )}
+            {!isByCategory && legacyResult?.metadata?.dataSource && (
+              <Badge variant="outline">
+                {legacyResult.metadata.dataSource}
+              </Badge>
+            )}
+            {!isByCategory && legacyResult?.metadata?.cached && (
               <Badge variant="secondary">Cached</Badge>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {analysisResult.timingRecommendation && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {isByCategory && byCategoryResult && (
+        <>
+          <div>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Category Analysis
+              <Badge variant="outline" data-testid="badge-category-count">
+                {byCategoryResult.byCategory.length} categories
+              </Badge>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="grid-category-cards">
+              {byCategoryResult.byCategory.map((slice, index) => (
+                <CategoryDemandCard key={slice.categoryName} slice={slice} index={index} />
+              ))}
+            </div>
+          </div>
+
+          {byCategoryResult.overall && (
+            <Card data-testid="card-overall-aggregate">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Overall Aggregate
+                </CardTitle>
+                <CardDescription>
+                  Weighted average across all categories
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                  <div>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3 text-green-500" />
+                      Peak Month
+                    </span>
+                    <span className="font-semibold text-lg" data-testid="text-overall-peak">
+                      {byCategoryResult.overall.peakMonth || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <TrendingDown className="h-3 w-3 text-red-500" />
+                      Low Month
+                    </span>
+                    <span className="font-semibold text-lg" data-testid="text-overall-low">
+                      {byCategoryResult.overall.lowMonth || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3" />
+                      Stability Score
+                    </span>
+                    <span className="font-semibold text-lg" data-testid="text-overall-stability">
+                      {Math.round(byCategoryResult.overall.stabilityScore * 100)}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Launch By
+                    </span>
+                    <span className="font-semibold text-lg" data-testid="text-overall-launch">
+                      {byCategoryResult.overall.recommendedLaunchByISO 
+                        ? formatDate(byCategoryResult.overall.recommendedLaunchByISO) 
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Monthly Pattern</p>
+                  <div className="grid grid-cols-12 gap-1" data-testid="heatmap-overall">
+                    {MONTH_NAMES.map((month) => {
+                      const value = byCategoryResult.overall?.heatmap?.[month as Month] ?? 0;
+                      const intensity = value / 100;
+                      const bgClass = intensity > 0.7 
+                        ? "bg-green-500" 
+                        : intensity > 0.4 
+                          ? "bg-amber-400" 
+                          : "bg-slate-200 dark:bg-slate-700";
+                      
+                      return (
+                        <div
+                          key={month}
+                          className={`flex flex-col items-center justify-center p-2 rounded-md ${bgClass}`}
+                          style={{ opacity: 0.4 + (intensity * 0.6) }}
+                        >
+                          <span className="text-xs font-medium text-foreground">{month}</span>
+                          <span className="text-xs text-muted-foreground">{Math.round(value)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-blue-500" />
-                Inflection Point
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Demand Trend by Category
               </CardTitle>
+              <CardDescription>
+                Search interest over time for each category
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold" data-testid="text-inflection-month">
-                {analysisResult.timingRecommendation.inflectionMonth || "N/A"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Demand begins rising
-              </p>
+              <div className="h-80" data-testid="chart-demand-trend">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={aggregatedChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value);
+                        return `${MONTH_NAMES[date.getMonth()]} '${String(date.getFullYear()).slice(-2)}`;
+                      }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }} 
+                      domain={[0, 100]}
+                      label={{ value: "Interest", angle: -90, position: "insideLeft" }}
+                    />
+                    <Tooltip 
+                      labelFormatter={(value) => formatDate(value)}
+                      contentStyle={{ 
+                        backgroundColor: "hsl(var(--background))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "0.375rem"
+                      }}
+                    />
+                    <Legend />
+                    {byCategoryResult.byCategory.map((cat, index) => (
+                      <Line
+                        key={cat.categoryName}
+                        type="monotone"
+                        dataKey={cat.categoryName}
+                        stroke={COLORS[index % COLORS.length]}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
-                Peak Window
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold" data-testid="text-peak-months">
-                {analysisResult.timingRecommendation.peakMonths?.length > 0 
-                  ? analysisResult.timingRecommendation.peakMonths.join(", ")
-                  : "N/A"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Peak demand months
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Target className="h-4 w-4 text-green-500" />
-                Recommended Action
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold" data-testid="text-action-date">
-                {formatDate(analysisResult.timingRecommendation.recommendedActionDate)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Launch content/media by
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+          {byCategoryResult.trace && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Info className="h-5 w-5" />
+                  Analysis Trace
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {byCategoryResult.trace.sectionsUsed?.map((section) => (
+                    <Badge key={section} variant="outline">
+                      Section {section}
+                    </Badge>
+                  ))}
+                  {byCategoryResult.trace.filtersApplied?.map((filter) => (
+                    <Badge key={filter} variant="secondary">
+                      {filter}
+                    </Badge>
+                  ))}
+                  {byCategoryResult.trace.rulesTriggered?.map((rule) => (
+                    <Badge key={rule} variant="default">
+                      {rule}
+                    </Badge>
+                  ))}
+                </div>
+                {byCategoryResult.trace.sectionsMissing && byCategoryResult.trace.sectionsMissing.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Missing sections: {byCategoryResult.trace.sectionsMissing.join(", ")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Demand Trend
-          </CardTitle>
-          <CardDescription>
-            Search interest over time for category terms
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80" data-testid="chart-demand-trend">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={aggregatedChartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return `${MONTH_NAMES[date.getMonth()]} '${String(date.getFullYear()).slice(-2)}`;
-                  }}
-                  interval="preserveStartEnd"
-                />
-                <YAxis 
-                  tick={{ fontSize: 12 }} 
-                  domain={[0, 100]}
-                  label={{ value: "Interest", angle: -90, position: "insideLeft" }}
-                />
-                <Tooltip 
-                  labelFormatter={(value) => formatDate(value)}
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "0.375rem"
-                  }}
-                />
-                <Legend />
-                {analysisResult.demandCurves.map((curve, index) => (
-                  <Line
-                    key={curve.query}
-                    type="monotone"
-                    dataKey={curve.query}
-                    stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-                ))}
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+      {!isByCategory && legacyResult && (
+        <>
+          {legacyResult.timingRecommendation && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-500" />
+                    Inflection Point
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold" data-testid="text-inflection-month">
+                    {legacyResult.timingRecommendation.inflectionMonth || "N/A"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Demand begins rising
+                  </p>
+                </CardContent>
+              </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Monthly Seasonality Heatmap
-          </CardTitle>
-          <CardDescription>
-            Average demand intensity by month
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-12 gap-1" data-testid="heatmap-seasonality">
-            {MONTH_NAMES.map((month, index) => {
-              const monthData = monthlyHeatmapData[index] || { value: 0 };
-              const intensity = monthData.value / 100;
-              const bgClass = intensity > 0.7 
-                ? "bg-green-500" 
-                : intensity > 0.4 
-                  ? "bg-amber-400" 
-                  : "bg-slate-200 dark:bg-slate-700";
-              
-              return (
-                <div
-                  key={month}
-                  className={`flex flex-col items-center justify-center p-2 rounded-md ${bgClass}`}
-                  style={{ opacity: 0.4 + (intensity * 0.6) }}
-                >
-                  <span className="text-xs font-medium text-foreground">{month}</span>
-                  <span className="text-xs text-muted-foreground">{Math.round(monthData.value)}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center justify-center gap-4 mt-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-slate-200 dark:bg-slate-700 rounded" />
-              <span>Low</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-amber-400 rounded" />
-              <span>Medium</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-500 rounded" />
-              <span>High</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    Peak Window
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold" data-testid="text-peak-months">
+                    {legacyResult.timingRecommendation.peakMonths?.length > 0 
+                      ? legacyResult.timingRecommendation.peakMonths.join(", ")
+                      : "N/A"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Peak demand months
+                  </p>
+                </CardContent>
+              </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Year-over-Year Consistency
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Pattern Consistency</p>
-              <p className={`text-xl font-semibold ${getConfidenceColor(analysisResult.yoyAnalysis.consistency)}`}>
-                {analysisResult.yoyAnalysis.consistency.toUpperCase()}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {Math.round(analysisResult.seasonality.consistencyScore * 100)}% stability score
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Variance</p>
-              <p className="text-xl font-semibold">
-                {Math.round(analysisResult.yoyAnalysis.variance * 100)}%
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Year-to-year pattern deviation
-              </p>
-            </div>
-          </div>
-
-          {analysisResult.yoyAnalysis.anomalies.length > 0 && (
-            <div className="mt-6">
-              <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                Notable Anomalies
-              </p>
-              <ul className="space-y-1">
-                {analysisResult.yoyAnalysis.anomalies.map((anomaly, index) => (
-                  <li key={index} className="text-sm text-muted-foreground">
-                    {anomaly}
-                  </li>
-                ))}
-              </ul>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Target className="h-4 w-4 text-green-500" />
+                    Recommended Action
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold" data-testid="text-action-date">
+                    {formatDate(legacyResult.timingRecommendation.recommendedActionDate)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Launch content/media by
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5" />
-            Timing Recommendation
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-foreground leading-relaxed" data-testid="text-timing-reasoning">
-            {analysisResult.timingRecommendation.reasoning}
-          </p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Demand Trend
+              </CardTitle>
+              <CardDescription>
+                Search interest over time for category terms
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80" data-testid="chart-demand-trend">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={aggregatedChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value);
+                        return `${MONTH_NAMES[date.getMonth()]} '${String(date.getFullYear()).slice(-2)}`;
+                      }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }} 
+                      domain={[0, 100]}
+                      label={{ value: "Interest", angle: -90, position: "insideLeft" }}
+                    />
+                    <Tooltip 
+                      labelFormatter={(value) => formatDate(value)}
+                      contentStyle={{ 
+                        backgroundColor: "hsl(var(--background))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "0.375rem"
+                      }}
+                    />
+                    <Legend />
+                    {legacyResult.demandCurves.map((curve, index) => (
+                      <Line
+                        key={curve.query}
+                        type="monotone"
+                        dataKey={curve.query}
+                        stroke={COLORS[index % COLORS.length]}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="mt-4 pt-4 border-t">
-            <p className="text-sm font-medium mb-2">Analysis Trace</p>
-            <div className="flex flex-wrap gap-2">
-              {analysisResult.trace.sectionsUsed.map((section) => (
-                <Badge key={section} variant="outline">
-                  Section {section}
-                </Badge>
-              ))}
-              {analysisResult.trace.filtersApplied.map((filter) => (
-                <Badge key={filter} variant="secondary">
-                  {filter}
-                </Badge>
-              ))}
-            </div>
-            {analysisResult.trace.sectionsMissing.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Missing sections: {analysisResult.trace.sectionsMissing.join(", ")}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Monthly Seasonality Heatmap
+              </CardTitle>
+              <CardDescription>
+                Average demand intensity by month
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-12 gap-1" data-testid="heatmap-seasonality">
+                {MONTH_NAMES.map((month, index) => {
+                  const monthData = monthlyHeatmapData[index] || { value: 0 };
+                  const intensity = monthData.value / 100;
+                  const bgClass = intensity > 0.7 
+                    ? "bg-green-500" 
+                    : intensity > 0.4 
+                      ? "bg-amber-400" 
+                      : "bg-slate-200 dark:bg-slate-700";
+                  
+                  return (
+                    <div
+                      key={month}
+                      className={`flex flex-col items-center justify-center p-2 rounded-md ${bgClass}`}
+                      style={{ opacity: 0.4 + (intensity * 0.6) }}
+                    >
+                      <span className="text-xs font-medium text-foreground">{month}</span>
+                      <span className="text-xs text-muted-foreground">{Math.round(monthData.value)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-center gap-4 mt-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-slate-200 dark:bg-slate-700 rounded" />
+                  <span>Low</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-amber-400 rounded" />
+                  <span>Medium</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-green-500 rounded" />
+                  <span>High</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Year-over-Year Consistency
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Pattern Consistency</p>
+                  <p className={`text-xl font-semibold ${getConfidenceColor(legacyResult.yoyAnalysis.consistency)}`}>
+                    {legacyResult.yoyAnalysis.consistency.toUpperCase()}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {Math.round(legacyResult.seasonality.consistencyScore * 100)}% stability score
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Variance</p>
+                  <p className="text-xl font-semibold">
+                    {Math.round(legacyResult.yoyAnalysis.variance * 100)}%
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Year-to-year pattern deviation
+                  </p>
+                </div>
+              </div>
+
+              {legacyResult.yoyAnalysis.anomalies.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    Notable Anomalies
+                  </p>
+                  <ul className="space-y-1">
+                    {legacyResult.yoyAnalysis.anomalies.map((anomaly, index) => (
+                      <li key={index} className="text-sm text-muted-foreground">
+                        {anomaly}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Timing Recommendation
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-foreground leading-relaxed" data-testid="text-timing-reasoning">
+                {legacyResult.timingRecommendation?.reasoning}
               </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm font-medium mb-2">Analysis Trace</p>
+                <div className="flex flex-wrap gap-2">
+                  {legacyResult.trace.sectionsUsed.map((section) => (
+                    <Badge key={section} variant="outline">
+                      Section {section}
+                    </Badge>
+                  ))}
+                  {legacyResult.trace.filtersApplied.map((filter) => (
+                    <Badge key={filter} variant="secondary">
+                      {filter}
+                    </Badge>
+                  ))}
+                </div>
+                {legacyResult.trace.sectionsMissing.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Missing sections: {legacyResult.trace.sectionsMissing.join(", ")}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
