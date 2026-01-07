@@ -47,16 +47,31 @@ async function makeRequest<T>(endpoint: string, body: any): Promise<T> {
   return data;
 }
 
-function convertToDataForSEOTimeRange(timeRange: string): string {
+function getDateRange(timeRange: string): { date_from: string; date_to: string } {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  let dateFrom: Date;
+
   if (timeRange === "today 5-y") {
-    return "past_5_years";
+    dateFrom = new Date(yesterday);
+    dateFrom.setFullYear(dateFrom.getFullYear() - 5);
   } else if (timeRange === "today 12-m") {
-    return "past_12_months";
+    dateFrom = new Date(yesterday);
+    dateFrom.setFullYear(dateFrom.getFullYear() - 1);
   } else if (timeRange === "today 3-m") {
-    return "past_90_days";
+    dateFrom = new Date(yesterday);
+    dateFrom.setMonth(dateFrom.getMonth() - 3);
   } else {
-    return "past_5_years";
+    dateFrom = new Date(yesterday);
+    dateFrom.setFullYear(dateFrom.getFullYear() - 5);
   }
+
+  return {
+    date_from: dateFrom.toISOString().split("T")[0],
+    date_to: yesterday.toISOString().split("T")[0],
+  };
 }
 
 function getLocationCode(country: string): number {
@@ -157,7 +172,7 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
     queries: string[],
     options: Omit<TrendsQuery, "query">
   ): Promise<TrendsResponse[]> {
-    const timeRangeParam = convertToDataForSEOTimeRange(options.timeRange);
+    const { date_from, date_to } = getDateRange(options.timeRange);
     const locationCode = getLocationCode(options.country);
 
     const body = [
@@ -165,14 +180,15 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
         keywords: queries,
         location_code: locationCode,
         language_code: "en",
-        time_range: timeRangeParam,
-        type: "web_search",
+        date_from,
+        date_to,
+        type: "web",
       },
     ];
 
     try {
       console.log(`[DataForSEO Trends] Fetching batch of ${queries.length} queries`);
-      console.log(`[DataForSEO Trends] Time range: ${timeRangeParam}`);
+      console.log(`[DataForSEO Trends] Date range: ${date_from} to ${date_to}`);
 
       const response = await makeRequest<ExploreResponse>(
         "/keywords_data/google_trends/explore/live",
