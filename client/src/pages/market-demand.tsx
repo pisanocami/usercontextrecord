@@ -4,6 +4,16 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -92,6 +102,62 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Helper to normalize full month names to short format
+function normalizeMonth(monthStr: string | null | undefined): string | null {
+  if (!monthStr) return null;
+  const monthMap: Record<string, string> = {
+    'january': 'Jan', 'february': 'Feb', 'march': 'Mar', 'april': 'Apr',
+    'may': 'May', 'june': 'Jun', 'july': 'Jul', 'august': 'Aug',
+    'september': 'Sep', 'october': 'Oct', 'november': 'Nov', 'december': 'Dec'
+  };
+  const lower = monthStr.toLowerCase();
+  if (monthMap[lower]) return monthMap[lower];
+  if (monthStr.length <= 3) return monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
+  return monthStr;
+}
+
+// Extract analysis metadata with fallback to results field for legacy data
+function getAnalysisMetadata(analysis: MarketDemandAnalysis) {
+  // Handle case where results might be a JSON string (legacy storage)
+  let results: MarketDemandResult | undefined;
+  try {
+    if (typeof analysis.results === 'string') {
+      results = JSON.parse(analysis.results) as MarketDemandResult;
+    } else {
+      results = analysis.results as MarketDemandResult | undefined;
+    }
+  } catch {
+    results = undefined;
+  }
+  
+  // Peak month: from field or fallback to results
+  let peakMonth = analysis.peakMonth;
+  if (!peakMonth && results?.seasonality?.peakWindow?.months?.[0]) {
+    peakMonth = normalizeMonth(results.seasonality.peakWindow.months[0]);
+  }
+  
+  // Low month: from field or fallback to results
+  let lowMonth = analysis.lowMonth;
+  if (!lowMonth && results?.seasonality?.declinePhase?.start) {
+    try {
+      const declineDate = new Date(results.seasonality.declinePhase.start);
+      if (!isNaN(declineDate.getTime())) {
+        lowMonth = declineDate.toLocaleString('en-US', { month: 'short' });
+      }
+    } catch {
+      lowMonth = null;
+    }
+  }
+  
+  // Seasonality type: from field or fallback
+  const seasonalityType = analysis.seasonalityType || results?.seasonality?.yoyConsistency || null;
+  
+  // Total keywords: from field or fallback
+  const totalKeywords = analysis.totalKeywords || results?.demandCurves?.length || 0;
+  
+  return { peakMonth, lowMonth, seasonalityType, totalKeywords };
+}
+
 export default function MarketDemandPage() {
   const params = useParams<{ configId?: string }>();
   const [, setLocation] = useLocation();
@@ -101,6 +167,8 @@ export default function MarketDemandPage() {
   const [forecastEnabled, setForecastEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("saved");
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<number | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [analysisToDelete, setAnalysisToDelete] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     if (params.configId) {
@@ -228,11 +296,18 @@ export default function MarketDemandPage() {
     }
   };
 
-  const handleDeleteAnalysis = (id: number, e: React.MouseEvent) => {
+  const handleDeleteAnalysis = (analysis: MarketDemandAnalysis, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Are you sure you want to delete this analysis?")) {
-      deleteAnalysisMutation.mutate(id);
+    setAnalysisToDelete({ id: analysis.id, name: analysis.configurationName });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (analysisToDelete) {
+      deleteAnalysisMutation.mutate(analysisToDelete.id);
     }
+    setDeleteDialogOpen(false);
+    setAnalysisToDelete(null);
   };
 
   const handleViewAnalysis = (analysis: MarketDemandAnalysis) => {
@@ -386,69 +461,72 @@ export default function MarketDemandPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {savedAnalyses.map((analysis) => (
-                    <Card 
-                      key={analysis.id} 
-                      className="hover-elevate cursor-pointer"
-                      onClick={() => handleViewAnalysis(analysis)}
-                      data-testid={`card-analysis-${analysis.id}`}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="text-base">{analysis.configurationName}</CardTitle>
-                          <Badge variant={analysis.status === "completed" ? "default" : "secondary"}>
-                            {analysis.status}
-                          </Badge>
-                        </div>
-                        <CardDescription>
-                          {formatDate(String(analysis.created_at))}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                          {analysis.totalKeywords > 0 && (
-                            <Badge variant="secondary">
-                              {analysis.totalKeywords} keyword{analysis.totalKeywords > 1 ? 's' : ''}
+                  {savedAnalyses.map((analysis) => {
+                    const meta = getAnalysisMetadata(analysis);
+                    return (
+                      <Card 
+                        key={analysis.id} 
+                        className="hover-elevate cursor-pointer"
+                        onClick={() => handleViewAnalysis(analysis)}
+                        data-testid={`card-analysis-${analysis.id}`}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <CardTitle className="text-base">{analysis.configurationName}</CardTitle>
+                            <Badge variant={analysis.status === "completed" ? "default" : "secondary"}>
+                              {analysis.status}
                             </Badge>
-                          )}
-                          {analysis.seasonalityType && (
-                            <Badge variant="outline">
-                              {analysis.seasonalityType} consistency
-                            </Badge>
-                          )}
-                        </div>
-                        {(analysis.peakMonth || analysis.lowMonth) && (
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            {analysis.peakMonth && (
-                              <div className="flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3 text-primary" />
-                                <span className="text-muted-foreground">Peak:</span>
-                                <span className="font-medium">{analysis.peakMonth}</span>
-                              </div>
+                          </div>
+                          <CardDescription>
+                            {formatDate(String(analysis.created_at))}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            {meta.totalKeywords > 0 && (
+                              <Badge variant="secondary">
+                                {meta.totalKeywords} keyword{meta.totalKeywords > 1 ? 's' : ''}
+                              </Badge>
                             )}
-                            {analysis.lowMonth && (
-                              <div className="flex items-center gap-1">
-                                <TrendingDown className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">Low:</span>
-                                <span className="font-medium">{analysis.lowMonth}</span>
-                              </div>
+                            {meta.seasonalityType && (
+                              <Badge variant="outline">
+                                {meta.seasonalityType} consistency
+                              </Badge>
                             )}
                           </div>
-                        )}
-                        <div className="flex items-center justify-end pt-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => handleDeleteAnalysis(analysis.id, e)}
-                            disabled={deleteAnalysisMutation.isPending}
-                            data-testid={`button-delete-${analysis.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          {(meta.peakMonth || meta.lowMonth) && (
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              {meta.peakMonth && (
+                                <div className="flex items-center gap-1">
+                                  <TrendingUp className="h-3 w-3 text-primary" />
+                                  <span className="text-muted-foreground">Peak:</span>
+                                  <span className="font-medium">{meta.peakMonth}</span>
+                                </div>
+                              )}
+                              {meta.lowMonth && (
+                                <div className="flex items-center gap-1">
+                                  <TrendingDown className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Low:</span>
+                                  <span className="font-medium">{meta.lowMonth}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-end pt-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => handleDeleteAnalysis(analysis, e)}
+                              disabled={deleteAnalysisMutation.isPending}
+                              data-testid={`button-delete-${analysis.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -560,6 +638,27 @@ export default function MarketDemandPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Analysis</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the analysis "{analysisToDelete?.name}"? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
