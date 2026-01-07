@@ -118,11 +118,12 @@ export default function MarketDemandPage() {
 
   const analyzeMutation = useMutation({
     mutationFn: async (configId: string) => {
-      return apiRequest("POST", "/api/market-demand/analyze", {
+      const response = await apiRequest("POST", "/api/market-demand/analyze", {
         configurationId: configId,
         timeRange,
         forecastEnabled,
       });
+      return response.json() as Promise<MarketDemandResult>;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/market-demand", selectedConfigId], data);
@@ -314,73 +315,79 @@ export default function MarketDemandPage() {
                 {analysisResult.executiveSummary}
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
-                <Badge variant={getConfidenceBadgeVariant(analysisResult.timingRecommendation.confidence)}>
-                  {analysisResult.timingRecommendation.confidence.toUpperCase()} Confidence
-                </Badge>
-                <Badge variant="outline">
-                  {analysisResult.metadata.dataSource}
-                </Badge>
-                {analysisResult.metadata.cached && (
+                {analysisResult.timingRecommendation?.confidence && (
+                  <Badge variant={getConfidenceBadgeVariant(analysisResult.timingRecommendation.confidence)}>
+                    {analysisResult.timingRecommendation.confidence.toUpperCase()} Confidence
+                  </Badge>
+                )}
+                {analysisResult.metadata?.dataSource && (
+                  <Badge variant="outline">
+                    {analysisResult.metadata.dataSource}
+                  </Badge>
+                )}
+                {analysisResult.metadata?.cached && (
                   <Badge variant="secondary">Cached</Badge>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-blue-500" />
-                  Inflection Point
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold" data-testid="text-inflection-month">
-                  {analysisResult.timingRecommendation.inflectionMonth}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Demand begins rising
-                </p>
-              </CardContent>
-            </Card>
+          {analysisResult.timingRecommendation && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-500" />
+                    Inflection Point
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold" data-testid="text-inflection-month">
+                    {analysisResult.timingRecommendation.inflectionMonth || "N/A"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Demand begins rising
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-amber-500" />
-                  Peak Window
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold" data-testid="text-peak-months">
-                  {analysisResult.timingRecommendation.peakMonths.length > 0 
-                    ? analysisResult.timingRecommendation.peakMonths.join(", ")
-                    : "N/A"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Peak demand months
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    Peak Window
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold" data-testid="text-peak-months">
+                    {analysisResult.timingRecommendation.peakMonths?.length > 0 
+                      ? analysisResult.timingRecommendation.peakMonths.join(", ")
+                      : "N/A"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Peak demand months
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Target className="h-4 w-4 text-green-500" />
-                  Recommended Action
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold" data-testid="text-action-date">
-                  {formatDate(analysisResult.timingRecommendation.recommendedActionDate)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Launch content/media by
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Target className="h-4 w-4 text-green-500" />
+                    Recommended Action
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold" data-testid="text-action-date">
+                    {formatDate(analysisResult.timingRecommendation.recommendedActionDate)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Launch content/media by
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <Card>
             <CardHeader>
