@@ -47,31 +47,15 @@ async function makeRequest<T>(endpoint: string, body: any): Promise<T> {
   return data;
 }
 
-function getDateRange(timeRange: string): { date_from: string; date_to: string } {
-  const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  let dateFrom: Date;
-
-  if (timeRange === "today 5-y") {
-    dateFrom = new Date(yesterday);
-    dateFrom.setFullYear(dateFrom.getFullYear() - 5);
-  } else if (timeRange === "today 12-m") {
-    dateFrom = new Date(yesterday);
-    dateFrom.setFullYear(dateFrom.getFullYear() - 1);
-  } else if (timeRange === "today 3-m") {
-    dateFrom = new Date(yesterday);
-    dateFrom.setMonth(dateFrom.getMonth() - 3);
-  } else {
-    dateFrom = new Date(yesterday);
-    dateFrom.setFullYear(dateFrom.getFullYear() - 5);
-  }
-
-  return {
-    date_from: dateFrom.toISOString().split("T")[0],
-    date_to: yesterday.toISOString().split("T")[0],
+function convertToDataForSEOTimeRange(timeRange: string): string {
+  const mapping: Record<string, string> = {
+    "today 5-y": "past_5_years",
+    "today 12-m": "past_12_months",
+    "today 3-m": "past_90_days",
+    "today 1-m": "past_30_days",
+    "today 7-d": "past_7_days",
   };
+  return mapping[timeRange] || "past_5_years";
 }
 
 function getLocationCode(country: string): number {
@@ -105,17 +89,21 @@ function getLocationCode(country: string): number {
   return locationCodes[country.toUpperCase()] || 2840;
 }
 
+interface TrendsGraphDataPoint {
+  date_from: string;
+  date_to: string;
+  timestamp: number;
+  missing_data: boolean;
+  values: number;
+}
+
 interface ExploreResultItem {
   type: string;
   position: number;
   title: string;
   keywords: string[];
-  data: Array<{
-    keyword: string;
-    values: number[];
-    date_from: string;
-    date_to: string;
-  }>;
+  data: TrendsGraphDataPoint[];
+  averages: number[];
 }
 
 interface ExploreResponse {
@@ -172,7 +160,7 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
     queries: string[],
     options: Omit<TrendsQuery, "query">
   ): Promise<TrendsResponse[]> {
-    const { date_from, date_to } = getDateRange(options.timeRange);
+    const timeRangeParam = convertToDataForSEOTimeRange(options.timeRange);
     const locationCode = getLocationCode(options.country);
 
     const body = [
@@ -180,15 +168,15 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
         keywords: queries,
         location_code: locationCode,
         language_code: "en",
-        date_from,
-        date_to,
+        time_range: timeRangeParam,
         type: "web",
+        item_types: ["google_trends_graph"],
       },
     ];
 
     try {
       console.log(`[DataForSEO Trends] Fetching batch of ${queries.length} queries`);
-      console.log(`[DataForSEO Trends] Date range: ${date_from} to ${date_to}`);
+      console.log(`[DataForSEO Trends] Time range: ${timeRangeParam}`);
 
       const response = await makeRequest<ExploreResponse>(
         "/keywords_data/google_trends/explore/live",
@@ -241,117 +229,36 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
     const fetchedAt = new Date().toISOString();
     
     console.log(`[DataForSEO Trends] Item type: ${item.type}`);
-    console.log(`[DataForSEO Trends] Item data sample:`, JSON.stringify(item.data?.slice(0, 2)));
-    console.log(`[DataForSEO Trends] Item keys:`, Object.keys(item));
+    console.log(`[DataForSEO Trends] Data points: ${item.data?.length || 0}`);
+    console.log(`[DataForSEO Trends] Keywords in item: ${item.keywords?.join(", ")}`);
     
     if (!item.data || item.data.length === 0) {
       console.log(`[DataForSEO Trends] No data in item`);
       return queries.map((query) => this.createEmptyResponse(query));
     }
 
-    const firstDataEntry = item.data[0];
-    console.log(`[DataForSEO Trends] First data entry keys:`, Object.keys(firstDataEntry || {}));
-
-    if (firstDataEntry && 'keyword' in firstDataEntry) {
-      return queries.map((query) => {
-        const keywordData = item.data.find(
-          (d: any) => d.keyword?.toLowerCase() === query.toLowerCase()
-        );
-
-        if (!keywordData || !keywordData.values || keywordData.values.length === 0) {
-          console.log(`[DataForSEO Trends] No values for keyword "${query}"`);
-          return this.createEmptyResponse(query);
-        }
-
-        const startDate = new Date(keywordData.date_from);
-        const endDate = new Date(keywordData.date_to);
-        const totalPoints = keywordData.values.length;
-        const totalDays = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        const daysPerPoint = totalDays / totalPoints;
-
-        const data: TrendsDataPoint[] = keywordData.values.map((value: number, index: number) => {
-          const pointDate = new Date(startDate.getTime() + index * daysPerPoint * 24 * 60 * 60 * 1000);
-          return {
-            date: pointDate.toISOString().split("T")[0],
-            value: value ?? 0,
-          };
-        });
-
-        console.log(`[DataForSEO Trends] Extracted ${data.length} data points for "${query}"`);
-
-        return {
-          query,
-          data,
-          metadata: {
-            fetchedAt,
-            source: "DataForSEO" as const,
-            cached: false,
-          },
-        };
-      });
-    }
-
-    if (firstDataEntry && ('date_from' in firstDataEntry || 'timestamp' in firstDataEntry || 'values' in firstDataEntry)) {
-      console.log(`[DataForSEO Trends] Using timeline data format`);
-      const timelineData: TrendsDataPoint[] = item.data.map((d: any) => ({
-        date: d.date_from || d.timestamp || d.date || new Date().toISOString().split("T")[0],
-        value: typeof d.values === 'number' ? d.values : (d.values?.[0] ?? d.value ?? 0),
+    const timelineData: TrendsDataPoint[] = item.data
+      .filter(d => !d.missing_data)
+      .map((d) => ({
+        date: d.date_from,
+        value: d.values ?? 0,
       }));
 
-      return queries.map((query) => ({
-        query,
-        data: timelineData,
-        metadata: {
-          fetchedAt,
-          source: "DataForSEO" as const,
-          cached: false,
-        },
-      }));
+    console.log(`[DataForSEO Trends] Extracted ${timelineData.length} data points`);
+    if (timelineData.length > 0) {
+      console.log(`[DataForSEO Trends] First point: ${timelineData[0].date} = ${timelineData[0].value}`);
+      console.log(`[DataForSEO Trends] Last point: ${timelineData[timelineData.length - 1].date} = ${timelineData[timelineData.length - 1].value}`);
     }
 
-    console.log(`[DataForSEO Trends] Unknown data format, returning empty`);
-    return queries.map((query) => this.createEmptyResponse(query));
-  }
-
-  private extractDataFromItemOld(item: ExploreResultItem, queries: string[]): TrendsResponse[] {
-    const fetchedAt = new Date().toISOString();
-    
-    return queries.map((query) => {
-      const keywordData = item.data.find(
-        (d) => d.keyword?.toLowerCase() === query.toLowerCase()
-      );
-
-      if (!keywordData || !keywordData.values || keywordData.values.length === 0) {
-        console.log(`[DataForSEO Trends] No values for keyword "${query}"`);
-        return this.createEmptyResponse(query);
-      }
-
-      const startDate = new Date(keywordData.date_from);
-      const endDate = new Date(keywordData.date_to);
-      const totalPoints = keywordData.values.length;
-      const totalDays = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const daysPerPoint = totalDays / totalPoints;
-
-      const data: TrendsDataPoint[] = keywordData.values.map((value, index) => {
-        const pointDate = new Date(startDate.getTime() + index * daysPerPoint * 24 * 60 * 60 * 1000);
-        return {
-          date: pointDate.toISOString().split("T")[0],
-          value: value ?? 0,
-        };
-      });
-
-      console.log(`[DataForSEO Trends] Extracted ${data.length} data points for "${query}"`);
-
-      return {
-        query,
-        data,
-        metadata: {
-          fetchedAt,
-          source: "DataForSEO" as const,
-          cached: false,
-        },
-      };
-    });
+    return queries.map((query) => ({
+      query,
+      data: timelineData,
+      metadata: {
+        fetchedAt,
+        source: "DataForSEO" as const,
+        cached: false,
+      },
+    }));
   }
 
   private createEmptyResponse(query: string): TrendsResponse {
