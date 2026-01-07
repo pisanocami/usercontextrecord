@@ -539,47 +539,67 @@ function BrandContextLayout() {
 
 function MarketDemandLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
 
   return (
-    <div className="flex h-screen w-full flex-col">
-      <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
-        <Link href="/">
-          <Button variant="ghost" size="sm">
-            <List className="h-4 w-4 mr-2" />
-            Configurations
-          </Button>
-        </Link>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
-                  <AvatarFallback>
-                    <User className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <div className="px-2 py-1.5 text-sm">
-                <p className="font-medium">{user?.firstName} {user?.lastName}</p>
-                <p className="text-muted-foreground">{user?.email}</p>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+      <div className="flex h-screen w-full">
+        <AppSidebar
+          activeSection="market-demand"
+          onSectionChange={(section) => {
+            if (section === "market-demand") return;
+            if (section === "list") setLocation("/");
+            else if (section === "bulk") setLocation("/bulk");
+            else if (section === "keyword-gap") setLocation("/keyword-gap");
+            else if (section === "one-pager") setLocation("/one-pager/latest");
+            else if (section === "gap-report") setLocation("/report/gap");
+            else if (section === "versions") setLocation("/versions/latest");
+            else setLocation("/new");
+          }}
+          hasUnsavedChanges={false}
+          cmoSafe={false}
+        />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5 text-sm">
+                    <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
+          <main className="flex-1 overflow-auto">
+            <MarketDemand />
+          </main>
         </div>
-      </header>
-      <main className="flex-1 overflow-auto">
-        <MarketDemand />
-      </main>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }
 
