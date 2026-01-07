@@ -2314,6 +2314,42 @@ IMPORTANT:
     }
   });
 
+  // Per-category market demand analysis (v2 - recommended)
+  app.post("/api/market-demand/analyze-by-category", async (req: any, res) => {
+    const userId = (req.user as any)?.id || "anonymous-user";
+    const { configurationId, timeRange, countryCode } = req.body;
+
+    if (!configurationId) {
+      return res.status(400).json({ error: "configurationId is required" });
+    }
+
+    try {
+      const config = await storage.getConfigurationById(parseInt(configurationId, 10), userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const configForAnalyzer = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString(),
+      } as any;
+
+      const result = await marketDemandAnalyzer.analyzeByCategory(configForAnalyzer, {
+        timeRange: timeRange || "today 5-y",
+        countryCode: countryCode,
+        interval: "weekly",
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error analyzing market demand by category:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze market demand" });
+    }
+  });
+
+  // Legacy aggregated analysis (deprecated - use analyze-by-category instead)
   app.post("/api/market-demand/analyze", async (req: any, res) => {
     const userId = "anonymous-user";
     const { configurationId, timeRange, countryCode, queryGroups, forecastEnabled } = req.body;
@@ -2385,7 +2421,7 @@ IMPORTANT:
 
   // ==================== MARKET DEMAND ANALYSIS SAVED RUNS ====================
 
-  // Save a market demand analysis
+  // Save a market demand analysis (supports both v1 legacy and v2 by-category formats)
   app.post("/api/market-demand-analyses", async (req: any, res) => {
     try {
       const userId = (req.user as any)?.id || "anonymous-user";
@@ -2395,46 +2431,56 @@ IMPORTANT:
         return res.status(400).json({ error: "configurationId, results, and parameters are required" });
       }
 
-      // Helper to normalize month names to short format (Jan, Feb, etc.)
-      const normalizeMonth = (monthStr: string | null | undefined): string | null => {
-        if (!monthStr) return null;
-        const monthMap: Record<string, string> = {
-          'january': 'Jan', 'february': 'Feb', 'march': 'Mar', 'april': 'Apr',
-          'may': 'May', 'june': 'Jun', 'july': 'Jul', 'august': 'Aug',
-          'september': 'Sep', 'october': 'Oct', 'november': 'Nov', 'december': 'Dec'
-        };
-        const lower = monthStr.toLowerCase();
-        if (monthMap[lower]) return monthMap[lower];
-        // If already short format, capitalize first letter
-        if (monthStr.length <= 3) return monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
-        return monthStr;
-      };
+      // Detect if this is a v2 by-category result
+      const isByCategoryResult = Array.isArray(results.byCategory) && results.byCategory.length > 0;
 
-      // Extract peak month from peakWindow.months array (first month is primary peak)
-      const rawPeakMonth = results.seasonality?.peakWindow?.months?.[0] || null;
-      const peakMonth = normalizeMonth(rawPeakMonth);
-      
-      // Extract decline start as the "low" indicator
+      let peakMonth: string | null = null;
       let lowMonth: string | null = null;
-      if (results.seasonality?.declinePhase?.start) {
-        try {
-          const declineDate = new Date(results.seasonality.declinePhase.start);
-          if (!isNaN(declineDate.getTime())) {
-            lowMonth = declineDate.toLocaleString('en-US', { month: 'short' });
+      let seasonalityType: string | null = null;
+      let yoyTrend: string | null = null;
+      let totalKeywords = 0;
+
+      if (isByCategoryResult) {
+        // v2 by-category format - use first category's data for summary, count all queries
+        const firstSlice = results.byCategory[0];
+        peakMonth = firstSlice.peakMonth || null;
+        lowMonth = firstSlice.lowMonth || null;
+        seasonalityType = firstSlice.consistencyLabel || null;
+        yoyTrend = firstSlice.consistencyLabel || null;
+        totalKeywords = results.byCategory.reduce((sum: number, cat: any) => sum + (cat.queries?.length || 0), 0);
+      } else {
+        // v1 legacy format
+        const normalizeMonth = (monthStr: string | null | undefined): string | null => {
+          if (!monthStr) return null;
+          const monthMap: Record<string, string> = {
+            'january': 'Jan', 'february': 'Feb', 'march': 'Mar', 'april': 'Apr',
+            'may': 'May', 'june': 'Jun', 'july': 'Jul', 'august': 'Aug',
+            'september': 'Sep', 'october': 'Oct', 'november': 'Nov', 'december': 'Dec'
+          };
+          const lower = monthStr.toLowerCase();
+          if (monthMap[lower]) return monthMap[lower];
+          if (monthStr.length <= 3) return monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase();
+          return monthStr;
+        };
+
+        const rawPeakMonth = results.seasonality?.peakWindow?.months?.[0] || null;
+        peakMonth = normalizeMonth(rawPeakMonth);
+        
+        if (results.seasonality?.declinePhase?.start) {
+          try {
+            const declineDate = new Date(results.seasonality.declinePhase.start);
+            if (!isNaN(declineDate.getTime())) {
+              lowMonth = declineDate.toLocaleString('en-US', { month: 'short' });
+            }
+          } catch {
+            lowMonth = null;
           }
-        } catch {
-          lowMonth = null;
         }
+        
+        seasonalityType = results.seasonality?.yoyConsistency || null;
+        yoyTrend = results.yoyAnalysis?.consistency || null;
+        totalKeywords = results.demandCurves?.length || 0;
       }
-      
-      // Use YoY consistency as seasonality type indicator
-      const seasonalityType = results.seasonality?.yoyConsistency || null;
-      
-      // Use YoY consistency for trend indicator
-      const yoyTrend = results.yoyAnalysis?.consistency || null;
-      
-      // Count demand curves as total keywords analyzed
-      const totalKeywords = results.demandCurves?.length || 0;
 
       const analysis = await storage.createMarketDemandAnalysis({
         userId,
