@@ -108,11 +108,12 @@ export default function MarketDemandPage() {
     queryKey: ["/api/configurations"],
   });
 
-  const { data: providerStatus, isLoading: statusLoading } = useQuery<{
+  const { data: providerStatus, isLoading: statusLoading, error: statusError } = useQuery<{
     available: boolean;
     providers: { provider: string; displayName: string; configured: boolean; message?: string }[];
   }>({
     queryKey: ["/api/market-demand/status"],
+    retry: false,
   });
 
   const analyzeMutation = useMutation({
@@ -165,6 +166,36 @@ export default function MarketDemandPage() {
       <div className="p-6 space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (statusError) {
+    const errorMessage = (statusError as any)?.message || "";
+    const isAuthError = errorMessage.includes("401") || errorMessage.includes("Unauthorized");
+    
+    return (
+      <div className="p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              {isAuthError ? "Authentication Required" : "Error Loading Provider Status"}
+            </CardTitle>
+            <CardDescription>
+              {isAuthError 
+                ? "Please log in to access Market Demand analysis." 
+                : "There was an error checking the trends provider status."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/">
+              <Button data-testid="button-login">
+                {isAuthError ? "Go to Login" : "Return Home"}
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }

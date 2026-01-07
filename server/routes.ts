@@ -2306,6 +2306,8 @@ IMPORTANT:
     }
     try {
       const providers = getAllTrendsProviderStatuses();
+      const hasDataForSEOCreds = !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD);
+      console.log(`[Market Demand Status] DataForSEO creds present: ${hasDataForSEOCreds}, Providers:`, JSON.stringify(providers));
       res.json({
         available: providers.some(p => p.configured),
         providers,
