@@ -237,28 +237,38 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
       return queries.map((query) => this.createEmptyResponse(query));
     }
 
-    const timelineData: TrendsDataPoint[] = item.data
-      .filter(d => !d.missing_data)
-      .map((d) => ({
-        date: d.date_from,
-        value: d.values ?? 0,
-      }));
+    const itemKeywords = item.keywords || [];
+    
+    return queries.map((query, queryIndex) => {
+      const keywordIndex = itemKeywords.findIndex(
+        k => k.toLowerCase() === query.toLowerCase()
+      );
+      const actualIndex = keywordIndex >= 0 ? keywordIndex : queryIndex;
+      
+      const timelineData: TrendsDataPoint[] = item.data
+        .filter(d => !d.missing_data)
+        .map((d: any) => {
+          const valuesArray = Array.isArray(d.values) ? d.values : [d.values];
+          const value = valuesArray[actualIndex] ?? 0;
+          return {
+            date: d.date_from,
+            value: typeof value === 'number' ? value : 0,
+          };
+        })
+        .filter(d => d.value > 0);
 
-    console.log(`[DataForSEO Trends] Extracted ${timelineData.length} data points`);
-    if (timelineData.length > 0) {
-      console.log(`[DataForSEO Trends] First point: ${timelineData[0].date} = ${timelineData[0].value}`);
-      console.log(`[DataForSEO Trends] Last point: ${timelineData[timelineData.length - 1].date} = ${timelineData[timelineData.length - 1].value}`);
-    }
-
-    return queries.map((query) => ({
-      query,
-      data: timelineData,
-      metadata: {
-        fetchedAt,
-        source: "DataForSEO" as const,
-        cached: false,
-      },
-    }));
+      console.log(`[DataForSEO Trends] Extracted ${timelineData.length} data points for "${query}" (index ${actualIndex})`);
+      
+      return {
+        query,
+        data: timelineData,
+        metadata: {
+          fetchedAt,
+          source: "DataForSEO" as const,
+          cached: false,
+        },
+      };
+    });
   }
 
   private createEmptyResponse(query: string): TrendsResponse {
