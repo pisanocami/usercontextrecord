@@ -75,6 +75,170 @@ export interface DispositionedItem<T = unknown> {
 }
 
 /* ---------------------------------- */
+/* Module Result Types (v2)           */
+/* ---------------------------------- */
+
+/**
+ * Discriminator for polymorphic module item results
+ * Allows different modules to return different entity types
+ */
+export type ModuleItemType = "keyword" | "cluster" | "serp" | "url" | "entity";
+
+/**
+ * Timing classification for seasonality modules
+ */
+export type TimingClassification =
+  | "early_ramp_dominant"
+  | "peak_driven"
+  | "flat_timing_neutral"
+  | "erratic_unreliable";
+
+/**
+ * Year-over-year consistency for trend analysis
+ */
+export type YoYConsistency = "stable" | "shifting" | "erratic";
+
+/**
+ * Base interface for all module item results
+ * All specific item types extend this
+ */
+export interface BaseItemResult {
+  itemType: ModuleItemType;
+  itemId: string;
+  title?: string;
+  flags?: string[];
+  confidence?: "low" | "medium" | "high";
+  trace: ItemTrace[];
+}
+
+/**
+ * Keyword-based item result (used by Keyword Gap, etc.)
+ */
+export interface KeywordItemResult extends BaseItemResult {
+  itemType: "keyword";
+  keyword: string;
+  status: Disposition;
+  capabilityScore: number;
+  theme?: string;
+  reason?: string;
+  searchVolume?: number;
+  competitorCount?: number;
+  serpFeatures?: string[];
+}
+
+/**
+ * Cluster/Category-based item result (used by Market Demand Seasonality, etc.)
+ */
+export interface ClusterItemResult extends BaseItemResult {
+  itemType: "cluster";
+  themeName: string;
+  geo: string;
+  timeRange: string;
+  interval: "weekly" | "daily" | "monthly";
+  peakMonth?: string;
+  lowMonth?: string;
+  stabilityScore?: number;
+  yoyConsistency?: YoYConsistency;
+  timingClassification: TimingClassification;
+  monthlyPattern?: number[];
+  weeklySeriesRef?: string;
+  
+  queries?: string[];
+  inflectionMonth?: string;
+  peakWindow?: string[];
+  recommendedLaunchByISO?: string | null;
+  recommendationRationale?: string;
+  variance?: number;
+  
+  seriesDataRef?: string;
+  heatmap?: Record<string, number>;
+  
+  providerMetadata?: {
+    provider: string;
+    cached: boolean;
+    cacheKey?: string;
+    ttlSeconds?: number;
+  };
+}
+
+/**
+ * SERP-based item result (used by SERP Analysis, etc.)
+ */
+export interface SerpItemResult extends BaseItemResult {
+  itemType: "serp";
+  query: string;
+  serpFeatures: string[];
+  organicCount: number;
+  paidCount: number;
+  featuredSnippet?: boolean;
+  localPack?: boolean;
+}
+
+/**
+ * URL-based item result (used by Content Gap, etc.)
+ */
+export interface UrlItemResult extends BaseItemResult {
+  itemType: "url";
+  url: string;
+  domain: string;
+  pageType?: string;
+  trafficEstimate?: number;
+  keywordCount?: number;
+}
+
+/**
+ * Entity-based item result (used by Entity Analysis, etc.)
+ */
+export interface EntityItemResult extends BaseItemResult {
+  itemType: "entity";
+  entityName: string;
+  entityType: string;
+  mentions?: number;
+  sentiment?: "positive" | "neutral" | "negative";
+}
+
+/**
+ * Union type for all possible module item results
+ */
+export type ModuleItemResult =
+  | KeywordItemResult
+  | ClusterItemResult
+  | SerpItemResult
+  | UrlItemResult
+  | EntityItemResult;
+
+/**
+ * Envelope containing run-level metadata
+ */
+export interface ModuleRunEnvelope {
+  moduleId: string;
+  runId: string;
+  generatedAt: string;
+  contextVersion: number;
+  contextStatus: string;
+  ucrSectionsUsed: UCRSectionID[];
+  filtersApplied: Array<{
+    ruleId: string;
+    ucrSection: UCRSectionID;
+    details?: string;
+  }>;
+  warnings: Array<{
+    code: string;
+    message: string;
+  }>;
+}
+
+/**
+ * Complete module execution result (v2)
+ * Replaces the old ModuleResult[] pattern
+ */
+export interface ModuleRunResult {
+  envelope: ModuleRunEnvelope;
+  items: ModuleItemResult[];
+  summary?: Record<string, unknown>;
+}
+
+/* ---------------------------------- */
 /* Policy Interfaces                   */
 /* ---------------------------------- */
 
