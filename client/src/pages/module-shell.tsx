@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useRoute } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useRoute, Link } from "wouter";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
     Card,
     CardContent,
@@ -13,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
     AlertTriangle,
     BrainCircuit,
     Database,
@@ -20,27 +28,47 @@ import {
     ShieldCheck,
     Target,
     Loader2,
-    Play
+    Play,
+    FolderOpen,
+    Plus,
 } from "lucide-react";
 import { CONTRACT_REGISTRY } from "@shared/module.contract";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleVisualizer } from "@/components/module-visualizer";
+
+interface Configuration {
+    id: number;
+    name: string;
+    brand: {
+        name: string;
+        domain: string;
+    };
+}
 
 export function ModuleShell() {
     const [match, params] = useRoute("/modules/:moduleId");
     const moduleId = params?.moduleId;
     const { toast } = useToast();
     const [executionResult, setExecutionResult] = useState<any>(null);
+    const [selectedConfigId, setSelectedConfigId] = useState<string>("");
 
     // 1. Resolve Contract
     const contract = moduleId ? CONTRACT_REGISTRY[moduleId] : undefined;
 
-    // 2. Execution Mutation
+    // 2. Load available configurations
+    const { data: configurations, isLoading: isLoadingConfigs } = useQuery<Configuration[]>({
+        queryKey: ["/api/configurations"],
+        queryFn: getQueryFn({ on401: "throw" }),
+    });
+
+    // 3. Execution Mutation
     const runMutation = useMutation({
         mutationFn: async () => {
-            // For Demo: Use ID 1 (hardcoded until Context Selector is added)
-            const configId = 1;
+            if (!selectedConfigId) {
+                throw new Error("No context selected");
+            }
+            const configId = parseInt(selectedConfigId);
             const res = await apiRequest("POST", `/api/modules/${moduleId}/run`, { configId });
             return res.json();
         },
@@ -52,10 +80,13 @@ export function ModuleShell() {
                 toast({ title: "Analysis Failed", description: data.error, variant: "destructive" });
             }
         },
-        onError: (err) => {
-            toast({ title: "Error", description: "Failed to run module analysis.", variant: "destructive" });
+        onError: (err: Error) => {
+            toast({ title: "Error", description: err.message || "Failed to run module analysis.", variant: "destructive" });
         }
     });
+
+    const selectedConfig = configurations?.find(c => c.id.toString() === selectedConfigId);
+    const canRun = !!selectedConfigId && !runMutation.isPending;
 
     if (!moduleId || !contract) {
         return (
@@ -98,10 +129,38 @@ export function ModuleShell() {
                             {contract.description}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        {/* Context Selector */}
+                        <div className="flex flex-col gap-1">
+                            <span className="text-xs text-muted-foreground">Contexto</span>
+                            {isLoadingConfigs ? (
+                                <Skeleton className="h-9 w-[200px]" />
+                            ) : configurations && configurations.length > 0 ? (
+                                <Select value={selectedConfigId} onValueChange={setSelectedConfigId}>
+                                    <SelectTrigger className="w-[200px]" data-testid="select-context">
+                                        <SelectValue placeholder="Selecciona contexto..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {configurations.map((config) => (
+                                            <SelectItem key={config.id} value={config.id.toString()}>
+                                                {config.name || config.brand?.domain || `Context ${config.id}`}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <Link href="/new">
+                                    <Button variant="outline" size="sm" className="gap-1">
+                                        <Plus className="h-3 w-3" />
+                                        Crear Contexto
+                                    </Button>
+                                </Link>
+                            )}
+                        </div>
                         <Button
                             onClick={() => runMutation.mutate()}
-                            disabled={runMutation.isPending}
+                            disabled={!canRun}
+                            data-testid="button-run-analysis"
                         >
                             {runMutation.isPending ? (
                                 <>
