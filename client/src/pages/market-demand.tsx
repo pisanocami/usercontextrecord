@@ -401,24 +401,53 @@ export default function MarketDemandPage() {
     if (!displayedResult) return [];
     
     if (isByCategoryResult(displayedResult)) {
-      const firstCat = displayedResult.byCategory[0];
-      if (!firstCat?.series?.length) return [];
+      if (!displayedResult.byCategory?.length) return [];
       
-      return firstCat.series.map((point, index) => {
-        const entry: Record<string, any> = { date: point.date };
+      const allDates = new Set<string>();
+      const categoryDataMaps: Map<string, Map<string, number>> = new Map();
+      
+      displayedResult.byCategory.forEach((cat) => {
+        const dateValueMap = new Map<string, number>();
+        cat.series?.forEach((point) => {
+          allDates.add(point.date);
+          dateValueMap.set(point.date, point.value);
+        });
+        categoryDataMaps.set(cat.categoryName, dateValueMap);
+      });
+      
+      const sortedDates = Array.from(allDates).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+      
+      return sortedDates.map((date) => {
+        const entry: Record<string, any> = { date };
         displayedResult.byCategory.forEach((cat) => {
-          entry[cat.categoryName] = cat.series[index]?.value ?? 0;
+          const dataMap = categoryDataMaps.get(cat.categoryName);
+          entry[cat.categoryName] = dataMap?.get(date) ?? null;
         });
         return entry;
       });
     } else {
       const legacyResult = displayedResult as MarketDemandResult;
-      if (!legacyResult.demandCurves?.[0]?.data) return [];
+      if (!legacyResult.demandCurves?.length) return [];
       
-      return legacyResult.demandCurves[0].data.map((point, index) => {
-        const entry: Record<string, any> = { date: point.date };
+      const allDates = new Set<string>();
+      const curveDataMaps: Map<string, Map<string, number>> = new Map();
+      
+      legacyResult.demandCurves.forEach((curve) => {
+        const dateValueMap = new Map<string, number>();
+        curve.data?.forEach((point) => {
+          allDates.add(point.date);
+          dateValueMap.set(point.date, point.value);
+        });
+        curveDataMaps.set(curve.query, dateValueMap);
+      });
+      
+      const sortedDates = Array.from(allDates).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+      
+      return sortedDates.map((date) => {
+        const entry: Record<string, any> = { date };
         legacyResult.demandCurves.forEach((curve) => {
-          entry[curve.query] = curve.data[index]?.value ?? 0;
+          const dataMap = curveDataMaps.get(curve.query);
+          entry[curve.query] = dataMap?.get(date) ?? null;
         });
         return entry;
       });
@@ -973,6 +1002,7 @@ function renderAnalysisResults(
                         strokeWidth={2}
                         dot={false}
                         activeDot={{ r: 4 }}
+                        connectNulls={false}
                       />
                     ))}
                   </ComposedChart>
@@ -1124,6 +1154,7 @@ function renderAnalysisResults(
                         strokeWidth={2}
                         dot={false}
                         activeDot={{ r: 4 }}
+                        connectNulls={false}
                       />
                     ))}
                   </ComposedChart>
@@ -1279,7 +1310,8 @@ function generateMonthlyHeatmap(chartData: Record<string, any>[]): { value: numb
     
     const values = Object.entries(point)
       .filter(([key]) => key !== "date")
-      .map(([, value]) => Number(value) || 0);
+      .map(([, value]) => value)
+      .filter((v): v is number => v !== null && v !== undefined && typeof v === "number");
     
     if (values.length > 0) {
       const avg = values.reduce((a, b) => a + b, 0) / values.length;
