@@ -31,6 +31,8 @@ import {
     Play,
     FolderOpen,
     Plus,
+    SearchX,
+    Lightbulb,
 } from "lucide-react";
 import { CONTRACT_REGISTRY } from "@shared/module.contract";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
@@ -44,6 +46,159 @@ interface Configuration {
         name: string;
         domain: string;
     };
+}
+
+function hasNonEmptyData(obj: any, depth: number = 0): boolean {
+    if (depth > 3) return false; // Prevent infinite recursion
+    if (obj === null || obj === undefined) return false;
+    
+    // Primitives with value
+    if (typeof obj === 'number') return obj > 0;
+    if (typeof obj === 'string') return obj.length > 0;
+    if (typeof obj === 'boolean') return true;
+    
+    // Arrays with content
+    if (Array.isArray(obj)) return obj.length > 0;
+    
+    // Objects - check values recursively
+    if (typeof obj === 'object') {
+        for (const val of Object.values(obj)) {
+            if (hasNonEmptyData(val, depth + 1)) return true;
+        }
+    }
+    
+    return false;
+}
+
+function isEmptyResult(data: any): boolean {
+    if (!data) return true;
+    
+    // ModuleRunResult v2 format: { envelope, items, summary }
+    if (data.envelope && Array.isArray(data.items)) {
+        return data.items.length === 0;
+    }
+    
+    // Primary data arrays at root level
+    const primaryArrays = ['items', 'topOpportunities', 'results', 'keywords', 'clusters', 'rows', 'opportunities', 'needsReview', 'outOfPlay'];
+    for (const field of primaryArrays) {
+        if (Array.isArray(data[field]) && data[field].length > 0) {
+            return false;
+        }
+    }
+    
+    // Check summary object for nested data arrays
+    if (data.summary && typeof data.summary === 'object') {
+        for (const field of primaryArrays) {
+            if (Array.isArray(data.summary[field]) && data.summary[field].length > 0) {
+                return false;
+            }
+        }
+        // Check summary.counts or similar numeric aggregations
+        if (data.summary.counts && hasNonEmptyData(data.summary.counts)) return false;
+        if (typeof data.summary.total === 'number' && data.summary.total > 0) return false;
+    }
+    
+    // Check explicit count fields
+    if (typeof data.totalGapKeywords === 'number' && data.totalGapKeywords > 0) return false;
+    if (typeof data.total === 'number' && data.total > 0) return false;
+    
+    // Check grouped data structures
+    const groupedFields = ['grouped', 'byCategory', 'byTheme'];
+    for (const field of groupedFields) {
+        if (data[field] && typeof data[field] === 'object') {
+            if (hasNonEmptyData(data[field])) return false;
+        }
+    }
+    
+    // Heatmap with values > 0
+    if (data.heatmap && typeof data.heatmap === 'object') {
+        if (hasNonEmptyData(data.heatmap)) return false;
+    }
+    
+    return true;
+}
+
+function getEmptyResultSuggestions(moduleId: string, _category: string): string[] {
+    const suggestions: Record<string, string[]> = {
+        "seo": [
+            "Verifica que los competidores tengan presencia orgánica significativa",
+            "Prueba con competidores más directos de tu nicho",
+            "Asegúrate de que tu dominio tenga keywords indexadas"
+        ],
+        "market": [
+            "Verifica las categorías definidas en tu contexto",
+            "Asegúrate de que el mercado objetivo tenga suficiente volumen de búsqueda",
+            "Prueba con categorías más amplias o específicas"
+        ],
+        "brand": [
+            "Confirma que tu marca tenga presencia de búsqueda medible",
+            "Verifica los competidores en tu contexto",
+            "Considera expandir el conjunto competitivo"
+        ],
+        "signal": [
+            "Revisa la configuración de fuentes de datos",
+            "Verifica que las categorías tengan cobertura de datos",
+            "Prueba ajustando los filtros de contexto"
+        ]
+    };
+    
+    // Extract category prefix from moduleId (e.g., "seo.keyword_gap.v1" -> "seo")
+    const modulePrefix = moduleId.split(".")[0].toLowerCase();
+    return suggestions[modulePrefix] || [
+        "Revisa la configuración de tu contexto",
+        "Verifica que los datos de entrada sean correctos",
+        "Contacta soporte si el problema persiste"
+    ];
+}
+
+interface EmptyModuleResultProps {
+    moduleId: string;
+    moduleName: string;
+    category: string;
+    data: any;
+}
+
+function EmptyModuleResult({ moduleId, moduleName, category, data }: EmptyModuleResultProps) {
+    const suggestions = getEmptyResultSuggestions(moduleId, category);
+    
+    return (
+        <div className="rounded-xl border border-dashed p-8 bg-amber-50/50 dark:bg-amber-950/20 flex flex-col items-center justify-center text-center space-y-4 min-h-[400px]">
+            <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                <SearchX className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="max-w-md space-y-2">
+                <h3 className="font-semibold text-lg">Análisis completado sin resultados</h3>
+                <p className="text-sm text-muted-foreground">
+                    El módulo <strong>{moduleName}</strong> se ejecutó correctamente, pero no encontró datos que coincidan con tu configuración actual.
+                </p>
+            </div>
+            
+            <div className="w-full max-w-md mt-4 p-4 rounded-lg bg-background border">
+                <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">Sugerencias</span>
+                </div>
+                <ul className="text-sm text-muted-foreground space-y-2 text-left">
+                    {suggestions.map((suggestion, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                            <span className="text-amber-500 mt-0.5">•</span>
+                            {suggestion}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            
+            {data?.filtersApplied && (
+                <div className="text-xs text-muted-foreground mt-4">
+                    <span className="font-medium">Filtros aplicados:</span>{" "}
+                    {Object.entries(data.filtersApplied)
+                        .filter(([_, v]) => typeof v === "number" && v > 0)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join(", ") || "Ninguno"}
+                </div>
+            )}
+        </div>
+    );
 }
 
 export function ModuleShell() {
@@ -251,10 +406,19 @@ export function ModuleShell() {
                     {/* Right Column: Work Area (2/3) */}
                     <div className="md:col-span-2 space-y-6">
                         {executionResult ? (
-                            <ModuleVisualizer
-                                visuals={contract.output.visuals || []}
-                                data={executionResult}
-                            />
+                            isEmptyResult(executionResult) ? (
+                                <EmptyModuleResult
+                                    moduleId={contract.moduleId}
+                                    moduleName={contract.name}
+                                    category={contract.category}
+                                    data={executionResult}
+                                />
+                            ) : (
+                                <ModuleVisualizer
+                                    visuals={contract.output.visuals || []}
+                                    data={executionResult}
+                                />
+                            )
                         ) : (
                             <div className="rounded-xl border border-dashed p-8 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col items-center justify-center text-center space-y-4 min-h-[400px]">
                                 <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
