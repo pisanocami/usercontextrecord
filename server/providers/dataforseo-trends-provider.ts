@@ -246,7 +246,6 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
       const actualIndex = keywordIndex >= 0 ? keywordIndex : queryIndex;
       
       const timelineData: TrendsDataPoint[] = item.data
-        .filter(d => !d.missing_data)
         .map((d: any) => {
           const valuesArray = Array.isArray(d.values) ? d.values : [d.values];
           const value = valuesArray[actualIndex] ?? 0;

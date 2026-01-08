@@ -195,16 +195,7 @@ export class MarketDemandAnalyzer {
 
       const cached = categoryCache.get(cacheKey);
       if (cached && cached.expiresAt > now) {
-        if (cached.slice.series.length < MIN_DATA_POINTS_THRESHOLD) {
-          console.log(`[MarketDemandAnalyzer] Cache hit for ${group.categoryName} but excluding: insufficient data (${cached.slice.series.length} points)`);
-          excludedCategories.push({
-            name: group.categoryName,
-            reason: "insufficient_data",
-            dataPoints: cached.slice.series.length,
-          });
-          continue;
-        }
-        console.log(`[MarketDemandAnalyzer] Cache hit for ${group.categoryName}`);
+        console.log(`[MarketDemandAnalyzer] Cache hit for ${group.categoryName} (${cached.slice.series.length} data points)`);
         byCategory.push(cached.slice);
         continue;
       }
@@ -213,16 +204,8 @@ export class MarketDemandAnalyzer {
 
       const trendsData = await this.fetchTrendsData(filteredQueries, countryCode, timeRange, interval);
       const aggregatedData = this.aggregateTrendsData(trendsData);
-
-      if (aggregatedData.length < MIN_DATA_POINTS_THRESHOLD) {
-        console.log(`[MarketDemandAnalyzer] Excluding ${group.categoryName}: insufficient data (${aggregatedData.length} points < ${MIN_DATA_POINTS_THRESHOLD} minimum)`);
-        excludedCategories.push({
-          name: group.categoryName,
-          reason: "insufficient_data",
-          dataPoints: aggregatedData.length,
-        });
-        continue;
-      }
+      
+      console.log(`[MarketDemandAnalyzer] Fetched ${aggregatedData.length} data points for ${group.categoryName}`);
 
       const heatmap = this.buildHeatmap(aggregatedData);
       const { peak, low } = this.findPeakAndLowMonths(heatmap);
