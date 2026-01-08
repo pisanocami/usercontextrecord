@@ -1,0 +1,32 @@
+core":{"grade":"high","overall":87,"breakdown":{"evidence_details":"Evidence: 5/5, Keywords: 0/5, Examples: 0/5","negative_details":"18 exclusions across 3 types","competitor_details":"7 competitors defined, 5 with evidence packs","completeness_details":"All required fields complete"},"completeness":100,"calculated_at":"2026-01-03T04:48:36.674Z","evidence_coverage":33,"negative_strength":100,"competitor_confidence":100},"human_verified":false,"blocked_reasons":[],"context_version":1,"human_overrides":{"keywords":[],"categories":[],"competitors":[]},"model_suggested":true,"validation_status":"needs_review","context_confidence":{"level":"medium","notes":""},"context_valid_until":"2026-04-03"},"created_at":"2026-01-03T04:48:36.689Z","updated_at":"2026-01-03T04:48:36.689Z"}]
+Error executing module market.category_demand_trend.v1: Error: Configuration 1 not found
+    at runModule (/home/runner/workspace/server/module-runner.ts:54:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2663:22)
+9:21:01 PM [express] POST /api/modules/market.category_demand_trend.v1/run 500 in 25ms :: {"success":false,"error":"Configuration 1 not found"}
+Error executing module signal.market_momentum.v1: Error: Configuration 1 not found
+    at runModule (/home/runner/workspace/server/module-runner.ts:54:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2663:22)
+9:21:11 PM [express] POST /api/modules/signal.market_momentum.v1/run 500 in 3ms :: {"success":false,"error":"Configuration 1 not found"}
+Error executing module signal.branded_demand.v1: Error: Configuration 1 not found
+    at runModule (/home/runner/workspace/server/module-runner.ts:54:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2663:22)
+9:21:32 PM [express] POST /api/modules/signal.branded_demand.v1/run 500 in 13ms :: {"success":false,"error":"Configuration 1 not found"}
+Error executing module signal.category_visibility.v1: Error: Configuration 1 not found
+    at runModule (/home/runner/workspace/server/module-runner.ts:54:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2663:22)
+9:21:36 PM [express] POST /api/modules/signal.category_visibility.v1/run 500 in 2ms :: {"success":false,"error":"Configuration 1 not found"}
+Error executing module signal.breakout_terms.v1: Error: Configuration 1 not found
+    at runModule (/home/runner/workspace/server/module-runner.ts:54:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2663:22)
+9:21:44 PM [express] POST /api/modules/signal.breakout_terms.v1/run 500 in 3ms :: {"success":false,"error":"Configuration 1 not found"}
+Error executing module market.category_demand_trend.v1: Error: Configuration 1 not found
+    at runModule (/home/runner/workspace/server/module-runner.ts:54:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2663:22)
+9:21:50 PM [express] POST /api/modules/market.category_demand_trend.v1/run 500 in 3ms :: {"success":false,"error":"Configuration 1 not found"}
+^C
