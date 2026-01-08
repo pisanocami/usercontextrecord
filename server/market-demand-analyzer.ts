@@ -193,7 +193,7 @@ export class MarketDemandAnalyzer {
       const { peak, low } = this.findPeakAndLowMonths(heatmap);
 
       const stabilityScore = this.calculateYoYConsistencyScore(aggregatedData);
-      const consistencyLabel: "low" | "medium" | "high" = 
+      const consistencyLabel: "low" | "medium" | "high" =
         stabilityScore > 0.7 ? "high" : stabilityScore > 0.4 ? "medium" : "low";
       const variance = Math.round((1 - stabilityScore) * 100) / 100;
 
@@ -387,7 +387,7 @@ export class MarketDemandAnalyzer {
 
     const aggregatedSeries: TrendsDataPoint[] = [];
     for (const [date, values] of seriesMap) {
-      const avg = values.reduce((s, v) => s + v, 0) / values.length;
+      const avg = values.reduce((s: number, v: number) => s + v, 0) / values.length;
       aggregatedSeries.push({ date, value: Math.round(avg) });
     }
     aggregatedSeries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -564,7 +564,7 @@ export class MarketDemandAnalyzer {
 
   private findInflectionPoint(monthlyAvg: Map<number, number>): SeasonalityPattern["inflectionPoint"] {
     const months = Array.from(monthlyAvg.entries()).sort((a, b) => a[0] - b[0]);
-    
+
     let maxIncrease = 0;
     let inflectionMonth = 0;
 
@@ -572,7 +572,7 @@ export class MarketDemandAnalyzer {
       const prevValue = months[i - 1][1];
       const currValue = months[i][1];
       const increase = currValue - prevValue;
-      
+
       if (increase > maxIncrease) {
         maxIncrease = increase;
         inflectionMonth = months[i][0];
@@ -775,7 +775,7 @@ export class MarketDemandAnalyzer {
 
     const inflectionMonth = MONTH_NAMES[seasonality.inflectionPoint.month];
     const actionMonth = (seasonality.inflectionPoint.month - 1 + 12) % 12;
-    
+
     const today = new Date();
     const actionDate = new Date(today.getFullYear(), actionMonth, 15);
     if (actionDate < today) {
@@ -809,7 +809,7 @@ export class MarketDemandAnalyzer {
     const parts: string[] = [];
 
     parts.push(`Demand historically begins rising in ${MONTH_NAMES[seasonality.inflectionPoint.month]}`);
-    
+
     if (seasonality.peakWindow.months.length > 0) {
       parts.push(`peaking in ${seasonality.peakWindow.months.join(" and ")}`);
     }
