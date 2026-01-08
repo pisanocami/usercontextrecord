@@ -29,8 +29,9 @@ export interface SectionValidation {
  */
 const MINIMUM_STATUS_FOR_EXECUTION = [
   "AI_READY",
-  "HUMAN_APPROVED", 
-  "CMO_REVIEWED",
+  "AI_ANALYSIS_RUN",
+  "HUMAN_CONFIRMED",
+  "LOCKED",
 ];
 
 /**
@@ -52,7 +53,7 @@ export function validateUCRStatus(config: Configuration): {
   message: string;
 } {
   const status = config.governance?.context_status || "DRAFT_AI";
-  
+
   if (MINIMUM_STATUS_FOR_EXECUTION.includes(status)) {
     return {
       valid: true,
@@ -92,7 +93,7 @@ export function validateRequiredSections(
       section: "D",
       required: true,
       valid: hasDemandDefinition,
-      message: hasDemandDefinition 
+      message: hasDemandDefinition
         ? "Section D (Demand Definition) validated"
         : "Section D (Demand Definition) missing or empty. Add demand_themes or category_terms.",
     });
@@ -128,7 +129,7 @@ export function validateOptionalSections(
   if (moduleId === "market_demand_seasonality") {
     // Section A: brand_identity (optional but useful)
     const hasBrandIdentity = !!(
-      config.brand_identity?.brand_name
+      config.brand?.name
     );
     validations.push({
       section: "A",
@@ -246,7 +247,7 @@ export function validateForecastPolicy(config: Configuration): {
   return {
     allowed: policy !== "DISABLED",
     policy,
-    message: policy === "DISABLED" 
+    message: policy === "DISABLED"
       ? "Forecast disabled by governance policy (H.module_defaults.forecast_policy)"
       : `Forecast enabled with policy: ${policy}`,
   };
