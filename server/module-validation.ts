@@ -28,6 +28,7 @@ export interface SectionValidation {
  * Context-First: Modules require at least AI_READY status
  */
 const MINIMUM_STATUS_FOR_EXECUTION = [
+  "DRAFT_AI",
   "AI_READY",
   "AI_ANALYSIS_RUN",
   "HUMAN_CONFIRMED",
