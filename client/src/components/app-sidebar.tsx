@@ -1,30 +1,24 @@
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
-  Layers,
-  Users,
-  Search,
-  Target,
-  Radio,
-  Ban,
-  Shield,
-  Settings,
-  Sparkles,
   List,
   Plus,
-  FileText,
-  BarChart3,
-  Zap,
-  History,
+  Sparkles,
+  Search,
   TrendingUp,
+  BarChart3,
+  FileText,
+  History,
+  Shield,
+  BookOpen,
+  Zap,
   BrainCircuit,
-  Lightbulb,
-  AlertTriangle,
-  Anchor,
+  Globe,
   Megaphone,
-  Flag,
-  Globe
+  CheckCircle2,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -39,7 +33,6 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CONTRACT_REGISTRY, ModuleContract } from "@shared/module.contract";
 
 interface SidebarProps {
@@ -49,47 +42,49 @@ interface SidebarProps {
   cmoSafe?: boolean;
 }
 
-// Map Module Categories to Icons
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "SEO Signal": Search,
   "Market Trends": TrendingUp,
   "Brand Signal": Megaphone,
   "Market Intelligence": Globe,
   "Action": Zap,
-  "Synthesis": BrainCircuit
+  "Synthesis": BrainCircuit,
 };
 
-// Map Module Layers to Sidebar Groups (Tab-like structure in future, linear for now)
-const LAYER_ORDER = ["Signal", "Synthesis", "Action"];
+const LAYER_ICONS: Record<string, LucideIcon> = {
+  Signal: TrendingUp,
+  Synthesis: BrainCircuit,
+  Action: Zap,
+};
 
 function ModuleNavItems({
   contracts,
   activeSection,
-  onSectionChange
 }: {
   contracts: ModuleContract[];
   activeSection: string;
-  onSectionChange: (id: string) => void;
 }) {
   return (
     <>
-      {contracts.map(contract => {
+      {contracts.map((contract) => {
         const Icon = CATEGORY_ICONS[contract.category] || FileText;
         return (
           <SidebarMenuItem key={contract.moduleId}>
             <Link href={`/modules/${contract.moduleId}`}>
               <SidebarMenuButton
-                onClick={() => onSectionChange(contract.moduleId)}
                 isActive={activeSection === contract.moduleId}
-                className={`group relative ${activeSection === contract.moduleId
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
-                  : ""
-                  }`}
-                data-testid={`nav-${contract.moduleId}`}
+                className={`group relative ${
+                  activeSection === contract.moduleId
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-1 before:rounded-r before:bg-primary"
+                    : ""
+                }`}
+                data-testid={`nav-module-${contract.moduleId}`}
               >
                 <Icon className="h-4 w-4 text-muted-foreground/70" />
                 <div className="flex flex-1 flex-col items-start overflow-hidden">
-                  <span className="text-sm font-medium truncate w-full">{contract.name}</span>
+                  <span className="text-sm font-medium truncate w-full">
+                    {contract.name}
+                  </span>
                 </div>
               </SidebarMenuButton>
             </Link>
@@ -106,49 +101,96 @@ export function AppSidebar({
   hasUnsavedChanges = false,
   cmoSafe = false,
 }: SidebarProps) {
-
-  // Group contracts by Layer
   const allContracts = Object.values(CONTRACT_REGISTRY);
-  const signalModules = allContracts.filter(c => c.layer === "Signal");
-  const synthesisModules = allContracts.filter(c => c.layer === "Synthesis");
-  const actionModules = allContracts.filter(c => c.layer === "Action");
+  const signalModules = allContracts.filter((c) => c.layer === "Signal");
+  const synthesisModules = allContracts.filter((c) => c.layer === "Synthesis");
+  const actionModules = allContracts.filter((c) => c.layer === "Action");
 
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Settings className="h-5 w-5" />
+            <BrainCircuit className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">Brand Intelligence</span>
-            <span className="text-xs text-muted-foreground">User Record Context</span>
+            <span className="text-xs text-muted-foreground">
+              Context-First OS
+            </span>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-
-        {/* Core Configuration */}
+        {/* CONTEXTOS - Hub Principal */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Configuration
+            Contextos
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <Link href="/">
-                  <SidebarMenuButton isActive={activeSection === "list"}>
+                  <SidebarMenuButton
+                    isActive={activeSection === "list"}
+                    className={
+                      activeSection === "list"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-contexts-list"
+                  >
                     <List className="h-4 w-4" />
-                    <span>All Contexts</span>
+                    <span>Mis Contextos</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <Link href="/new">
-                  <SidebarMenuButton isActive={activeSection === "brand"}>
+                  <SidebarMenuButton
+                    isActive={activeSection === "new" || activeSection === "brand"}
+                    className={
+                      activeSection === "new" || activeSection === "brand"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-new-context"
+                  >
                     <Plus className="h-4 w-4" />
-                    <span>New Context</span>
+                    <span>Nuevo Contexto</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/bulk">
+                  <SidebarMenuButton
+                    isActive={activeSection === "bulk"}
+                    className={
+                      activeSection === "bulk"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-bulk"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span>Bulk Generation</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/brands">
+                  <SidebarMenuButton
+                    isActive={activeSection === "brands"}
+                    className={
+                      activeSection === "brands"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-brands"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span>Gestión de Brands</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -156,116 +198,210 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Core Sections (Always Visible) */}
+        {/* ANÁLISIS - Páginas de análisis existentes */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Core Definitions
+            Análisis
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => onSectionChange("brand")} isActive={activeSection === "brand"}>
-                  <Building2 className="h-4 w-4" />
-                  <span>Identity & Brand</span>
-                </SidebarMenuButton>
+                <Link href="/keyword-gap">
+                  <SidebarMenuButton
+                    isActive={activeSection === "keyword-gap"}
+                    className={
+                      activeSection === "keyword-gap"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-keyword-gap"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span>Keyword Gap</span>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => onSectionChange("market-demand")} isActive={activeSection === "market-demand"}>
-                  <Users className="h-4 w-4" />
-                  <span>Addressable Market</span>
-                </SidebarMenuButton>
+                <Link href="/market-demand">
+                  <SidebarMenuButton
+                    isActive={activeSection === "market-demand"}
+                    className={
+                      activeSection === "market-demand"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-market-demand"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    <span>Market Demand</span>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => onSectionChange("strategic")} isActive={activeSection === "strategic"}>
-                  <Target className="h-4 w-4" />
-                  <span>Strategic Intent</span>
-                </SidebarMenuButton>
+                <Link href="/one-pager/latest">
+                  <SidebarMenuButton
+                    isActive={activeSection === "one-pager"}
+                    className={
+                      activeSection === "one-pager"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-one-pager"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>One Pager</span>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => onSectionChange("negative")} isActive={activeSection === "negative"}>
-                  <Ban className="h-4 w-4" />
-                  <span>Negative Scope</span>
-                </SidebarMenuButton>
+                <Link href="/versions/latest">
+                  <SidebarMenuButton
+                    isActive={activeSection === "versions"}
+                    className={
+                      activeSection === "versions"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-versions"
+                  >
+                    <History className="h-4 w-4" />
+                    <span>Version History</span>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Dynamic Modules: Signals */}
+        {/* MODULE CENTER - Grupo consolidado con submenu por layer */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <TrendingUp className="h-3 w-3" />
-            Growth Signals
+            <BookOpen className="h-3 w-3" />
+            Module Center
+            <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+              {allContracts.length}
+            </Badge>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <ModuleNavItems
-                contracts={signalModules}
-                activeSection={activeSection}
-                onSectionChange={onSectionChange}
-              />
+              <SidebarMenuItem>
+                <Link href="/modules">
+                  <SidebarMenuButton
+                    isActive={activeSection === "module-center"}
+                    className={
+                      activeSection === "module-center"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-module-catalog"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    <span>Ver Catálogo</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              
+              {/* Signal Modules */}
+              {signalModules.length > 0 && (
+                <>
+                  <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    Signals ({signalModules.length})
+                  </div>
+                  <ModuleNavItems
+                    contracts={signalModules}
+                    activeSection={activeSection}
+                  />
+                </>
+              )}
+              
+              {/* Synthesis Modules */}
+              {synthesisModules.length > 0 && (
+                <>
+                  <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
+                    <BrainCircuit className="h-3 w-3" />
+                    Synthesis ({synthesisModules.length})
+                  </div>
+                  <ModuleNavItems
+                    contracts={synthesisModules}
+                    activeSection={activeSection}
+                  />
+                </>
+              )}
+              
+              {/* Action Modules */}
+              {actionModules.length > 0 && (
+                <>
+                  <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
+                    Actions ({actionModules.length})
+                  </div>
+                  <ModuleNavItems
+                    contracts={actionModules}
+                    activeSection={activeSection}
+                  />
+                </>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Dynamic Modules: Synthesis */}
+        {/* GOVERNANCE */}
         <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <BrainCircuit className="h-3 w-3" />
-            Synthesis
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
+            Governance
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <ModuleNavItems
-                contracts={synthesisModules}
-                activeSection={activeSection}
-                onSectionChange={onSectionChange}
-              />
+              <SidebarMenuItem>
+                <Link href="/report/gap">
+                  <SidebarMenuButton
+                    isActive={activeSection === "gap-report"}
+                    className={
+                      activeSection === "gap-report"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-gap-report"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>Compliance Report</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Dynamic Modules: Actions */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Zap className="h-3 w-3" />
-            Actions
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <ModuleNavItems
-                contracts={actionModules}
-                activeSection={activeSection}
-                onSectionChange={onSectionChange}
-              />
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t">
         <div className="flex flex-col gap-2">
-          <Link href="/report/gap">
-            <Button variant="outline" size="sm" className="w-full justify-start">
-              <Shield className="h-4 w-4 mr-2" />
-              Compliance Report
-            </Button>
-          </Link>
           {hasUnsavedChanges && (
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-amber-500" />
-              <span className="text-xs text-muted-foreground">Unsaved changes</span>
+              <Clock className="h-3 w-3 text-amber-500" />
+              <span className="text-xs text-muted-foreground">
+                Unsaved changes
+              </span>
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Badge
-              variant={cmoSafe ? "default" : "secondary"}
-              className="text-xs w-full justify-center"
-            >
-              {cmoSafe ? "CMO Safe" : "Not Validated"}
-            </Badge>
+            {cmoSafe ? (
+              <Badge
+                variant="default"
+                className="text-xs w-full justify-center gap-1"
+              >
+                <CheckCircle2 className="h-3 w-3" />
+                CMO Safe
+              </Badge>
+            ) : (
+              <Badge
+                variant="secondary"
+                className="text-xs w-full justify-center gap-1"
+              >
+                <AlertCircle className="h-3 w-3" />
+                Not Validated
+              </Badge>
+            )}
           </div>
         </div>
       </SidebarFooter>

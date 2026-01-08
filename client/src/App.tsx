@@ -18,6 +18,8 @@ import KeywordGapReport from "@/pages/keyword-gap-report";
 import VersionHistory from "@/pages/version-history";
 import MarketDemand from "@/pages/market-demand";
 import { ModuleShell } from "@/pages/module-shell";
+import BrandsPage from "@/pages/brands";
+import ModuleCenterPage from "@/pages/module-center";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -34,12 +36,10 @@ import { Link } from "wouter";
 import { MobileNav } from "@/components/mobile-nav";
 import { BrandProvider } from "@/contexts/brand-context";
 import GapComplianceReport from "./pages/gap-compliance-report.md?raw";
-import RemediationPlan from "../../remediation-plan.md?raw";
 import ReactMarkdown from "react-markdown";
 
 function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
-  const [showPlan, setShowPlan] = useState(false);
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden">
@@ -51,13 +51,6 @@ function GapReportPage() {
               Configurations
             </Button>
           </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowPlan(!showPlan)}
-          >
-            {showPlan ? "View Gap Analysis" : "View Remediation Plan"}
-          </Button>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -69,7 +62,7 @@ function GapReportPage() {
       </header>
       <main className="flex-1 overflow-auto p-8">
         <div className="mx-auto max-w-4xl prose dark:prose-invert">
-          <ReactMarkdown>{showPlan ? RemediationPlan : GapComplianceReport}</ReactMarkdown>
+          <ReactMarkdown>{GapComplianceReport}</ReactMarkdown>
         </div>
       </main>
     </div>
@@ -604,6 +597,118 @@ function MarketDemandLayout() {
   );
 }
 
+function BrandsLayout() {
+  const { user, logout, isLoggingOut } = useAuth();
+
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+      <div className="flex h-screen w-full">
+        <AppSidebar
+          activeSection="brands"
+          onSectionChange={() => {}}
+          hasUnsavedChanges={false}
+          cmoSafe={false}
+        />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5 text-sm">
+                    <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
+          <main className="flex-1 overflow-hidden">
+            <BrandsPage />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function ModuleCenterLayout() {
+  const { user, logout, isLoggingOut } = useAuth();
+
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+      <div className="flex h-screen w-full">
+        <AppSidebar
+          activeSection="module-center"
+          onSectionChange={() => {}}
+          hasUnsavedChanges={false}
+          cmoSafe={false}
+        />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5 text-sm">
+                    <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
+          <main className="flex-1 overflow-hidden">
+            <ModuleCenterPage />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -619,6 +724,8 @@ function Router() {
       <Route path="/versions/:id" component={VersionHistoryLayout} />
       <Route path="/market-demand" component={MarketDemandLayout} />
       <Route path="/market-demand/:configId" component={MarketDemandLayout} />
+      <Route path="/brands" component={BrandsLayout} />
+      <Route path="/modules" component={ModuleCenterLayout} />
 
       {/* Dynamic Module Shell - The Future of All Modules */}
       <Route path="/modules/:moduleId">
