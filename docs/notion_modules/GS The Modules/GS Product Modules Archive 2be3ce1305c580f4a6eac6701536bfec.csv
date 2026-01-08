@@ -1,0 +1,14 @@
+﻿Module Name,Module ID,Description,Status 1,Status,Owner,Category
+01. CATEGORY DEMAND SIGNAL,,,Draft,R&D,Marek Gierat,
+02. BRAND ATTENTION & SHARE OF SEARCH,,,Draft,Idea,Rado Kmita,
+03. SEO VISIBILITY & GAP MAPPING,,,Draft,Idea,Rado Kmita,
+04. RETAIL AVAILABILITY & PRICING INTELLIGENCE,,,Draft,Idea,,
+05. DEMAND CAPTURE & EFFICIENCY,,,Draft,Idea,,
+06. STRATEGIC LEVERS & AI-AUGMENTED MOVES,,,Draft,Idea,,
+Keyword Gap & Visibility Overview,"seo.keyword_gap_visibility.v1
+","Identifies high-value keywords your brand is missing compared to top competitors. Pulls from Ahrefs’ Content Gap Report to surface SEO visibility gaps — especially for high-volume, low-competition keywords where others rank and you don’t. Prioritizes opportunities with commercial intent and missed traffic value.",Draft,Ready for Development,,SEO Signal
+"Market Demand & Seasonality Forecast
+ Market Demand & Seasonality Forecast",market.demand_seasonality.forecast,"Provide operators a real-time view of demand cycles across product categories to inform media timing, content prioritization, and market readiness.",Draft,Ready for Development,,
+"
+Category Demand Trend (5-Year)
+",market.category_demand_trend.v1,,Draft,Ready for Development,,

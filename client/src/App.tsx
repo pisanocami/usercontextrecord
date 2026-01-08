@@ -17,6 +17,7 @@ import KeywordGapList from "@/pages/keyword-gap-list";
 import KeywordGapReport from "@/pages/keyword-gap-report";
 import VersionHistory from "@/pages/version-history";
 import MarketDemand from "@/pages/market-demand";
+import { ModuleShell } from "@/pages/module-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,24 +40,24 @@ import ReactMarkdown from "react-markdown";
 function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
   const [showPlan, setShowPlan] = useState(false);
-  
+
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden">
       <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
         <div className="flex items-center gap-2">
-           <Link href="/">
+          <Link href="/">
             <Button variant="ghost" size="sm">
               <List className="h-4 w-4 mr-2" />
               Configurations
             </Button>
-           </Link>
-           <Button 
-            variant="outline" 
-            size="sm" 
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowPlan(!showPlan)}
-           >
-             {showPlan ? "View Gap Analysis" : "View Remediation Plan"}
-           </Button>
+          >
+            {showPlan ? "View Gap Analysis" : "View Remediation Plan"}
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -618,6 +619,27 @@ function Router() {
       <Route path="/versions/:id" component={VersionHistoryLayout} />
       <Route path="/market-demand" component={MarketDemandLayout} />
       <Route path="/market-demand/:configId" component={MarketDemandLayout} />
+
+      {/* Dynamic Module Shell - The Future of All Modules */}
+      <Route path="/modules/:moduleId">
+        {(params) => (
+          <SidebarProvider style={{ "--sidebar-width": "16rem", "--sidebar-width-icon": "3rem" } as React.CSSProperties} defaultOpen={false}>
+            <div className="flex h-screen w-full">
+              <AppSidebar activeSection={params.moduleId} onSectionChange={() => { }} />
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <header className="flex h-14 items-center gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+                  <SidebarTrigger />
+                  <div className="ml-auto flex items-center gap-2">
+                    <ThemeToggle />
+                  </div>
+                </header>
+                <ModuleShell />
+              </div>
+            </div>
+          </SidebarProvider>
+        )}
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );

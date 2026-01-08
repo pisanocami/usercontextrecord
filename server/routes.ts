@@ -15,6 +15,7 @@ import { validateConfiguration as validateConfigurationFull, type FullValidation
 import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES } from "@shared/module.contract";
 import { validateModuleExecution } from "./execution-gateway";
 import { marketDemandAnalyzer } from "./market-demand-analyzer";
+import { runModule } from "./module-runner";
 import { getAllTrendsProviderStatuses } from "./providers/trends-index";
 
 const openai = new OpenAI({
@@ -286,25 +287,25 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
     { name: "primary_goal", value: config.strategic_intent?.primary_goal },
     { name: "growth_priority", value: config.strategic_intent?.growth_priority },
   ];
-  
+
   // Category fence is critical for analysis readiness
   const categoryIncluded = config.category_definition?.included?.length || 0;
   const categoryExcluded = config.category_definition?.excluded?.length || 0;
   const hasCategoryFence = categoryIncluded > 0 && categoryExcluded > 0;
-  
+
   const filledRequired = requiredFields.filter(f => f.value && String(f.value).trim().length > 0);
   const missingFields = requiredFields.filter(f => !f.value || String(f.value).trim().length === 0).map(f => f.name);
-  
+
   // Base completeness from required fields
   let completeness = Math.round((filledRequired.length / requiredFields.length) * 100);
-  
+
   // Category fence bonus (critical for Keyword Gap)
   if (hasCategoryFence) {
     completeness = Math.min(100, completeness + 15);
   }
-  
-  breakdown.completeness_details = missingFields.length > 0 
-    ? `Missing: ${missingFields.join(", ")}${!hasCategoryFence ? "; Category fence incomplete" : ""}` 
+
+  breakdown.completeness_details = missingFields.length > 0
+    ? `Missing: ${missingFields.join(", ")}${!hasCategoryFence ? "; Category fence incomplete" : ""}`
     : hasCategoryFence ? "All required fields complete, category fence defined" : "All required fields complete, category fence incomplete";
 
   // 2. Competitor Confidence Score (0-100)
@@ -312,7 +313,7 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
   const competitors = config.competitors?.competitors || [];
   const directCount = config.competitors?.direct?.length || 0;
   const totalCompetitors = competitors.length + directCount;
-  
+
   let competitorScore = 0;
   if (totalCompetitors >= 5) {
     competitorScore = 80;
@@ -328,7 +329,7 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
     const evidenceBonus = Math.round((competitorsWithEvidence / competitors.length) * 20);
     competitorScore = Math.min(100, competitorScore + evidenceBonus);
   }
-  
+
   breakdown.competitor_details = `${totalCompetitors} competitors defined, ${competitorsWithEvidence} with evidence packs`;
 
   // 3. Negative Strength Score (0-100)
@@ -343,7 +344,7 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
 
   const totalExclusions = Object.values(exclusionCounts).reduce((a, b) => a + b, 0);
   const exclusionTypesUsed = Object.values(exclusionCounts).filter(c => c > 0).length;
-  
+
   let negativeScore = 0;
   if (exclusionTypesUsed >= 3) {
     negativeScore = 80;
@@ -357,12 +358,12 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
   if (neg?.enforcement_rules?.hard_exclusion) {
     negativeScore = Math.min(100, negativeScore + 10);
   }
-  
+
   // Bonus for depth
   if (totalExclusions >= 10) {
     negativeScore = Math.min(100, negativeScore + 10);
   }
-  
+
   breakdown.negative_details = `${totalExclusions} exclusions across ${exclusionTypesUsed} types`;
 
   // 4. Evidence Coverage Score (0-100)
@@ -372,7 +373,7 @@ function calculateQualityScore(config: InsertConfiguration): ContextQualityScore
     const withEvidence = competitors.filter(c => c.evidence?.why_selected).length;
     const withKeywords = competitors.filter(c => c.evidence?.top_overlap_keywords?.length > 0).length;
     const withExamples = competitors.filter(c => c.evidence?.serp_examples?.length > 0).length;
-    
+
     evidenceScore = Math.round(((withEvidence + withKeywords + withExamples) / (competitors.length * 3)) * 100);
     breakdown.evidence_details = `Evidence: ${withEvidence}/${competitors.length}, Keywords: ${withKeywords}/${competitors.length}, Examples: ${withExamples}/${competitors.length}`;
   } else if (directCount > 0) {
@@ -486,21 +487,21 @@ Return a complete JSON object with ALL sections filled.`;
   }
 
   const generated = JSON.parse(content);
-  
+
   // Use Gemini with Google Search grounding to find REAL competitors
   console.log(`[Config Gen] Searching real competitors for ${domain} with Gemini + Google Search...`);
   const geminiCompetitors = await searchCompetitorsWithGemini(domain, brandName, primaryCategory);
-  
+
   // Merge Gemini's search results with GPT-4o's suggestions, preferring Gemini
   const hasGeminiResults = geminiCompetitors.competitors_list.length > 0;
   const competitorData = hasGeminiResults ? geminiCompetitors : generated.competitors;
-  
+
   if (hasGeminiResults) {
     console.log(`[Config Gen] Using ${geminiCompetitors.competitors_list.length} competitors from Gemini web search`);
   } else {
     console.log(`[Config Gen] Gemini search returned no results, falling back to GPT-4o suggestions`);
   }
-  
+
   const today = new Date().toISOString().split("T")[0];
   const validUntil = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -667,13 +668,13 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
   // Setup authentication FIRST
   await setupAuth(app);
   registerAuthRoutes(app);
 
   // ============ BRAND API ROUTES ============
-  
+
   // Get all brands for user
   app.get("/api/brands", async (req: any, res) => {
     try {
@@ -694,12 +695,12 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid brand ID" });
       }
-      
+
       const brand = await storage.getBrandById(id, userId);
       if (!brand) {
         return res.status(404).json({ error: "Brand not found" });
       }
-      
+
       res.json(brand);
     } catch (error) {
       console.error("Error fetching brand:", error);
@@ -712,13 +713,13 @@ export async function registerRoutes(
     try {
       const userId = "anonymous-user";
       const { domain, name, industry, business_model, primary_geography, revenue_band, target_market } = req.body;
-      
+
       if (!domain || typeof domain !== "string" || domain.trim().length === 0) {
         return res.status(400).json({ error: "Domain is required" });
       }
-      
+
       const normalizedDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
-      
+
       // Check if brand with this domain already exists - if so, update it
       const existing = await storage.getBrandByDomain(userId, normalizedDomain);
       if (existing) {
@@ -733,7 +734,7 @@ export async function registerRoutes(
         });
         return res.status(200).json({ ...updated, updated: true });
       }
-      
+
       const brand = await storage.createBrand(userId, {
         domain: normalizedDomain,
         name: name || "",
@@ -743,7 +744,7 @@ export async function registerRoutes(
         revenue_band: revenue_band || "",
         target_market: target_market || "",
       });
-      
+
       res.status(201).json(brand);
     } catch (error) {
       console.error("Error creating/updating brand:", error);
@@ -759,7 +760,7 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid brand ID" });
       }
-      
+
       const brand = await storage.updateBrand(id, userId, req.body);
       res.json(brand);
     } catch (error) {
@@ -776,7 +777,7 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid brand ID" });
       }
-      
+
       await storage.deleteBrand(id, userId);
       res.status(204).send();
     } catch (error) {
@@ -793,7 +794,7 @@ export async function registerRoutes(
       if (isNaN(brandId)) {
         return res.status(400).json({ error: "Invalid brand ID" });
       }
-      
+
       const configs = await storage.getConfigurationsByBrand(brandId, userId);
       res.json(configs);
     } catch (error) {
@@ -803,19 +804,19 @@ export async function registerRoutes(
   });
 
   // ============ CONFIGURATION API ROUTES ============
-  
+
   // Get current configuration (bypass auth)
   app.get("/api/configuration", async (req: any, res) => {
     try {
       const userId = "anonymous-user";
-      
+
       let config = await storage.getConfiguration(userId);
-      
+
       // If no configuration exists, create a default one
       if (!config) {
         config = await storage.saveConfiguration(userId, defaultConfiguration);
       }
-      
+
       res.json(config);
     } catch (error) {
       console.error("Error fetching configuration:", error);
@@ -827,14 +828,14 @@ export async function registerRoutes(
   app.post("/api/configuration", async (req: any, res) => {
     try {
       const userId = "anonymous-user";
-      
+
       const result = insertConfigurationSchema.safeParse(req.body);
-      
+
       if (!result.success) {
         const validationError = fromZodError(result.error);
         return res.status(400).json({ error: validationError.message });
       }
-      
+
       const config = await storage.saveConfiguration(userId, result.data);
       res.json(config);
     } catch (error) {
@@ -863,12 +864,12 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       const config = await storage.getConfigurationById(id, userId);
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
       }
-      
+
       res.json(config);
     } catch (error) {
       console.error("Error fetching configuration:", error);
@@ -880,42 +881,42 @@ export async function registerRoutes(
   app.post("/api/configurations", async (req: any, res) => {
     try {
       const userId = "anonymous-user";
-      
+
       const result = insertConfigurationSchema.safeParse(req.body);
-      
+
       if (!result.success) {
         const validationError = fromZodError(result.error);
         return res.status(400).json({ error: validationError.message });
       }
-      
+
       // Auto-generate name from domain if not provided
       const configData = {
         ...result.data,
         name: result.data.name?.trim() || generateNameFromDomain(result.data.brand?.domain || ""),
       };
-      
+
       const validation = validateConfiguration(configData);
-      
+
       if (!validation.isValid) {
-        return res.status(422).json({ 
-          error: "Fail-closed validation failed", 
+        return res.status(422).json({
+          error: "Fail-closed validation failed",
           blockedReasons: validation.blockedReasons,
-          status: validation.status 
+          status: validation.status
         });
       }
-      
+
       const contextHash = generateContextHash(configData);
       const qualityScore = calculateQualityScore(configData);
-      
+
       // Determine if human review is required based on quality score
       const aiBehavior = configData.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
       const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
       const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
-      
+
       // Check if a configuration with this domain already exists
       const domain = configData.brand?.domain;
       const existingConfig = domain ? await storage.getConfigurationByDomain(userId, domain) : null;
-      
+
       if (existingConfig) {
         // Update existing configuration - increment context version
         const existingVersion = (existingConfig.governance?.context_version as number) || 1;
@@ -935,16 +936,16 @@ export async function registerRoutes(
             },
           },
         };
-        
+
         const updated = await storage.updateConfiguration(
-          existingConfig.id, 
-          userId, 
-          configWithValidation, 
+          existingConfig.id,
+          userId,
+          configWithValidation,
           "Auto-update via context generation"
         );
         return res.json({ ...updated, updated: true });
       }
-      
+
       const configWithValidation = {
         ...configData,
         governance: {
@@ -961,7 +962,7 @@ export async function registerRoutes(
           },
         },
       };
-      
+
       const config = await storage.createConfiguration(userId, configWithValidation);
       res.json(config);
     } catch (error) {
@@ -978,46 +979,46 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       const { editReason, ...configData } = req.body;
-      
+
       if (!editReason || typeof editReason !== "string" || editReason.trim().length < 5) {
         return res.status(400).json({ error: "Edit reason is required (minimum 5 characters)" });
       }
-      
+
       const result = insertConfigurationSchema.safeParse(configData);
-      
+
       if (!result.success) {
         const validationError = fromZodError(result.error);
         return res.status(400).json({ error: validationError.message });
       }
-      
+
       const validation = validateConfiguration(result.data);
-      
+
       if (!validation.isValid) {
-        return res.status(422).json({ 
-          error: "Fail-closed validation failed", 
+        return res.status(422).json({
+          error: "Fail-closed validation failed",
           blockedReasons: validation.blockedReasons,
-          status: validation.status 
+          status: validation.status
         });
       }
-      
+
       const existingConfig = await storage.getConfigurationById(id, userId);
       if (!existingConfig) {
         return res.status(404).json({ error: "Configuration not found" });
       }
-      
+
       await storage.createConfigurationVersion(id, userId, editReason.trim());
-      
+
       const currentVersion = existingConfig?.governance?.context_version || 0;
       const contextHash = generateContextHash(result.data);
       const qualityScore = calculateQualityScore(result.data);
-      
+
       // Determine if human review is required based on quality score
       const aiBehavior = result.data.governance?.ai_behavior || defaultConfiguration.governance.ai_behavior;
       const requiresHumanReview = qualityScore.overall < (aiBehavior?.require_human_below || 50);
       const autoApproved = qualityScore.overall >= (aiBehavior?.auto_approve_threshold || 80);
-      
+
       const configWithValidation = {
         ...result.data,
         governance: {
@@ -1034,7 +1035,7 @@ export async function registerRoutes(
           },
         },
       };
-      
+
       const config = await storage.updateConfiguration(id, userId, configWithValidation, editReason.trim());
       res.json(config);
     } catch (error) {
@@ -1051,7 +1052,7 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       await storage.deleteConfiguration(id, userId);
       res.json({ success: true });
     } catch (error) {
@@ -1068,35 +1069,35 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       const { section, status, rejected_reason } = req.body;
-      
+
       const validSections = [
         "brand_identity", "category_definition", "competitive_set",
         "demand_definition", "strategic_intent", "channel_context", "negative_scope"
       ];
-      
+
       if (!section || !validSections.includes(section)) {
         return res.status(400).json({ error: `Invalid section. Must be one of: ${validSections.join(", ")}` });
       }
-      
+
       const validStatuses = ["pending", "approved", "rejected", "ai_generated"];
       if (!status || !validStatuses.includes(status)) {
         return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
       }
-      
+
       if (status === "rejected" && (!rejected_reason || rejected_reason.trim().length < 5)) {
         return res.status(400).json({ error: "Rejection reason is required (minimum 5 characters)" });
       }
-      
+
       const existingConfig = await storage.getConfigurationById(id, userId);
       if (!existingConfig) {
         return res.status(404).json({ error: "Configuration not found" });
       }
-      
+
       const now = new Date().toISOString();
       const sectionApprovals = existingConfig.governance?.section_approvals || {};
-      
+
       const updatedApproval = {
         status,
         ...(status === "approved" ? { approved_at: now, approved_by: userId } : {}),
@@ -1104,25 +1105,25 @@ export async function registerRoutes(
         last_edited_at: now,
         last_edited_by: userId,
       };
-      
+
       const updatedSectionApprovals = {
         ...sectionApprovals,
         [section]: updatedApproval,
       };
-      
+
       const updatedGovernance = {
         ...existingConfig.governance,
         section_approvals: updatedSectionApprovals,
       };
-      
+
       const { id: _, created_at, updated_at, ...configWithoutMeta } = existingConfig as any;
       const updatedConfig = await storage.updateConfiguration(
-        id, 
-        userId, 
+        id,
+        userId,
         { ...configWithoutMeta, governance: updatedGovernance },
         `Section approval: ${section} set to ${status}`
       );
-      
+
       res.json(updatedConfig);
     } catch (error) {
       console.error("Error updating section approval:", error);
@@ -1138,21 +1139,21 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       const { status, reason } = req.body;
-      
+
       const validStatuses = ["DRAFT_AI", "AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"];
       if (!status || !validStatuses.includes(status)) {
         return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
       }
-      
+
       const existingConfig = await storage.getConfigurationById(id, userId);
       if (!existingConfig) {
         return res.status(404).json({ error: "Configuration not found" });
       }
-      
+
       const currentStatus = existingConfig.governance?.context_status || "DRAFT_AI";
-      
+
       // Define valid state transitions
       const validTransitions: Record<string, string[]> = {
         "DRAFT_AI": ["AI_READY"],
@@ -1161,44 +1162,44 @@ export async function registerRoutes(
         "HUMAN_CONFIRMED": ["AI_ANALYSIS_RUN", "LOCKED"],
         "LOCKED": [], // LOCKED is terminal, cannot transition
       };
-      
+
       if (currentStatus === "LOCKED") {
-        return res.status(400).json({ 
-          error: "Context is LOCKED and cannot be modified. Create a new version to make changes." 
+        return res.status(400).json({
+          error: "Context is LOCKED and cannot be modified. Create a new version to make changes."
         });
       }
-      
+
       if (!validTransitions[currentStatus]?.includes(status)) {
-        return res.status(400).json({ 
-          error: `Invalid transition: ${currentStatus} → ${status}. Valid transitions: ${validTransitions[currentStatus]?.join(", ") || "none"}` 
+        return res.status(400).json({
+          error: `Invalid transition: ${currentStatus} → ${status}. Valid transitions: ${validTransitions[currentStatus]?.join(", ") || "none"}`
         });
       }
-      
+
       // Validate requirements for certain transitions
       if (status === "AI_READY") {
         const validation = validateConfiguration(existingConfig as any);
         if (!validation.isValid) {
-          return res.status(400).json({ 
-            error: "Cannot transition to AI_READY: validation failed", 
-            blockedReasons: validation.blockedReasons 
+          return res.status(400).json({
+            error: "Cannot transition to AI_READY: validation failed",
+            blockedReasons: validation.blockedReasons
           });
         }
       }
-      
+
       if (status === "HUMAN_CONFIRMED") {
         // Check if all sections are approved
         const sectionApprovals = existingConfig.governance?.section_approvals || {};
         const pendingSections = Object.entries(sectionApprovals)
           .filter(([_, approval]: [string, any]) => approval.status !== "approved")
           .map(([section]) => section);
-        
+
         if (pendingSections.length > 0) {
-          return res.status(400).json({ 
-            error: `Cannot confirm: sections not approved: ${pendingSections.join(", ")}` 
+          return res.status(400).json({
+            error: `Cannot confirm: sections not approved: ${pendingSections.join(", ")}`
           });
         }
       }
-      
+
       const now = new Date().toISOString();
       const updatedGovernance = {
         ...existingConfig.governance,
@@ -1207,15 +1208,15 @@ export async function registerRoutes(
         ...(status === "HUMAN_CONFIRMED" ? { human_verified: true, adopted_at: now } : {}),
         ...(status === "AI_ANALYSIS_RUN" ? { analysis_run_at: now } : {}),
       };
-      
+
       const { id: _, created_at, updated_at, ...configWithoutMeta } = existingConfig as any;
       const updatedConfig = await storage.updateConfiguration(
-        id, 
-        userId, 
+        id,
+        userId,
         { ...configWithoutMeta, governance: updatedGovernance },
         reason || `Status transition: ${currentStatus} → ${status}`
       );
-      
+
       res.json(updatedConfig);
     } catch (error) {
       console.error("Error updating context status:", error);
@@ -1231,12 +1232,12 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       const existingConfig = await storage.getConfigurationById(id, userId);
       if (!existingConfig) {
         return res.status(404).json({ error: "Configuration not found" });
       }
-      
+
       const validationResult = validateConfigurationFull({
         brand: existingConfig.brand,
         category_definition: existingConfig.category_definition,
@@ -1247,7 +1248,7 @@ export async function registerRoutes(
         negative_scope: existingConfig.negative_scope,
         governance: existingConfig.governance,
       });
-      
+
       res.json({
         configuration_id: id,
         current_status: existingConfig.governance?.context_status || "DRAFT_AI",
@@ -1267,7 +1268,7 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       const versions = await storage.getConfigurationVersions(id, userId);
       res.json(versions);
     } catch (error: any) {
@@ -1287,7 +1288,7 @@ export async function registerRoutes(
       if (isNaN(versionId)) {
         return res.status(400).json({ error: "Invalid version ID" });
       }
-      
+
       const version = await storage.getConfigurationVersion(versionId, userId);
       if (!version) {
         return res.status(404).json({ error: "Version not found" });
@@ -1307,11 +1308,11 @@ export async function registerRoutes(
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid configuration ID" });
       }
-      
+
       const { changeSummary } = req.body;
       const version = await storage.createConfigurationVersion(
-        id, 
-        userId, 
+        id,
+        userId,
         changeSummary || "Manual snapshot"
       );
       res.json(version);
@@ -1332,7 +1333,7 @@ export async function registerRoutes(
       if (isNaN(versionId)) {
         return res.status(400).json({ error: "Invalid version ID" });
       }
-      
+
       const restored = await storage.restoreConfigurationVersion(versionId, userId);
       res.json(restored);
     } catch (error: any) {
@@ -1348,7 +1349,7 @@ export async function registerRoutes(
   app.post("/api/ai/generate", async (req: any, res: Response) => {
     try {
       const { section, context, currentData } = req.body;
-      
+
       if (!section) {
         return res.status(400).json({ error: "Section is required" });
       }
@@ -1365,28 +1366,28 @@ Be specific, actionable, and data-driven in your suggestions.`;
 - Primary geographies (as array of country codes)
 - Revenue band estimate
 Return JSON with keys: industry, business_model, primary_geography, revenue_band`,
-        
+
         category: `For a brand in the "${context?.industry || 'unknown'}" industry with business model "${context?.business_model || 'B2B'}":
 Suggest category definitions including:
 - Primary category
 - Included subcategories (array)
 - Excluded categories (array)
 Return JSON with keys: primary_category, included, excluded`,
-        
+
         competitors: `For a brand named "${context?.name || 'unknown'}" in the "${context?.industry || 'unknown'}" industry:
 Identify potential competitors in three tiers with reasons:
 - Direct competitors (array of objects with "name", "domain", and "why" - explain why they are a competitor)
 - Indirect competitors (array of objects with "name", "domain", and "why")
 - Marketplace competitors (array of objects with "name", "domain", and "why")
 Return JSON with keys: direct, indirect, marketplaces. Each entry must have "name", "domain" (e.g. "competitor.com"), and "why" (brief explanation of competitive relationship).`,
-        
+
         demand: `For a "${context?.business_model || 'B2B'}" brand in "${context?.industry || 'unknown'}":
 Suggest keyword strategies:
 - Brand keywords seed terms (array)
 - Category terms for non-brand keywords (array)
 - Problem terms that customers search for (array)
 Return JSON with keys: brand_keywords.seed_terms, non_brand_keywords.category_terms, non_brand_keywords.problem_terms`,
-        
+
         strategic: `For a brand with the following context:
 - Industry: ${context?.industry || 'unknown'}
 - Business Model: ${context?.business_model || 'B2B'}
@@ -1398,21 +1399,21 @@ Suggest strategic intent:
 - Secondary goals (array)
 - Things to avoid (array)
 Return JSON with keys: growth_priority, risk_tolerance, primary_goal, secondary_goals, avoid`,
-        
+
         channel: `Based on the business model "${context?.business_model || 'B2B'}" and industry "${context?.industry || 'unknown'}":
 Recommend channel context settings:
 - Should paid media be active? (boolean)
 - SEO investment level (low, medium, high)
 - Marketplace dependence level (low, medium, high)
 Return JSON with keys: paid_media_active, seo_investment_level, marketplace_dependence`,
-        
+
         channels: `Based on the business model "${context?.business_model || 'B2B'}" and industry "${context?.industry || 'unknown'}":
 Recommend channel context settings:
 - Should paid media be active? (boolean)
 - SEO investment level (low, medium, high)
 - Marketplace dependence level (low, medium, high)
 Return JSON with keys: paid_media_active, seo_investment_level, marketplace_dependence`,
-        
+
         negative: `For a "${context?.business_model || 'B2B'}" company in "${context?.industry || 'unknown'}":
 Suggest negative scope exclusions:
 - Categories to exclude (array)
@@ -1459,9 +1460,9 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
       } catch (parseError) {
         console.error("JSON parse error, raw content:", content.substring(0, 500));
         // Return partial suggestions if possible
-        res.status(500).json({ 
-          error: "AI returned invalid JSON format", 
-          partial_content: content.substring(0, 200) 
+        res.status(500).json({
+          error: "AI returned invalid JSON format",
+          partial_content: content.substring(0, 200)
         });
       }
     } catch (error) {
@@ -1474,7 +1475,7 @@ Return JSON with keys: excluded_categories, excluded_keywords, excluded_use_case
   app.post("/api/ai/generate-complete", async (req: any, res: Response) => {
     try {
       const { domain, name, primaryCategory } = req.body;
-      
+
       if (!domain || !primaryCategory) {
         return res.status(400).json({ error: "Domain and primary category are required" });
       }
@@ -1576,7 +1577,7 @@ IMPORTANT:
     try {
       const userId = "anonymous-user";
       const result = bulkJobRequestSchema.safeParse(req.body);
-      
+
       if (!result.success) {
         const validationError = fromZodError(result.error);
         return res.status(400).json({ error: validationError.message });
@@ -1614,7 +1615,7 @@ IMPORTANT:
     try {
       const jobId = parseInt(req.params.id);
       const job = await storage.getBulkJob(jobId);
-      
+
       if (!job) {
         return res.status(404).json({ error: "Job not found" });
       }
@@ -1697,8 +1698,8 @@ IMPORTANT:
         "Context approved by user"
       );
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         approved_at: updatedGovernance.context_approved_at,
         message: "Context approved successfully"
       });
@@ -1713,7 +1714,7 @@ IMPORTANT:
     try {
       const includeAll = req.query.all === 'true';
       const modules = includeAll ? getAllModules() : getActiveModules();
-      res.json({ 
+      res.json({
         modules: modules.map(m => ({
           ...m,
           requiredSectionNames: m.requiredSections.map(s => ({ section: s, name: UCR_SECTION_NAMES[s] })),
@@ -1729,12 +1730,12 @@ IMPORTANT:
     try {
       const { moduleId, configId } = req.params;
       const userId = (req.user as any)?.id || null;
-      
+
       const config = await storage.getConfigurationById(parseInt(configId, 10), userId);
       if (!config) {
         return res.status(404).json({ error: "Configuration not found" });
       }
-      
+
       const validation = validateModuleExecution(moduleId, config as any);
       res.json(validation);
     } catch (error: any) {
@@ -1754,8 +1755,8 @@ IMPORTANT:
   app.post("/api/keyword-gap/analyze", async (req: any, res) => {
     try {
       if (!checkCredentialsConfigured()) {
-        return res.status(503).json({ 
-          error: "DataForSEO credentials not configured. Please set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD." 
+        return res.status(503).json({
+          error: "DataForSEO credentials not configured. Please set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD."
         });
       }
 
@@ -1810,8 +1811,8 @@ IMPORTANT:
   app.post("/api/keyword-gap/compare-all", async (req: any, res) => {
     try {
       if (!checkCredentialsConfigured()) {
-        return res.status(503).json({ 
-          error: "DataForSEO credentials not configured." 
+        return res.status(503).json({
+          error: "DataForSEO credentials not configured."
         });
       }
 
@@ -1872,7 +1873,7 @@ IMPORTANT:
       );
 
       const aggregatedGapKeywords = new Map<string, { keyword: string; count: number; totalVolume: number }>();
-      
+
       results.forEach((r) => {
         if (r.success && r.result) {
           r.result.gap_keywords.forEach((kw) => {
@@ -1916,10 +1917,10 @@ IMPORTANT:
 
   app.post("/api/keyword-gap-lite/run", async (req: any, res) => {
     try {
-      const { 
-        configurationId, 
-        limitPerDomain = 200, 
-        locationCode = 2840, 
+      const {
+        configurationId,
+        limitPerDomain = 200,
+        locationCode = 2840,
         languageCode = "en",
         maxCompetitors = 5,
         provider = "dataforseo" as ProviderType,
@@ -1927,9 +1928,9 @@ IMPORTANT:
       } = req.body;
 
       const selectedProvider = getProvider(provider);
-      
+
       if (!selectedProvider.isConfigured()) {
-        return res.status(503).json({ 
+        return res.status(503).json({
           error: `${selectedProvider.displayName} credentials not configured.`,
           configured: false,
           provider: provider,
@@ -1964,7 +1965,7 @@ IMPORTANT:
         created_at: config.created_at.toISOString(),
         updated_at: config.updated_at.toISOString(),
       };
-      
+
       const result = await computeKeywordGap(configForAnalysis, {
         limitPerDomain,
         locationCode,
@@ -2065,13 +2066,13 @@ IMPORTANT:
     try {
       const userId = (req.user as any)?.id || "anonymous-user";
       const id = parseInt(req.params.id, 10);
-      
+
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid analysis ID" });
       }
 
       const analysis = await storage.getKeywordGapAnalysisById(id, userId);
-      
+
       if (!analysis) {
         return res.status(404).json({ error: "Analysis not found" });
       }
@@ -2088,7 +2089,7 @@ IMPORTANT:
     try {
       const userId = (req.user as any)?.id || "anonymous-user";
       const id = parseInt(req.params.id, 10);
-      
+
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid analysis ID" });
       }
@@ -2104,15 +2105,15 @@ IMPORTANT:
   app.post("/api/visibility-report", async (req: any, res) => {
     try {
       if (!checkCredentialsConfigured()) {
-        return res.status(503).json({ 
+        return res.status(503).json({
           error: "DataForSEO credentials not configured.",
           configured: false,
         });
       }
 
-      const { 
-        configurationId, 
-        limitPerDomain = 100, 
+      const {
+        configurationId,
+        limitPerDomain = 100,
         locationCode = 2840,
       } = req.body;
 
@@ -2148,12 +2149,12 @@ IMPORTANT:
         const top20 = keywords.filter(k => k.position && k.position <= 20).length;
         const top100 = keywords.filter(k => k.position && k.position <= 100).length;
         const notRanking = keywords.filter(k => !k.position || k.position > 100).length;
-        
+
         const rankedKeywords = keywords.filter(k => k.position && k.position <= 100);
-        const avgPosition = rankedKeywords.length > 0 
-          ? rankedKeywords.reduce((sum, k) => sum + (k.position || 0), 0) / rankedKeywords.length 
+        const avgPosition = rankedKeywords.length > 0
+          ? rankedKeywords.reduce((sum, k) => sum + (k.position || 0), 0) / rankedKeywords.length
           : 0;
-        
+
         const visibilityScore = Math.round(
           ((top3 * 100) + (top10 * 50) + (top20 * 20) + (top100 * 5)) / Math.max(keywords.length, 1)
         );
@@ -2190,8 +2191,8 @@ IMPORTANT:
         })
       );
 
-      const allKeywords = new Map<string, { 
-        keyword: string; 
+      const allKeywords = new Map<string, {
+        keyword: string;
         searchVolume: number;
         brandPosition: number | null;
         competitorPositions: { domain: string; position: number | null }[];
@@ -2284,7 +2285,7 @@ IMPORTANT:
           totalKeywordsAnalyzed: keywordAnalysis.length,
           brandAdvantage,
           competitorAdvantage,
-          sharedKeywords: keywordAnalysis.filter(k => 
+          sharedKeywords: keywordAnalysis.filter(k =>
             k.brandPosition !== null && k.competitorPositions.some(p => p.position !== null)
           ).length,
           uniqueOpportunities: keywordAnalysis.filter(k => k.opportunity === "high").length,
@@ -2552,7 +2553,7 @@ IMPORTANT:
 
         const rawPeakMonth = results.seasonality?.peakWindow?.months?.[0] || null;
         peakMonth = normalizeMonth(rawPeakMonth);
-        
+
         if (results.seasonality?.declinePhase?.start) {
           try {
             const declineDate = new Date(results.seasonality.declinePhase.start);
@@ -2563,7 +2564,7 @@ IMPORTANT:
             lowMonth = null;
           }
         }
-        
+
         seasonalityType = results.seasonality?.yoyConsistency || null;
         yoyTrend = results.yoyAnalysis?.consistency || null;
         totalKeywords = results.demandCurves?.length || 0;
@@ -2607,13 +2608,13 @@ IMPORTANT:
     try {
       const userId = (req.user as any)?.id || "anonymous-user";
       const id = parseInt(req.params.id, 10);
-      
+
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid analysis ID" });
       }
 
       const analysis = await storage.getMarketDemandAnalysisById(id, userId);
-      
+
       if (!analysis) {
         return res.status(404).json({ error: "Analysis not found" });
       }
@@ -2630,7 +2631,7 @@ IMPORTANT:
     try {
       const userId = (req.user as any)?.id || "anonymous-user";
       const id = parseInt(req.params.id, 10);
-      
+
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid analysis ID" });
       }
@@ -2640,6 +2641,39 @@ IMPORTANT:
     } catch (error: any) {
       console.error("Error deleting market demand analysis:", error);
       res.status(500).json({ error: error.message || "Failed to delete analysis" });
+    }
+  });
+
+  // ==================== GENERIC MODULE RUNNER ====================
+
+  app.post("/api/modules/:moduleId/run", async (req: any, res) => {
+    try {
+      const moduleId = req.params.moduleId;
+      const { configId, inputs } = req.body;
+      const userId = (req.user as any)?.id || "anonymous-user";
+
+      if (!configId) {
+        return res.status(400).json({ error: "configId is required" });
+      }
+
+      // 1. Ownership Check (Implicit in storage.getConfiguration via wrapper, but explicit usage here)
+      // Note: runModule fetches config. We might want to pass userId down to ensure ownership.
+      // For now, we assume if you have the ID you can run it (MVP).
+
+      const result = await runModule(moduleId, configId, inputs || {});
+
+      if (!result.success) {
+        // Gates failed or logic errored
+        return res.status(400).json(result);
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      console.error(`Error executing module ${req.params.moduleId}:`, error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Unknown execution error"
+      });
     }
   });
 
@@ -2669,7 +2703,7 @@ async function processBulkJob(
         );
         results.push(config);
         completed++;
-        
+
         await storage.updateBulkJob(jobId, {
           completedBrands: completed,
           results: results,
@@ -2680,7 +2714,7 @@ async function processBulkJob(
           domain: brand.domain,
           error: error.message || "Unknown error",
         });
-        
+
         await storage.updateBulkJob(jobId, {
           failedBrands: failed,
           errors: errors,

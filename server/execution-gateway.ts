@@ -6,7 +6,7 @@
  * Ensures auditability and reproducibility.
  */
 
-import { 
+import {
   UCR_SECTION_NAMES,
   getModuleDefinition,
   canModuleExecute,
@@ -53,23 +53,23 @@ export interface ModuleOutputWrapper<T> {
  */
 function getAvailableSections(config: Configuration): UCRSection[] {
   const sections: UCRSection[] = [];
-  
+
   // A - Brand Context (domain is required minimum)
   if (config.brand?.domain) {
     sections.push('A');
   }
-  
+
   // B - Category Definition
   if (config.category_definition?.primary_category) {
     sections.push('B');
   }
-  
+
   // C - Competitive Set
   const competitors = config.competitors?.competitors;
   if (competitors && Array.isArray(competitors) && competitors.length > 0) {
     sections.push('C');
   }
-  
+
   // D - Demand Definition (has brand_keywords or non_brand_keywords defined)
   const demand = config.demand_definition;
   if (
@@ -78,19 +78,19 @@ function getAvailableSections(config: Configuration): UCRSection[] {
   ) {
     sections.push('D');
   }
-  
+
   // E - Strategic Intent (has growth_priority, risk_tolerance, or primary_goal)
   const strategic = config.strategic_intent;
   if (strategic?.growth_priority || strategic?.risk_tolerance || strategic?.primary_goal) {
     sections.push('E');
   }
-  
+
   // F - Channel Context (has paid_media_active, seo_investment_level, or marketplace_dependence)
   const channels = config.channel_context;
   if (channels?.seo_investment_level || channels?.marketplace_dependence || channels?.paid_media_active !== undefined) {
     sections.push('F');
   }
-  
+
   // G - Negative Scope
   const negative = config.negative_scope;
   if (
@@ -100,10 +100,10 @@ function getAvailableSections(config: Configuration): UCRSection[] {
   ) {
     sections.push('G');
   }
-  
+
   // H - Governance (check governance fields + top-level scoring_config/capability_model)
   const governance = config.governance;
-  const hasGovernanceConfig = 
+  const hasGovernanceConfig =
     governance?.context_confidence ||
     governance?.cmo_safe !== undefined ||
     config.scoring_config ||
@@ -111,7 +111,7 @@ function getAvailableSections(config: Configuration): UCRSection[] {
   if (hasGovernanceConfig) {
     sections.push('H');
   }
-  
+
   return sections;
 }
 
@@ -119,8 +119,8 @@ function getAvailableSections(config: Configuration): UCRSection[] {
  * Generates a UCR version string from configuration
  */
 function generateUCRVersion(config: Configuration): string {
-  const timestamp = config.updated_at 
-    ? new Date(config.updated_at).getTime() 
+  const timestamp = config.updated_at
+    ? new Date(config.updated_at).getTime()
     : Date.now();
   return `v${config.id}-${timestamp.toString(36)}`;
 }
@@ -133,7 +133,7 @@ export function validateModuleExecution(
   config: Configuration
 ): UCRValidationResult {
   const module = getModuleDefinition(moduleId);
-  
+
   if (!module) {
     return {
       isValid: false,
@@ -146,16 +146,16 @@ export function validateModuleExecution(
       ucrVersion: ''
     };
   }
-  
+
   const availableSections = getAvailableSections(config);
   const { canExecute, missingSections, warnings } = canModuleExecute(moduleId, availableSections);
-  
+
   const missingDetails = missingSections.map(section => ({
     section,
     name: UCR_SECTION_NAMES[section],
     role: getSectionRole(section)
   }));
-  
+
   return {
     isValid: canExecute,
     moduleId,
@@ -246,5 +246,74 @@ export const RULES = {
   STRATEGIC_AGGRESSIVE: 'strategic.aggressive_posture',
   STRATEGIC_CONSERVATIVE: 'strategic.conservative_posture',
   CHANNEL_SEO_WEIGHTED: 'channel.seo_weighted',
-  IRRELEVANT_ENTITY: 'irrelevant_entity.detected'
+  IRRELEVANT_ENTITY: 'irrelevant_entity.detected',
+  G_HARD_EXCLUSION: 'G_HARD_EXCLUSION',
+  B_OUTSIDE_FENCE: 'B_OUTSIDE_FENCE'
 } as const;
+
+import type { Disposition, Severity, ItemTrace } from '@shared/module.contract';
+
+export interface GateEvaluationResult {
+  disposition: Disposition;
+  traces: ItemTrace[];
+}
+
+/**
+ * Standardize item evaluation through G->B->H order.
+ */
+export function evaluateGates(
+  text: string,
+  config: Configuration
+): GateEvaluationResult {
+  const traces: ItemTrace[] = [];
+  const normalized = text.toLowerCase().trim();
+
+  // 1. GATE G: Negative Scope (Hard Gate)
+  const negative = config.negative_scope;
+  if (negative?.excluded_keywords?.some(kw => normalized.includes(kw.toLowerCase()))) {
+    const trace: ItemTrace = {
+      ruleId: RULES.G_HARD_EXCLUSION,
+      ucrSection: 'G',
+      reason: 'Matched Section G keyword exclusion',
+      severity: 'critical',
+      evidence: text
+    };
+    return { disposition: 'OUT_OF_PLAY', traces: [trace] };
+  }
+
+  // 2. GATE B: Category Fence (Soft Gate)
+  const approved = config.category_definition?.approved_categories || [];
+  const inFence = approved.some(cat => normalized.includes(cat.toLowerCase()));
+
+  if (!inFence && approved.length > 0) {
+    traces.push({
+      ruleId: RULES.B_OUTSIDE_FENCE,
+      ucrSection: 'B',
+      reason: 'Item outside approved category fence',
+      severity: 'medium',
+      evidence: `Fence: ${approved.join(', ')}`
+    });
+    return { disposition: 'REVIEW', traces };
+  }
+
+  return { disposition: 'PASS', traces };
+}
+
+/**
+ * Applies strategic weighting to a score based on Section E
+ */
+export function applyStrategicWeighting(
+  baseScore: number,
+  config: Configuration,
+  goalType: string
+): number {
+  const intent = config.strategic_intent;
+  if (!intent) return baseScore;
+
+  let multiplier = 1.0;
+  if (intent.primary_goal === goalType) multiplier *= 1.3;
+  if (intent.risk_tolerance === 'low') multiplier *= 0.7;
+  if (intent.risk_tolerance === 'high') multiplier *= 1.5;
+
+  return baseScore * multiplier;
+}

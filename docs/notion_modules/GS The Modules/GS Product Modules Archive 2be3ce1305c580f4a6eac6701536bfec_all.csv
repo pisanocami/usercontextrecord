@@ -1,0 +1,15 @@
+﻿Module Name,Category,Data Source,Description,Input Requirements,"Last Updated ",Module ID,Output Format,Owner,Primary Output,Status,Status 1,Strategic Use Case
+01. CATEGORY DEMAND SIGNAL,,,,,,,,Marek Gierat,,R&D,Draft,
+02. BRAND ATTENTION & SHARE OF SEARCH,,,,,,,,Rado Kmita,,Idea,Draft,
+03. SEO VISIBILITY & GAP MAPPING,,,,,,,,Rado Kmita,,Idea,Draft,
+04. RETAIL AVAILABILITY & PRICING INTELLIGENCE,,,,,,,,,,Idea,Draft,
+05. DEMAND CAPTURE & EFFICIENCY,,,,,,,,,,Idea,Draft,
+06. STRATEGIC LEVERS & AI-AUGMENTED MOVES,,,,,,,,,,Idea,Draft,
+Keyword Gap & Visibility Overview,SEO Signal,Ahrefs,"Identifies high-value keywords your brand is missing compared to top competitors. Pulls from Ahrefs’ Content Gap Report to surface SEO visibility gaps — especially for high-volume, low-competition keywords where others rank and you don’t. Prioritizes opportunities with commercial intent and missed traffic value.",,10 de diciembre de 2025,"seo.keyword_gap_visibility.v1
+",,,"Bar Chart: Total Missing Traffic Value by CompetitorTable: Top 10 Keyword Opportunities (KW, Vol, CPC, Diff, Missed $)Summary Insight: “You rank for 37% of high-intent terms your competitors own. You’re missing $355K/mo in search value.”",Ready for Development,Draft,"Used by SEO leads, growth marketers, and VPs of Paid to identify under-monetized demand. Drives top-of-funnel content strategy, landing page buildouts, and paid search efficiency. Powers OS Drops, content briefs, and TOF investment plans.
+"
+"Market Demand & Seasonality Forecast
+ Market Demand & Seasonality Forecast",,,"Provide operators a real-time view of demand cycles across product categories to inform media timing, content prioritization, and market readiness.",,10 de diciembre de 2025,market.demand_seasonality.forecast,,,,Ready for Development,Draft,
+"
+Category Demand Trend (5-Year)
+",,,,,,market.category_demand_trend.v1,,,,Ready for Development,Draft,

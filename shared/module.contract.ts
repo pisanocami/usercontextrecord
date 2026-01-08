@@ -282,9 +282,9 @@ export function validateContractExecution(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const statusAllowed = ucrStatus !== null && 
+  const statusAllowed = ucrStatus !== null &&
     contract.executionGate.allowedStatuses.includes(ucrStatus);
-  
+
   if (!statusAllowed) {
     errors.push(
       `UCR status "${ucrStatus}" not allowed. Required: ${contract.executionGate.allowedStatuses.join(" or ")}`
@@ -294,7 +294,7 @@ export function validateContractExecution(
   const missingRequired = contract.contextInjection.requiredSections.filter(
     (s) => !availableSections.includes(s)
   );
-  
+
   if (missingRequired.length > 0) {
     errors.push(
       `Missing required UCR sections: ${missingRequired.map(s => `${s} (${UCR_SECTION_NAMES[s]})`).join(", ")}`
@@ -305,7 +305,7 @@ export function validateContractExecution(
   const missingOptional = optionalSections.filter(
     (s) => !availableSections.includes(s)
   );
-  
+
   if (missingOptional.length > 0) {
     if (contract.executionGate.allowMissingOptionalSections === false) {
       errors.push(
@@ -772,15 +772,544 @@ export const MarketDemandSeasonalityContract: ModuleContract = {
   }
 };
 
+export const ActionCardContract: ModuleContract = {
+  moduleId: "action.card_generator.v1",
+  name: "Action Cards", // 01
+  category: "Action",
+  layer: "Action",
+  version: "contract.v1",
+  description: "Translates Growth Signal insights into clear, discrete decisions grounded in Strategic Intent.",
+  strategicQuestion: "What should we actually DO about these insights?",
+  dataSources: ["Internal", "OpenAI"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "hybrid" },
+  caching: { cadence: "daily", bustOnChanges: ["governance", "market"] },
+  executionGate: { allowedStatuses: ["LOCKED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["E", "F", "H"],
+    optionalSections: ["G"],
+    sectionUsage: {
+      E: "Defines the 'Why' (Goal) and 'How' (Constraint).",
+      F: "Filters actions by active channels.",
+      H: "Provides the confidence/approval seal.",
+      G: "Hard exclusions for specific tactics."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "signals", type: "json", required: true, description: "Upstream signals to process." },
+      { name: "focus", type: "string", required: true, description: "awareness | roi | capture" }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason"], runTraceFields: ["rulesTriggered"] },
+  output: {
+    entityType: "action_card",
+    visuals: [{ kind: "card", title: "Recommended Actions" }],
+    summaryFields: ["total_actions", "high_priority_count"]
+  }
+};
+
+export const PriorityScoringContract: ModuleContract = {
+  moduleId: "action.priority_scoring.v1",
+  name: "Priority Scoring", // 02
+  category: "Action",
+  layer: "Action",
+  version: "contract.v1",
+  description: "Ranks opportunities using a weighted scoring model derived from Section E (Strategic Intent).",
+  strategicQuestion: "Which of these good ideas should we do FIRST?",
+  dataSources: ["Internal"],
+  riskProfile: { confidence: "high", riskIfWrong: "low", inferenceType: "internal" },
+  caching: { cadence: "daily", bustOnChanges: ["governance"] },
+  executionGate: { allowedStatuses: ["LOCKED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["E", "H"],
+    optionalSections: ["F"],
+    sectionUsage: {
+      E: "Provides weights for impact vs effort vs risk.",
+      H: "Quality multiplier.",
+      F: "Boosts actions in owned channels."
+    },
+    gates: { fenceMode: "none", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "actions", type: "json", required: true },
+      { name: "strategicIntent", type: "json", required: true }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason"], runTraceFields: [] },
+  output: {
+    entityType: "scored_list",
+    visuals: [{ kind: "table", title: "Ranked Priorities" }],
+    summaryFields: ["top_action", "consensus_score"]
+  }
+};
+
+export const BrandedDemandContract: ModuleContract = {
+  moduleId: "signal.branded_demand.v1",
+  name: "Branded vs Non-Branded", // 03 (Branded Demand)
+  category: "Brand Signal",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Measures the ratio of demand you capture via Brand vs Generic terms.",
+  strategicQuestion: "Are we growing the brand, or just renting efficiency?",
+  dataSources: ["DataForSEO", "GoogleTrends"],
+  riskProfile: { confidence: "high", riskIfWrong: "low", inferenceType: "external" },
+  caching: { cadence: "weekly", bustOnChanges: ["category_scope"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["D", "C"],
+    optionalSections: ["B"],
+    sectionUsage: {
+      D: "Defines brand keyword seeds.",
+      C: "Competitor brand seeds.",
+      B: "Category context."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "keywords", type: "string[]", required: true },
+      { name: "brandSeeds", type: "string[]", required: true }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection"], runTraceFields: ["filtersApplied"] },
+  output: {
+    entityType: "demand_split",
+    visuals: [{ kind: "bar", title: "Brand vs Generic Split" }],
+    summaryFields: ["branded_share", "category_share"]
+  }
+};
+
+export const BreakoutTermsContract: ModuleContract = {
+  moduleId: "signal.breakout_terms.v1",
+  name: "Breakout Terms", // 04
+  category: "Market Trends",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Identifies new terms entering the category lexicon with high velocity.",
+  strategicQuestion: "What are customers talking about that we haven't heard of yet?",
+  dataSources: ["GoogleTrends", "DataForSEO"],
+  riskProfile: { confidence: "medium", riskIfWrong: "low", inferenceType: "external" },
+  caching: { cadence: "daily", bustOnChanges: ["category_scope"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["B", "G"],
+    optionalSections: ["C"],
+    sectionUsage: {
+      B: "Category fence to anchor discovery.",
+      G: "Immediate exclusion of irrelevant viral terms.",
+      C: "Check if competitors are ranking for these."
+    },
+    gates: { fenceMode: "hard", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "seedTerms", type: "string[]", required: true },
+      { name: "threshold", type: "number", required: false, default: 100 }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason"], runTraceFields: ["rulesTriggered"] },
+  output: {
+    entityType: "breakout_term",
+    visuals: [{ kind: "table", title: "Rising Terms" }],
+    summaryFields: ["total_breakouts", "top_velocity"]
+  }
+};
+export const CategoryVisibilityContract: ModuleContract = {
+  moduleId: "signal.category_visibility.v1",
+  name: "Category Visibility", // 05
+  category: "SEO Signal",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Benchmarks your visibility against the Category Fence vs. Competitors.",
+  strategicQuestion: "Are we visible where it matters?",
+  dataSources: ["DataForSEO"],
+  riskProfile: { confidence: "high", riskIfWrong: "medium", inferenceType: "external" },
+  caching: { cadence: "weekly", bustOnChanges: ["category_scope", "competitor_set"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["B", "C"],
+    optionalSections: ["G"],
+    sectionUsage: {
+      B: "Defines the universe of keywords.",
+      C: "Defines who we compare against.",
+      G: "Excludes irrelevant queries."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "category", type: "string", required: true },
+      { name: "competitors", type: "string[]", required: true }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection"], runTraceFields: [] },
+  output: {
+    entityType: "visibility_score",
+    visuals: [{ kind: "line", title: "Visibility Trend" }, { kind: "bar", title: "Share by Competitor" }],
+    summaryFields: ["visibility_score", "market_rank"]
+  }
+};
+
+export const CompetitorStrategyContract: ModuleContract = {
+  moduleId: "signal.competitor_strategy.v1",
+  name: "Competitor Strategy", // 06
+  category: "Market Intelligence",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Reverse-engineers competitor focus areas via landing page and ad changes.",
+  strategicQuestion: "Where are they placing their bets?",
+  dataSources: ["DataForSEO", "Internal"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "external" },
+  caching: { cadence: "weekly", bustOnChanges: ["competitor_set"] },
+  executionGate: { allowedStatuses: ["LOCKED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["C"],
+    optionalSections: ["B", "A"],
+    sectionUsage: {
+      C: "Target domains.",
+      B: "Filter findings to relevant categories.",
+      A: "Geo-restrict analysis."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "none" }
+  },
+  inputs: {
+    fields: [
+      { name: "domains", type: "string[]", required: true },
+      { name: "categoryTerms", type: "string[]", required: false }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection"], runTraceFields: ["filtersApplied"] },
+  output: {
+    entityType: "strategy_alert",
+    visuals: [{ kind: "card", title: "Strategic Moves" }],
+    summaryFields: ["moves_detected", "strategic_alignment"]
+  }
+};
+
+export const DeprioritizationContract: ModuleContract = {
+  moduleId: "action.deprioritization.v1",
+  name: "Deprioritization Flags", // 07
+  category: "Action",
+  layer: "Action",
+  version: "contract.v1",
+  description: "Flags proposed actions that conflict with Strategic Intent or Negative Scope.",
+  strategicQuestion: "What should we STOP doing?",
+  dataSources: ["Internal"],
+  riskProfile: { confidence: "high", riskIfWrong: "high", inferenceType: "internal" },
+  caching: { cadence: "none", bustOnChanges: [] },
+  executionGate: { allowedStatuses: ["LOCKED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["E", "G"],
+    optionalSections: [],
+    sectionUsage: {
+      E: "Conflict detection (e.g., 'Premium' goal vs 'Discount' action).",
+      G: "Hard violations."
+    },
+    gates: { fenceMode: "none", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "actionCards", type: "json", required: true }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason"], runTraceFields: ["rulesTriggered"] },
+  output: {
+    entityType: "flagged_item",
+    visuals: [{ kind: "table", title: "Conflict Report" }],
+    summaryFields: ["total_flagged", "critical_conflicts"]
+  }
+};
+
+export const EmergingCompetitorContract: ModuleContract = {
+  moduleId: "signal.emerging_competitor.v1",
+  name: "Emerging Competitor Watch", // 08
+  category: "Market Intelligence",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Detects new domains appearing in the Category Fence that are NOT in the Competitive Set.",
+  strategicQuestion: "Who is crashing the party?",
+  dataSources: ["DataForSEO"],
+  riskProfile: { confidence: "medium", riskIfWrong: "low", inferenceType: "external" },
+  caching: { cadence: "monthly", bustOnChanges: ["category_scope", "competitor_set"] },
+  executionGate: { allowedStatuses: ["LOCKED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["B", "C"],
+    optionalSections: ["G"],
+    sectionUsage: {
+      B: "Where to look (SERPs).",
+      C: "Who to ignore (Knowns).",
+      G: "Who to discard (Marketplaces/Irrelevant)."
+    },
+    gates: { fenceMode: "hard", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "currentCompetitors", type: "string[]", required: true },
+      { name: "categoryFence", type: "string[]", required: true }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason"], runTraceFields: ["rulesTriggered"] },
+  output: {
+    entityType: "emerging_domain",
+    visuals: [{ kind: "table", title: "New Entrants" }],
+    summaryFields: ["new_detected", "avg_overlap"]
+  }
+};
+
+export const LinkAuthorityContract: ModuleContract = {
+  moduleId: "signal.link_authority.v1",
+  name: "Link Authority & Technical", // 09
+  category: "SEO Signal",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Benchmarks domain authority and technical health against Section C.",
+  strategicQuestion: "Is our foundation strong enough to compete?",
+  dataSources: ["Internal", "DataForSEO"], // "Ahrefs" via wrapper
+  riskProfile: { confidence: "high", riskIfWrong: "medium", inferenceType: "external" },
+  caching: { cadence: "monthly", bustOnChanges: ["competitor_set"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "C"],
+    optionalSections: [],
+    sectionUsage: {
+      A: "Our domain.",
+      C: "Benchmark domains."
+    },
+    gates: { fenceMode: "none", negativeScopeMode: "none" }
+  },
+  inputs: {
+    fields: [
+      { name: "domain", type: "string", required: true },
+      { name: "benchmarks", type: "string[]", required: true }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection"], runTraceFields: [] },
+  output: {
+    entityType: "tech_health",
+    visuals: [{ kind: "bar", title: "Authority Gap" }, { kind: "table", title: "Technical Issues" }],
+    summaryFields: ["domain_rating", "authority_gap", "critical_issues"]
+  }
+};
+
+export const MarketMomentumContract: ModuleContract = {
+  moduleId: "signal.market_momentum.v1",
+  name: "Market Momentum", // 11
+  category: "Market Trends",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Calculates the velocity of demand change for Section B categories.",
+  strategicQuestion: "Is the market accelerating or braking?",
+  dataSources: ["GoogleTrends", "DataForSEO"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "external" },
+  caching: { cadence: "weekly", bustOnChanges: ["category_scope"] },
+  executionGate: { allowedStatuses: ["LOCKED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["B", "E"],
+    optionalSections: [],
+    sectionUsage: {
+      B: "Categories to track.",
+      E: "Time horizon (Sprint vs Marathon)."
+    },
+    gates: { fenceMode: "hard", negativeScopeMode: "none" }
+  },
+  inputs: {
+    fields: [
+      { name: "categories", type: "string[]", required: true },
+      { name: "timeHorizon", type: "string", required: false, default: "short" }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS"] },
+  explainability: { required: true, itemTraceFields: ["ucrSection"], runTraceFields: ["rulesTriggered"] },
+  output: {
+    entityType: "momentum_score",
+    visuals: [{ kind: "heatmap", title: "Velocity Matrix" }],
+    summaryFields: ["avg_velocity", "fastest_category"]
+  }
+};
+
+export const OSDropContract: ModuleContract = {
+  moduleId: "synthesis.os_drop.v1",
+  name: "OS Drop", // 12
+  category: "Synthesis",
+  layer: "Synthesis",
+  version: "contract.v1",
+  description: "Synthesizes all active module outputs into a cohesive strategic narrative.",
+  strategicQuestion: "What is the single most important thing to know right now?",
+  dataSources: ["Internal", "OpenAI"],
+  riskProfile: { confidence: "medium", riskIfWrong: "high", inferenceType: "hybrid" },
+  caching: { cadence: "daily", bustOnChanges: ["governance"] },
+  executionGate: { allowedStatuses: ["LOCKED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["E", "H", "G"],
+    optionalSections: ["A", "B", "C", "D", "F"],
+    sectionUsage: {
+      E: "Narrative framing.",
+      H: "Confidence seal.",
+      G: "Safety check."
+    },
+    gates: { fenceMode: "none", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "moduleOutputs", type: "json", required: true },
+      { name: "configId", type: "string", required: true }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ucrSection"], runTraceFields: ["sectionsUsed"] },
+  output: {
+    entityType: "executive_summary",
+    visuals: [{ kind: "other", title: "Narrative Document" }],
+    summaryFields: ["drop_id", "headline"]
+  }
+};
+
+export const PaidOrganicOverlapContract: ModuleContract = {
+  moduleId: "signal.paid_organic.v1",
+  name: "Paid vs Organic", // 13
+  category: "SEO Signal",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Identifies inefficiencies where Paid Spend covers keywords with high Organic Rank.",
+  strategicQuestion: "Are we paying for traffic we already own?",
+  dataSources: ["DataForSEO", "Internal"],
+  riskProfile: { confidence: "high", riskIfWrong: "medium", inferenceType: "external" },
+  caching: { cadence: "weekly", bustOnChanges: ["category_scope"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["B", "F"],
+    optionalSections: ["G"],
+    sectionUsage: {
+      B: "Category scope.",
+      F: "Paid activity confirmation.",
+      G: "Negative scope."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "paidData", type: "json", required: true },
+      { name: "organicData", type: "json", required: true }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection"], runTraceFields: ["rulesTriggered"] },
+  output: {
+    entityType: "overlap_opportunity",
+    visuals: [{ kind: "table", title: "Cannibalization Risks" }],
+    summaryFields: ["redundant_spend", "opportunity_score"]
+  }
+};
+
+
+export const ShareOfVoiceContract: ModuleContract = {
+  moduleId: "signal.share_of_voice.v1",
+  name: "Share of Voice", // 15
+  category: "Brand Signal",
+  layer: "Signal",
+  version: "contract.v1",
+  description: "Calculates your market share (pixel/impression) within Section B Categories vs Section C Competitors.",
+  strategicQuestion: "Do we look like a leader?",
+  dataSources: ["DataForSEO"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "external" },
+  caching: { cadence: "weekly", bustOnChanges: ["competitor_set", "category_scope"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"], allowMissingOptionalSections: false, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["B", "C"],
+    optionalSections: ["A"],
+    sectionUsage: {
+      B: "Category fence.",
+      C: "Competitors.",
+      A: "Geo."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "competitors", type: "json", required: true },
+      { name: "keywords", type: "string[]", required: true }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection"], runTraceFields: [] },
+  output: {
+    entityType: "sov_metric",
+    visuals: [{ kind: "bar", title: "SOV Comparison" }],
+    summaryFields: ["brand_sov", "leader_sov", "gap"]
+  }
+};
+
+export const StrategicSummaryContract: ModuleContract = {
+  moduleId: "synthesis.strategic_summary.v1",
+  name: "Strategic Summary", // 16
+  category: "Synthesis",
+  layer: "Synthesis",
+  version: "contract.v1",
+  description: "A pre-read for the OS Drop that summarizes key shifts in context.",
+  strategicQuestion: "What changed in the world since the last cycle?",
+  dataSources: ["Internal", "OpenAI"],
+  riskProfile: { confidence: "medium", riskIfWrong: "low", inferenceType: "internal" },
+  caching: { cadence: "daily", bustOnChanges: ["market"] },
+  executionGate: { allowedStatuses: ["LOCKED", "AI_READY"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B", "C", "E"],
+    optionalSections: ["D", "F", "G", "H"],
+    sectionUsage: {
+      A: "Identity.",
+      E: "Intent.",
+      G: "Constraints."
+    },
+    gates: { fenceMode: "none", negativeScopeMode: "none" }
+  },
+  inputs: {
+    fields: [
+      { name: "ucr", type: "json", required: true },
+      { name: "signals", type: "json", required: false }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS"] },
+  explainability: { required: true, itemTraceFields: [], runTraceFields: ["sectionsUsed"] },
+  output: {
+    entityType: "summary_text",
+    visuals: [{ kind: "other", title: "Executive Brief" }],
+    summaryFields: ["sentiment", "key_insights"]
+  }
+};
+
 /* ---------------------------------- */
 /* Default Registry                    */
 /* ---------------------------------- */
 
 export const CONTRACT_REGISTRY = createContractRegistry([
   KeywordGapVisibilityContract,
-  CategoryDemandTrendContract,
+  CategoryDemandTrendContract, // Replaced MarketDemandSeasonality if duplicate, but keeping distinct for now
   BrandAttentionContract,
-  MarketDemandSeasonalityContract
+  MarketDemandSeasonalityContract,
+  ActionCardContract,
+  PriorityScoringContract,
+  BrandedDemandContract,
+  BreakoutTermsContract,
+  CategoryVisibilityContract,
+  CompetitorStrategyContract,
+  DeprioritizationContract,
+  EmergingCompetitorContract,
+  LinkAuthorityContract,
+  MarketMomentumContract,
+  OSDropContract,
+  PaidOrganicOverlapContract,
+  ShareOfVoiceContract,
+  StrategicSummaryContract
 ]);
 
 export function getAllContracts(): ModuleContract[] {
@@ -794,6 +1323,7 @@ export function getActiveContracts(): ModuleContract[] {
 /* ---------------------------------- */
 /* Legacy Module Definitions           */
 /* (Consolidated from module-registry) */
+/* @deprecated Use ModuleContract and CONTRACT_REGISTRY instead. */
 /* ---------------------------------- */
 
 export type UCRSection = UCRSectionID;
@@ -909,7 +1439,7 @@ export function getAllModules(): ModuleDefinition[] {
 }
 
 export function canModuleExecute(
-  moduleId: string, 
+  moduleId: string,
   availableSections: UCRSectionID[]
 ): { canExecute: boolean; missingSections: UCRSectionID[]; warnings: string[] } {
   const module = getModuleDefinition(moduleId);
