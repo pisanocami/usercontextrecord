@@ -1,0 +1,555 @@
+A continuación te dejo **(1) el playbook completo re-redactado en arquitectura Context-First** y **(2) el Module Contract** (TypeScript) listo para tu patrón `shared/module.contract.ts` (v3.2+), con gates, requisitos, outputs y trazabilidad.
+
+---
+
+# 1) 📘 Module Playbook — Market Demand & Seasonality (Context-First)
+
+```md
+# 📘 Module Playbook — Market Demand & Seasonality (Context-First)
+
+**Module ID:** market_demand_seasonality  
+**Module:** Market Demand & Seasonality  
+**Owner Council:** Strategic Intelligence  
+**Supporting Councils:** Growth Strategy & Planning, Performance Media & Messaging  
+**Status:** Active  
+**Playbook Version:** v1 (Context-First)  
+**Inference Type:** External  
+**Confidence Level:** High  
+**Risk if Wrong:** Medium  
+**Last Updated:** 2025-12-13
+
+---
+
+## 🧠 Module Overview
+
+This module surfaces **historical and near-term demand cycles** using **Google Trends**, but it can only run **after** a validated **User Context Record (UCR)** exists.
+
+**Context-First Principle**
+> The UCR is the single source of truth. No module executes without validated, complete context.
+
+This module answers a question executives constantly get wrong:
+
+> **“When does our market wake up — and when should we act?”**
+
+It converts **relative interest curves** into **calendar-aware decisions** for media, content, creative production, and GTM planning.
+
+---
+
+## 🎯 Strategic Role in the OS
+
+**Primary role:**  
+Establish *when* to invest — before deciding *where* or *how much*.
+
+**This module informs:**
+- Media flighting and ramp schedules
+- Content and landing page launch timing
+- Creative production calendars
+- Product/feature GTM readiness windows
+
+**This module does NOT decide:**
+- Budget size
+- Channel mix
+- Creative strategy
+
+Those decisions are resolved downstream by the **Growth Strategy & Planning Council**.
+
+---
+
+## 🧱 Context-First Inputs (Derived from UCR)
+
+This module **does not accept freeform query inputs**. It derives demand clusters from the UCR and applies UCR-defined exclusions and governance.
+
+### UCR Sections Used
+
+**Hard Requirements (execution blocked if missing):**
+- **D. Demand Definition** — provides demand themes/clusters and representative keywords
+- **H. Governance** — controls defaults, thresholds, caching, and forecast policy
+
+**Optional (used if present; graceful degradation applies):**
+- **A. Brand Context** — naming, labeling, executive context
+- **B. Category Definition** — category fence (soft flagging)
+- **E. Strategic Intent** — adjusts recommended lead-time aggressiveness
+- **F. Channel Context** — shapes output emphasis (SEO calendar vs paid flighting)
+- **G. Negative Scope** — absolute exclusions (hard gate at item level)
+
+---
+
+## 🧩 Data Sources
+
+### Primary Data Source
+- **Google Trends** (via SER API preferred; PythonAnywhere scraper fallback)
+
+### Derived Inputs (no freeform)
+| Derived Field | Source | Default |
+|---|---|---|
+| `clusters` | UCR.D.demand_themes[] | Required |
+| `excluded_terms` | UCR.G.* | none |
+| `category_fence` | UCR.B.* | no fence checks |
+| `geo` | UCR.H defaults (or UCR governance geo) | US |
+| `time_range` | UCR.H.default_time_range | today 5-y |
+| `interval` | UCR.H.default_interval | weekly |
+| `forecast_policy` | UCR.H.forecast_policy | DISABLED |
+
+> Council Rule (Context-First enforced):  
+> **Never run on single keywords.**  
+> If a theme has insufficient keywords (e.g., <2), the module must WARN or BLOCK per Governance.
+
+---
+
+## ✅ Validation Gate (Pre-Execution)
+
+The module must pass the UCR validation gate before any external calls:
+
+### Hard Validation (ERROR if fail)
+- UCR exists
+- UCR status is at least **AI_READY**
+- UCR has **D.demand_themes[]**
+- UCR has **H.governance** (or H container for module governance)
+
+### Soft Validation (WARNING)
+- UCR status is not **HUMAN_CONFIRMED** or **LOCKED**
+- Missing optional sections (B, E, F, G) → run with defaults
+
+All outputs must include:
+- `contextVersion`
+- `contextStatus`
+- `ucrSectionsUsed`
+- `filtersApplied`
+
+---
+
+## ⚡ Cost-Optimized Data Collection Strategy (Context-First)
+
+**Principle:**  
+> Trends data is cheap — interpretation errors are expensive.
+
+### Collection Rules (Governed by H)
+- Use **Compare mode** to pull multiple query terms per request
+- Default to **weekly** aggregation (daily adds noise + cost)
+- Pull **5 years once**, cache indefinitely (per governance cache policy)
+- Re-run only:
+  - Monthly (default)
+  - Or when UCR version changes in sections D/G/H
+  - Or when category scope changes
+
+### Provider Choice
+- **SER API** → preferred for stability
+- **PythonAnywhere** → backup / cost-controlled batch runs
+
+No downstream enrichment unless the module flags a **timing shift** or **erratic seasonality**.
+
+---
+
+## 🔧 Core Logic & Processing
+
+### 1) Cluster Construction (from UCR.D)
+- Each **demand_theme** becomes a **cluster**
+- Each cluster contains a set of representative keywords from UCR.D
+
+### 2) Hard Exclusions (Gate G — if UCR.G present)
+Before any Trends pull:
+- Remove excluded keywords
+- Remove excluded categories/use cases (term-based filters)
+- Mark removed items in `filtersApplied` and item traces
+
+### 3) Normalization
+- Google Trends values (0–100) are treated as **relative intensity**, not absolute volume
+- Cross-query normalization handled via Compare mode (within request scope)
+
+### 4) Seasonality Detection
+Identify, per cluster:
+- **First inflection window** (earliest sustained rise)
+- **Peak window**
+- **Decline phase**
+
+Operational definition (exec-safe):
+- **Inflection** = first sustained upward movement lasting **≥3 weeks** above trailing baseline (weekly interval)
+
+### 5) YoY Consistency Assessment
+Compare **shape and timing** year-over-year:
+- Stable → high confidence
+- Shifting earlier/later → flag for strategy review
+- Erratic → downgrade confidence, recommend “timing neutral” stance
+
+---
+
+## 📈 Forecasting (Policy-Driven, Not a Toggle)
+
+Forecasting is not a user toggle. It is controlled by **UCR.H.forecast_policy**:
+
+- `DISABLED` — no forecast rendered
+- `DIRECTIONAL_ONLY` — dotted extension, 8–12 week max
+- `ENABLED_WITH_GUARDRAILS` — only when:
+  - YoY consistency is not erratic
+  - At least **3 of last 5 years** show similar ramp/peak timing
+  - Horizon max 12 weeks
+  - Must be visually dashed/dotted and labeled directional
+
+Forecasts are **directional**, never authoritative.
+
+---
+
+## 🧠 Council Reasoning Layer (Strategic Intelligence)
+
+Interpretation rules (must remain unchanged):
+
+1. **Consistency beats magnitude**  
+   Repeatable seasonal behavior matters more than one-time surges.
+
+2. **Timing > volume**  
+   Knowing *when* demand starts matters more than how high it peaks.
+
+3. **Early inflection > peak**  
+   Ramp period is more actionable than peak month.
+
+4. **Do not over-react to anomalies**  
+   One-year deviations require confirmation before action.
+
+If demand timing is:
+- Stable YoY → **High confidence**
+- Shifting earlier/later → **Flag for review**
+- Erratic → **Downgrade confidence** + “Timing neutral”
+
+---
+
+## 🚦 Confidence & Risk Profile
+
+- **Inference Type:** External  
+- **Confidence Level:** High  
+- **Risk if Wrong:** Medium  
+
+**Why:**
+- Trends is normalized and relative
+- Forecasting introduces uncertainty
+- Mis-timing spend can waste budget and compress CAC efficiency
+
+This module must be paired with **budget phasing**, not lump-sum decisions.
+
+---
+
+## 📤 Outputs & Artifacts (Context-First)
+
+### Output Envelope (Required)
+- `moduleId`, `runId`, `generatedAt`
+- `contextVersion`, `contextStatus`
+- `ucrSectionsUsed[]`
+- `filtersApplied[]`
+- `warnings[]`
+
+### Per-Cluster Outputs
+- Historic weekly curve (5y)
+- Peak months / peak window
+- Inflection window + recommended lead time
+- YoY consistency label: `stable | shifting | erratic`
+- Timing classification:
+  - `early_ramp_dominant`
+  - `peak_driven`
+  - `flat_timing_neutral`
+  - `erratic_unreliable`
+- Optional forecast window (policy-driven)
+- `confidence` (high/medium/low)
+- `flags[]` (e.g., `outside_fence`, `anomaly_detected`, `insufficient_theme_keywords`)
+- `trace[]` item-level traces for auditable reasoning
+
+### Visual Outputs
+- Line chart (historic)
+- Dotted forecast extension (if allowed)
+- Seasonality heatmap (monthly averages)
+
+### Executive Summary Callout (Template)
+> “Historically, demand begins rising in **{inflection_month}** and peaks in **{peak_month}**. Media and content should ramp **{lead_time_weeks} weeks before** inflection, not during the peak.”
+
+---
+
+## 🧭 Interpretation Guidelines (Executive-Safe)
+
+### What this means
+- When to start showing up
+- When to prepare assets
+- When late entry becomes inefficient
+
+### What this does NOT mean
+- Absolute demand volume
+- Revenue forecasts
+- Guaranteed performance
+- Channel-specific ROI
+
+---
+
+## ⛔ Deprioritization & Stop Rules
+
+Do **not** act on this module alone when:
+- Category demand is flat year-round
+- Only one year shows a spike
+- Forecast contradicts multi-year history
+- YoY consistency is erratic
+
+In these cases:
+> Flag as **“Timing neutral — do not over-optimize.”**
+
+---
+
+## 🤖 LLM / Gemini Prompt Instructions (Context-First)
+
+**Tone**
+- Strategic
+- Calendar-aware
+- Decisive but cautious
+
+**Structure**
+1) Trend Insight (historic timing)
+2) Consistency + anomaly notes
+3) Forecast narrative (only if policy allows)
+4) Timing recommendation (calendar actions)
+
+**Hard Rules**
+- Never claim absolute volume
+- Never overstate forecast certainty
+- Always anchor recommendations to calendar actions
+- Always reference UCR-derived clusters (no freeform keywords)
+- Always include `contextVersion` in summary footer (for traceability)
+
+---
+
+## 🔁 Version Notes
+
+- **v1 (Context-First):** UCR-derived clusters + policy-driven forecasting + traceability
+- **v1.1 (planned):** Momentum overlay vs prior year (directional)
+- **v2 (planned):** Geo-specific seasonality overlays
+
+---
+
+## Final Principle
+
+This module exists to answer:
+> **“When should we move?”**
+
+It does not answer:
+> “How much should we spend?”
+
+That separation is intentional — and strategic.
+```
+
+---
+
+# 2) ✅ Module Contract (TypeScript) — `market_demand_seasonality`
+
+> Esto asume tu ecosistema v3.2: `UCRSectionID`, `Disposition`, `Severity`, `ItemTrace`, `ModuleContract`, `GATE_EVALUATION_ORDER` existen en `@shared/module.contract`.
+> Si tus tipos reales difieren, ajustás nombres, pero la estructura queda.
+
+```ts
+// shared/module.contract.ts (append into MODULE_REGISTRY or contracts map)
+
+import type {
+  ModuleContract,
+  UCRSectionID,
+  Severity,
+  ItemTrace,
+} from "@shared/module.contract";
+
+/**
+ * Module: Market Demand & Seasonality (Context-First)
+ * Purpose: Determine *when* demand ramps/peaks/declines for UCR-defined demand clusters using Google Trends.
+ */
+export const MARKET_DEMAND_SEASONALITY_CONTRACT: ModuleContract = {
+  id: "market_demand_seasonality",
+  name: "Market Demand & Seasonality",
+  ownerCouncil: "Strategic Intelligence",
+  supportingCouncils: ["Growth Strategy & Planning", "Performance Media & Messaging"],
+
+  // Context-first execution requirements
+  context: {
+    minimumStatus: "AI_READY", // block below this
+    requiredSections: ["D", "H"] as UCRSectionID[],
+    optionalSections: ["A", "B", "E", "F", "G"] as UCRSectionID[],
+    ucrImmutability: true, // once module starts, UCR must not change
+    includeContextVersionInOutput: true,
+  },
+
+  // Gates: CMO-safe ordering: G → B → H → E/F (E/F affect recommendations, not core detection)
+  gates: {
+    order: ["G", "B", "H", "E", "F"] as UCRSectionID[],
+
+    // Hard validation prior to any provider calls
+    validation: [
+      {
+        ruleId: "CTX_UCR_EXISTS",
+        ucrSection: "H",
+        severity: "critical" as Severity,
+        description: "UCR must exist to execute any module.",
+        check: (ucr) => Boolean(ucr),
+        onFail: { type: "ERROR", message: "UCR missing: cannot execute module." },
+      },
+      {
+        ruleId: "CTX_MIN_STATUS",
+        ucrSection: "H",
+        severity: "critical" as Severity,
+        description: "UCR status must be >= AI_READY.",
+        check: (ucr) => {
+          const s = ucr?.status;
+          // Adjust to your actual status ordering logic
+          return ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"].includes(s);
+        },
+        onFail: { type: "ERROR", message: "UCR status below AI_READY." },
+      },
+      {
+        ruleId: "D_DEMAND_THEMES_REQUIRED",
+        ucrSection: "D",
+        severity: "critical" as Severity,
+        description: "Demand Definition must include demand_themes for cluster construction.",
+        check: (ucr) => Array.isArray(ucr?.demand_definition?.demand_themes) && ucr.demand_definition.demand_themes.length > 0,
+        onFail: { type: "ERROR", message: "UCR missing D.demand_themes: cannot build clusters." },
+      },
+      {
+        ruleId: "H_GOVERNANCE_REQUIRED",
+        ucrSection: "H",
+        severity: "critical" as Severity,
+        description: "Governance section required for defaults and forecast policy.",
+        check: (ucr) => Boolean(ucr?.governance),
+        onFail: { type: "ERROR", message: "UCR missing Governance (H): cannot execute module safely." },
+      },
+    ],
+
+    // Soft warnings (do not block execution)
+    warnings: [
+      {
+        ruleId: "CTX_NOT_CONFIRMED",
+        ucrSection: "H",
+        severity: "medium" as Severity,
+        description: "Warn if UCR is not HUMAN_CONFIRMED or LOCKED.",
+        check: (ucr) => ["HUMAN_CONFIRMED", "LOCKED"].includes(ucr?.status),
+        onFail: { type: "WARNING", message: "Running on non-confirmed UCR (not HUMAN_CONFIRMED/LOCKED)." },
+      },
+    ],
+  },
+
+  // Inputs are derived from UCR; module should reject freeform clusters
+  inputs: {
+    derivedFromUCR: true,
+    notes: [
+      "Clusters must be derived from UCR.D.demand_themes (no freeform query_groups).",
+      "Negative filtering is applied from UCR.G before any provider calls.",
+      "Interval/time_range/forecast_policy are governed by UCR.H (Governance).",
+    ],
+  },
+
+  // Provider requirements (external inference)
+  providers: [
+    {
+      id: "google_trends",
+      preferred: ["ser_api"],
+      fallback: ["pythonanywhere_scraper"],
+      caching: {
+        defaultPolicy: "CACHE_BY_UCR_VERSION",
+        invalidationSections: ["D", "G", "H"] as UCRSectionID[],
+      },
+    },
+  ],
+
+  // Output contract (shape-level description)
+  outputs: {
+    envelope: {
+      required: [
+        "moduleId",
+        "runId",
+        "generatedAt",
+        "contextVersion",
+        "contextStatus",
+        "ucrSectionsUsed",
+        "filtersApplied",
+        "warnings",
+      ],
+    },
+
+    perCluster: {
+      required: [
+        "themeName",
+        "queriesUsed",
+        "geo",
+        "time_range",
+        "interval",
+        "seasonalityProfile",
+        "yoyConsistency",
+        "timingClassification",
+        "confidence",
+        "flags",
+        "trace",
+      ],
+      optional: ["forecast"],
+    },
+
+    traceability: {
+      itemTraceType: "ItemTrace",
+      requirement: "Each cluster must include trace entries for any exclusions, fence flags, and forecast policy decisions.",
+    },
+  },
+
+  // Guardrails the executor must enforce
+  guardrails: [
+    {
+      id: "NO_ABSOLUTE_VOLUME",
+      description: "Never claim absolute demand volume; Google Trends is relative (0–100).",
+    },
+    {
+      id: "NO_FREEFORM_KEYWORDS",
+      description: "Do not accept single keyword runs; must use UCR.D clusters.",
+    },
+    {
+      id: "FORECAST_POLICY_DRIVEN",
+      description: "Forecast is controlled by Governance policy, not a user toggle.",
+    },
+    {
+      id: "INFLECTION_OP_DEF",
+      description: "Inflection window is first sustained rise ≥3 weeks above trailing baseline (weekly interval).",
+    },
+  ],
+
+  // Standardized rule IDs for trace generation (recommended)
+  ruleIds: {
+    negativeScope: {
+      excludedKeyword: "G_EXCLUDED_KEYWORD_MATCH",
+      excludedCategory: "G_EXCLUDED_CATEGORY_MATCH",
+    },
+    fence: {
+      outsideFenceSoftFlag: "B_OUTSIDE_FENCE_SOFT_FLAG",
+    },
+    governance: {
+      defaultsApplied: "H_DEFAULTS_APPLIED",
+      forecastBlocked: "H_FORECAST_BLOCKED_BY_POLICY",
+      forecastEnabled: "H_FORECAST_ENABLED_BY_POLICY",
+      insufficientThemeKeywords: "H_THEME_KEYWORD_MIN_NOT_MET",
+    },
+    context: {
+      ucrNotConfirmed: "CTX_NOT_CONFIRMED",
+    },
+  },
+};
+
+// Example helper for trace creation (optional)
+export function makeTrace(
+  ruleId: string,
+  ucrSection: UCRSectionID,
+  reason: string,
+  severity: Severity,
+  evidence?: string
+): ItemTrace {
+  return { ruleId, ucrSection, reason, severity, evidence };
+}
+```
+
+---
+
+## Si querés que lo deje 100% acoplado a tu repo
+
+Puedo ajustar el contract a **tu `ModuleContract interface` exacta** (campos reales, enums reales) si pegás aquí:
+
+* el `interface ModuleContract` actual, y
+* cómo representás `minimumStatus` / ordering de status.
+
+Pero con lo de arriba ya tenés:
+
+* Context-First (UCR manda)
+* Gates G→B→H→E/F
+* Hard requirements D+H
+* Forecast policy en Governance
+* Output envelope con `contextVersion` + `filtersApplied` + `trace[]` auditables
