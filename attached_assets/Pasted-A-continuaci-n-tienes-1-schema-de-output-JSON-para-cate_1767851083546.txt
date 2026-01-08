@@ -1,0 +1,510 @@
+A continuación tienes (1) **schema de output JSON** para `category_keyword_priority` (con ejemplos) y (2) el **ModuleContract** completo para ese módulo, alineado a UCR + gate order + trazabilidad.
+
+---
+
+## 1) Output schema JSON (API + persistencia)
+
+### 1.1 Shape principal
+
+```ts
+type Disposition = "PASS" | "REVIEW" | "OUT_OF_PLAY";
+type Severity = "low" | "medium" | "high" | "critical";
+type UCRSectionID = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
+
+type ItemTrace = {
+  ruleId: string;
+  ucrSection: UCRSectionID;
+  reason: string;
+  severity: Severity;
+  evidence?: string;
+};
+
+type RunTrace = {
+  sectionsUsed: UCRSectionID[];
+  sectionsMissing: UCRSectionID[];
+  filtersApplied: string[];
+  rulesTriggered: string[];
+};
+
+type RankedKeyword = {
+  keyword: string;
+  normalizedKeyword: string;
+
+  // Category routing
+  categoryName: string;           // e.g., "Fitness apps"
+  categoryGroupId?: string;       // optional stable id
+
+  // Intent & classification
+  intentType:
+    | "category_capture"
+    | "problem_solution"
+    | "product_generic"
+    | "brand_capture"
+    | "variant_or_size"
+    | "other";
+
+  disposition: Disposition;
+  flags: string[];                // e.g., ["outside_fence", "competitor_brand"]
+
+  // Scoring
+  capabilityScore: number;        // 0..1
+  opportunityScore: number;       // rank score (relative)
+  scoreComponents: {
+    searchVolume?: number | null;
+    cpc?: number | null;
+    keywordDifficulty?: number | null;     // 0..100
+    competitorBestPosition?: number | null;
+    intentWeight?: number | null;
+    difficultyFactor?: number | null;
+    positionFactor?: number | null;
+  };
+
+  // Evidence
+  competitorsSeen: string[];      // domains
+  confidence: "low" | "medium" | "high";
+
+  // Explainability
+  reasons: string[];              // human-readable
+  trace: ItemTrace[];
+};
+
+type DemandTiming = {
+  timeRange: string;              // "today 5-y"
+  granularity: "weekly" | "monthly";
+  peakMonth: string | null;       // "Jan"
+  lowMonth: string | null;        // "May"
+  inflectionMonth: string | null; // "Nov"
+  peakWindow: string[];           // ["Dec","Jan"]
+  stabilityScore: number;         // 0..100
+  consistencyLabel: "low" | "medium" | "high";
+  recommendedLaunchByISO: string | null; // "2026-11-15"
+  recommendationRationale: string;
+};
+
+type CategoryPriorityBlock = {
+  categoryName: string;
+  queriesUsed: string[];          // the category group queries run in Market Demand
+  demandTiming: DemandTiming;
+
+  // “What to do”
+  actionCard: {
+    recommendedWindowLabel: string;    // "Pre-peak (2–4 weeks before inflection)"
+    startISO: string | null;
+    endISO: string | null;
+    primaryChannel: "SEO" | "Paid Search" | "Retail" | "Mixed";
+    objective: "TOF" | "MOF" | "BOF" | "Mixed";
+    nextSteps: string[];              // bullet list
+    risks: string[];                  // bullet list
+  };
+
+  // Ranked opportunities
+  stats: {
+    totalKeywords: number;
+    pass: number;
+    review: number;
+    outOfPlay: number;
+
+    avgKD?: number | null;
+    medianKD?: number | null;
+    totalSearchVolume?: number | null;
+    estTrafficValueMonthly?: number | null; // optional
+  };
+
+  topOpportunities: RankedKeyword[]; // PASS only
+  needsReview: RankedKeyword[];      // REVIEW only
+  outOfPlay?: RankedKeyword[];       // optional / hidden by default
+};
+
+type CategoryKeywordPriorityResult = {
+  moduleId: "category_keyword_priority.v1";
+  analysisId: number | string;
+
+  configurationId: number | string;
+  configurationName?: string;
+
+  ucrContext: {
+    ucrVersion: string;             // e.g. "v20-mk28dhnr"
+    ucrStatus: "DRAFT_AI" | "AI_READY" | "AI_ANALYSIS_RUN" | "HUMAN_CONFIRMED" | "LOCKED";
+    sectionsUsed: UCRSectionID[];
+    executedAtISO: string;
+    rulesTriggered: string[];
+  };
+
+  providers: {
+    keywordGapProvider: "dataforseo" | "ahrefs";
+    marketDemandProvider: "dataforseo_trends";
+  };
+
+  inputs: {
+    timeRange: string;
+    granularity: "weekly" | "monthly";
+    country: string;
+    maxCategories: number;
+    maxKeywordsPerCategory: number;
+    includeOverallAggregate: boolean;
+
+    // linkage settings
+    categoryMatching: "explicit_groups" | "derived_primary_only";
+    weighting: {
+      method: "stability_weighted" | "equal" | "custom";
+      customWeights?: Record<string, number>;
+    };
+  };
+
+  overall?: {
+    summaryCard: {
+      headline: string;              // "Focus Aug–Nov across 3 categories"
+      launchByISO: string | null;
+      stabilityScore: number;
+      categoriesInScope: number;
+      notes: string[];
+    };
+    topCategories: Array<{
+      categoryName: string;
+      priorityScore: number;          // 0..100
+      why: string[];
+    }>;
+  };
+
+  byCategory: CategoryPriorityBlock[];
+
+  runTrace: RunTrace;
+
+  savedAtISO?: string;
+  fromCache?: boolean;
+};
+```
+
+---
+
+### 1.2 Ejemplo mínimo (recortado)
+
+```json
+{
+  "moduleId": "category_keyword_priority.v1",
+  "analysisId": 112,
+  "configurationId": 42,
+  "configurationName": "Fitbod Context",
+  "ucrContext": {
+    "ucrVersion": "v21-mk29abcd",
+    "ucrStatus": "LOCKED",
+    "sectionsUsed": ["A","B","C","E","F","G","H"],
+    "executedAtISO": "2026-01-07T21:12:55.120Z",
+    "rulesTriggered": ["per_category_analysis","negative_scope.match"]
+  },
+  "providers": {
+    "keywordGapProvider": "dataforseo",
+    "marketDemandProvider": "dataforseo_trends"
+  },
+  "inputs": {
+    "timeRange": "today 5-y",
+    "granularity": "weekly",
+    "country": "US",
+    "maxCategories": 10,
+    "maxKeywordsPerCategory": 50,
+    "includeOverallAggregate": true,
+    "categoryMatching": "explicit_groups",
+    "weighting": { "method": "stability_weighted" }
+  },
+  "overall": {
+    "summaryCard": {
+      "headline": "Focus Aug–Nov across 3 categories; peak demand clusters Sep–Jan",
+      "launchByISO": "2026-08-14",
+      "stabilityScore": 44,
+      "categoriesInScope": 5,
+      "notes": ["Overall aggregate is informational; execute by category."]
+    },
+    "topCategories": [
+      { "categoryName": "Fitness apps", "priorityScore": 78, "why": ["Peak Jan","Medium stability","Strong gap value"] }
+    ]
+  },
+  "byCategory": [
+    {
+      "categoryName": "Fitness apps",
+      "queriesUsed": ["fitness apps"],
+      "demandTiming": {
+        "timeRange": "today 5-y",
+        "granularity": "weekly",
+        "peakMonth": "Jan",
+        "lowMonth": "May",
+        "inflectionMonth": "Nov",
+        "peakWindow": ["Dec","Jan"],
+        "stabilityScore": 62,
+        "consistencyLabel": "medium",
+        "recommendedLaunchByISO": "2026-11-15",
+        "recommendationRationale": "Demand begins rising in Nov; peak in Jan; medium stability."
+      },
+      "actionCard": {
+        "recommendedWindowLabel": "Pre-peak (2–4 weeks before inflection)",
+        "startISO": "2026-10-15",
+        "endISO": "2026-12-15",
+        "primaryChannel": "Mixed",
+        "objective": "TOF",
+        "nextSteps": ["Publish 3 TOF guides", "Create 10 SEO pages for problem/solution queries", "Launch brand-safe paid tests"],
+        "risks": ["Low differentiation if category pages are generic", "High CPC near Jan peak"]
+      },
+      "stats": { "totalKeywords": 120, "pass": 28, "review": 41, "outOfPlay": 51, "avgKD": 37 },
+      "topOpportunities": [],
+      "needsReview": []
+    }
+  ],
+  "runTrace": {
+    "sectionsUsed": ["A","B","C","E","F","G","H"],
+    "sectionsMissing": ["D"],
+    "filtersApplied": ["negative_scope.competitor_brand", "excluded_keywords"],
+    "rulesTriggered": ["per_category_analysis", "timing_consistency_check"]
+  }
+}
+```
+
+---
+
+## 2) UI Cards (diseño de componentes)
+
+### A) **Overall Summary Card** (opcional)
+
+**Campos**
+
+* Headline (1 línea)
+* “Launch by” (fecha)
+* Stability score (%)
+* Categories in scope (#)
+* Nota: “Aggregate is informational; execute per category”
+* CTA: “View category plan”
+
+**Reglas**
+
+* Mostrar solo si `includeOverallAggregate=true`.
+* Mostrar badge de estabilidad: low/medium/high.
+
+---
+
+### B) **Category Priority Card** (1 por categoría)
+
+**Header**
+
+* CategoryName
+* Stability badge
+* Peak month / Inflection month
+* Launch by
+
+**Body**
+
+* “Recommended window label”
+* Next steps (3 bullets)
+* Risks (2 bullets)
+
+**Footer**
+
+* PASS / REVIEW / OUT counts
+* CTA: “View keyword list”
+
+---
+
+### C) **Keyword List Panel** (tabs)
+
+Tabs:
+
+* **Top Opportunities (PASS)**
+* **Needs Review (REVIEW)**
+* **Out of Play** (colapsado por default)
+
+Cada row:
+
+* Keyword + intent
+* Volume / KD / CPC (si aplica)
+* OpportunityScore
+* CapabilityScore
+* Reason
+* Expand row → Trace (ItemTrace list)
+
+---
+
+## 3) ModuleContract: `category_keyword_priority.v1`
+
+> Nota: uso el mismo estilo que tu `module.contract.ts`.
+
+```ts
+export const CategoryKeywordPriorityContract: ModuleContract = {
+  moduleId: "category_keyword_priority.v1",
+  name: "Category → Timing → Keyword Priority",
+  category: "Synthesis",
+  layer: "Synthesis",
+  version: "contract.v1",
+
+  description:
+    "Connects Market Demand (per category) with Keyword Gap results to produce a time-phased, category-scoped keyword execution plan.",
+  strategicQuestion:
+    "Which categories should we prioritize when, and which keywords are the highest-signal opportunities within each category given demand timing and guardrails?",
+
+  dataSources: ["DataForSEO", "Ahrefs", "GoogleTrends", "Internal"],
+
+  riskProfile: {
+    confidence: "medium",
+    riskIfWrong: "high",
+    inferenceType: "hybrid"
+  },
+
+  caching: {
+    cadence: "daily",
+    bustOnChanges: ["competitor_set", "category_scope", "negative_scope", "governance", "market"]
+  },
+
+  executionGate: {
+    allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED"],
+    allowMissingOptionalSections: true,
+    requireAuditTrail: true
+  },
+
+  contextInjection: {
+    requiredSections: ["A", "B", "C", "H"],
+    optionalSections: ["D", "E", "F", "G"],
+    sectionUsage: {
+      A: "Brand domain and market defaults for consistent demand + keyword interpretation.",
+      B: "Category groups (must be explicit or derivable) used to segment demand and scope keyword classification.",
+      C: "Competitor set to build keyword gap per category.",
+      D: "Optional clustering and theme labeling for executive readability.",
+      E: "Risk tolerance affects borderline disposition (PASS vs REVIEW) and timing aggressiveness.",
+      F: "Channel context determines recommended execution channel per category plan.",
+      G: "Hard exclusions applied first; competitor brand handling follows governance policy.",
+      H: "Thresholds, scoring model, explainability requirements, and caching determinism."
+    },
+    gates: {
+      fenceMode: "hard",
+      negativeScopeMode: "hard"
+    }
+  },
+
+  inputs: {
+    fields: [
+      {
+        name: "country",
+        type: "string",
+        required: false,
+        default: "US",
+        description: "Market used for demand seasonality and keyword metrics."
+      },
+      {
+        name: "time_range",
+        type: "string",
+        required: false,
+        default: "today 5-y",
+        description: "Trend time window for seasonality."
+      },
+      {
+        name: "granularity",
+        type: "string",
+        required: false,
+        default: "weekly",
+        description: "Trend granularity."
+      },
+      {
+        name: "max_categories",
+        type: "number",
+        required: false,
+        default: 10,
+        constraints: { min: 1, max: 25 },
+        description: "Limit number of category groups to compute."
+      },
+      {
+        name: "max_keywords_per_category",
+        type: "number",
+        required: false,
+        default: 50,
+        constraints: { min: 10, max: 500 },
+        description: "Limit keyword opportunities returned per category."
+      },
+      {
+        name: "keyword_gap_provider",
+        type: "string",
+        required: false,
+        default: "dataforseo",
+        constraints: { enum: ["dataforseo", "ahrefs"] },
+        description: "Provider used for gap keywords."
+      },
+      {
+        name: "include_overall_aggregate",
+        type: "boolean",
+        required: false,
+        default: true,
+        description: "Whether to include the informational overall rollup."
+      },
+      {
+        name: "weighting_method",
+        type: "string",
+        required: false,
+        default: "stability_weighted",
+        constraints: { enum: ["stability_weighted", "equal", "custom"] },
+        description: "How to prioritize categories in the overall plan."
+      },
+      {
+        name: "custom_weights",
+        type: "json",
+        required: false,
+        description: "Optional weights by categoryName when weighting_method=custom."
+      }
+    ]
+  },
+
+  disposition: {
+    required: true,
+    allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"],
+    hideOutOfPlayByDefault: true
+  },
+
+  explainability: {
+    required: true,
+    itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"],
+    runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"]
+  },
+
+  output: {
+    entityType: "category_keyword_priority_plan",
+    visuals: [
+      { kind: "card", title: "Overall Priority Summary" },
+      { kind: "matrix", title: "Category × Timing Priority Map" },
+      { kind: "table", title: "Top Keywords per Category (with traces)" },
+      { kind: "line", title: "Demand Trendlines by Category" }
+    ],
+    summaryFields: [
+      "top_categories",
+      "launch_calendar",
+      "total_pass_keywords",
+      "total_review_keywords",
+      "primary_next_step"
+    ]
+  },
+
+  councilRules: {
+    ownerCouncil: "Strategic Intelligence",
+    supportingCouncils: ["SEO Visibility & Demand", "Market Trends & Forecasting Council"],
+    rulePacks: [
+      { packId: "market_trends.per_category_seasonality", version: "v1", appliesTo: "run" },
+      { packId: "seo_visibility.keyword_gap.core", version: "v1", appliesTo: "both" },
+      { packId: "governance.cmo_safe_gates", version: "v1", appliesTo: "both" }
+    ]
+  },
+
+  guardrails: {
+    neverPromiseRevenue: true,
+    neverDumpRawEntitiesWithoutFraming: true,
+    alwaysProvideNextStep: true
+  }
+};
+```
+
+---
+
+## 4) Nota rápida de implementación (para evitar errores comunes)
+
+* **Por categoría**: primero `MarketDemand.byCategory[]`, luego correr gap/filters solo dentro del scope de esa categoría.
+* `overall` debe ser **informational** y nunca debe ocultar divergencias.
+* Siempre incluir `trace` por keyword y `runTrace` global.
+* Si no hay groups explícitos en UCR.B, derivar y marcar warning.
+
+---
+
+Si querés, en el siguiente paso te dejo también:
+
+* el **schema DB** recomendado para guardar este análisis (sin N/A)
+* y el **UI layout en shadcn/ui** (component tree + props) listo para implementar.

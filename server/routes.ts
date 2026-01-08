@@ -2349,6 +2349,57 @@ IMPORTANT:
     }
   });
 
+  // Per-category market demand with keyword priority (v3 - integrates keyword gap)
+  app.post("/api/market-demand/analyze-with-keywords", async (req: any, res) => {
+    const userId = (req.user as any)?.id || "anonymous-user";
+    const { configurationId, timeRange, countryCode, includeKeywords = true } = req.body;
+
+    if (!configurationId) {
+      return res.status(400).json({ error: "configurationId is required" });
+    }
+
+    try {
+      const config = await storage.getConfigurationById(parseInt(configurationId, 10), userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const configForAnalyzer = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString(),
+      } as any;
+
+      let keywordGapResult = null;
+      if (includeKeywords) {
+        try {
+          keywordGapResult = await computeKeywordGap(configForAnalyzer, {
+            limitPerDomain: 100,
+            maxCompetitors: 3,
+          });
+        } catch (kwError) {
+          console.warn("Keyword gap analysis failed, continuing without keywords:", kwError);
+        }
+      }
+
+      const result = await marketDemandAnalyzer.analyzeByCategoryWithKeywords(
+        configForAnalyzer,
+        keywordGapResult,
+        {
+          timeRange: timeRange || "today 5-y",
+          countryCode: countryCode,
+          interval: "weekly",
+        }
+      );
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error analyzing market demand with keywords:", error);
+      res.status(500).json({ error: error.message || "Failed to analyze market demand with keywords" });
+    }
+  });
+
   // Legacy aggregated analysis (deprecated - use analyze-by-category instead)
   app.post("/api/market-demand/analyze", async (req: any, res) => {
     const userId = "anonymous-user";

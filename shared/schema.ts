@@ -994,3 +994,88 @@ export interface CategoryQueryGroup {
   categoryName: string;
   queries: string[];
 }
+
+// ==========================================
+// Category Keyword Priority Types
+// ==========================================
+
+export type KeywordDisposition = "PASS" | "REVIEW" | "OUT_OF_PLAY";
+export type KeywordSeverity = "low" | "medium" | "high" | "critical";
+export type UCRSectionID = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
+
+export type KeywordIntentType =
+  | "category_capture"
+  | "problem_solution"
+  | "product_generic"
+  | "brand_capture"
+  | "variant_or_size"
+  | "other";
+
+export interface KeywordItemTrace {
+  ruleId: string;
+  ucrSection: UCRSectionID;
+  reason: string;
+  severity: KeywordSeverity;
+  evidence?: string;
+}
+
+export interface KeywordScoreComponents {
+  searchVolume?: number | null;
+  cpc?: number | null;
+  keywordDifficulty?: number | null;
+  competitorBestPosition?: number | null;
+  intentWeight?: number | null;
+  difficultyFactor?: number | null;
+  positionFactor?: number | null;
+}
+
+export interface RankedKeyword {
+  keyword: string;
+  normalizedKeyword: string;
+  categoryName: string;
+  categoryGroupId?: string;
+  intentType: KeywordIntentType;
+  disposition: KeywordDisposition;
+  flags: string[];
+  capabilityScore: number;
+  opportunityScore: number;
+  scoreComponents: KeywordScoreComponents;
+  competitorsSeen: string[];
+  confidence: "low" | "medium" | "high";
+  reasons: string[];
+  trace: KeywordItemTrace[];
+}
+
+export interface CategoryActionCard {
+  recommendedWindowLabel: string;
+  startISO: string | null;
+  endISO: string | null;
+  primaryChannel: "SEO" | "Paid Search" | "Retail" | "Mixed";
+  objective: "TOF" | "MOF" | "BOF" | "Mixed";
+  nextSteps: string[];
+  risks: string[];
+}
+
+export interface CategoryKeywordStats {
+  totalKeywords: number;
+  pass: number;
+  review: number;
+  outOfPlay: number;
+  avgKD?: number | null;
+  medianKD?: number | null;
+  totalSearchVolume?: number | null;
+  estTrafficValueMonthly?: number | null;
+}
+
+export interface CategoryDemandWithKeywords extends CategoryDemandSlice {
+  actionCard?: CategoryActionCard;
+  stats?: CategoryKeywordStats;
+  topOpportunities?: RankedKeyword[];
+  needsReview?: RankedKeyword[];
+  outOfPlay?: RankedKeyword[];
+}
+
+export interface MarketDemandWithKeywordsResult extends Omit<MarketDemandByCategoryResult, 'byCategory'> {
+  byCategory: CategoryDemandWithKeywords[];
+  keywordPriorityEnabled: boolean;
+}

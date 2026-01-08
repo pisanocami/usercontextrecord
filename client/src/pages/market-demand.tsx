@@ -20,7 +20,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
-import type { MarketDemandResult, MarketDemandAnalysis, MarketDemandByCategoryResult, CategoryDemandSlice, Month } from "@shared/schema";
+import type { 
+  MarketDemandResult, 
+  MarketDemandAnalysis, 
+  MarketDemandByCategoryResult, 
+  CategoryDemandSlice, 
+  Month,
+  CategoryDemandWithKeywords,
+  MarketDemandWithKeywordsResult,
+  CategoryActionCard,
+  CategoryKeywordStats,
+  RankedKeyword,
+} from "@shared/schema";
 import {
   ArrowLeft,
   Calendar,
@@ -38,6 +49,12 @@ import {
   Plus,
   Trash2,
   Save,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  FileText,
+  XCircle,
+  Eye,
 } from "lucide-react";
 import {
   LineChart,
@@ -162,15 +179,35 @@ function isByCategoryResult(result: any): result is MarketDemandByCategoryResult
   return result && Array.isArray(result.byCategory) && result.byCategory.length > 0;
 }
 
-function CategoryDemandCard({ slice, index }: { slice: CategoryDemandSlice; index: number }) {
+function CategoryDemandCard({ 
+  slice, 
+  index,
+  onViewKeywords 
+}: { 
+  slice: CategoryDemandSlice | CategoryDemandWithKeywords; 
+  index: number;
+  onViewKeywords?: (categoryName: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasKeywords = 'stats' in slice && slice.stats && slice.stats.totalKeywords > 0;
+  const hasActionCard = 'actionCard' in slice && slice.actionCard;
+  const sliceWithKeywords = slice as CategoryDemandWithKeywords;
+
   return (
     <Card data-testid={`card-category-${index}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center justify-between gap-2">
+        <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
           <span>{slice.categoryName}</span>
-          <Badge variant={slice.consistencyLabel === 'high' ? 'default' : slice.consistencyLabel === 'medium' ? 'secondary' : 'destructive'}>
-            {slice.consistencyLabel} stability
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant={slice.consistencyLabel === 'high' ? 'default' : slice.consistencyLabel === 'medium' ? 'secondary' : 'destructive'}>
+              {slice.consistencyLabel} stability
+            </Badge>
+            {hasKeywords && (
+              <Badge variant="outline" className="text-xs">
+                {sliceWithKeywords.stats!.totalKeywords} keywords
+              </Badge>
+            )}
+          </div>
         </CardTitle>
         <CardDescription>
           {slice.queries.length} query term{slice.queries.length > 1 ? 's' : ''}
@@ -217,12 +254,233 @@ function CategoryDemandCard({ slice, index }: { slice: CategoryDemandSlice; inde
             })}
           </div>
         </div>
+
+        {hasKeywords && sliceWithKeywords.stats && (
+          <div className="flex items-center gap-3 text-sm border-t pt-3">
+            <div className="flex items-center gap-1">
+              <CheckCircle className="h-3 w-3 text-green-500" />
+              <span className="font-medium text-green-700 dark:text-green-400">{sliceWithKeywords.stats.pass}</span>
+              <span className="text-muted-foreground text-xs">PASS</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 text-amber-500" />
+              <span className="font-medium text-amber-700 dark:text-amber-400">{sliceWithKeywords.stats.review}</span>
+              <span className="text-muted-foreground text-xs">REVIEW</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <XCircle className="h-3 w-3 text-red-500" />
+              <span className="font-medium text-red-700 dark:text-red-400">{sliceWithKeywords.stats.outOfPlay}</span>
+              <span className="text-muted-foreground text-xs">OUT</span>
+            </div>
+            {sliceWithKeywords.stats.avgKD && (
+              <div className="ml-auto text-xs text-muted-foreground">
+                Avg KD: {sliceWithKeywords.stats.avgKD}
+              </div>
+            )}
+          </div>
+        )}
+
+        {hasActionCard && sliceWithKeywords.actionCard && (
+          <div className="border-t pt-3 space-y-2">
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="w-full flex items-center justify-between text-sm font-medium hover-elevate p-2 rounded-md"
+              data-testid={`button-expand-action-${index}`}
+            >
+              <span className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                Action Plan
+              </span>
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            
+            {expanded && (
+              <div className="space-y-3 p-3 bg-muted/50 rounded-md">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline">{sliceWithKeywords.actionCard.recommendedWindowLabel}</Badge>
+                  <Badge variant="secondary">{sliceWithKeywords.actionCard.primaryChannel}</Badge>
+                  <Badge variant="secondary">{sliceWithKeywords.actionCard.objective}</Badge>
+                </div>
+                
+                {sliceWithKeywords.actionCard.startISO && sliceWithKeywords.actionCard.endISO && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {sliceWithKeywords.actionCard.startISO} to {sliceWithKeywords.actionCard.endISO}
+                  </div>
+                )}
+                
+                {sliceWithKeywords.actionCard.nextSteps.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Next Steps</p>
+                    <ul className="text-xs space-y-1">
+                      {sliceWithKeywords.actionCard.nextSteps.map((step, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 shrink-0" />
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {sliceWithKeywords.actionCard.risks.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Risks</p>
+                    <ul className="text-xs space-y-1">
+                      {sliceWithKeywords.actionCard.risks.map((risk, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
+                          <span>{risk}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {hasKeywords && onViewKeywords && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => onViewKeywords(slice.categoryName)}
+                    className="w-full mt-2"
+                    data-testid={`button-view-keywords-${index}`}
+                  >
+                    <Eye className="h-3 w-3 mr-2" />
+                    View {sliceWithKeywords.stats!.pass} Keyword Opportunities
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         
         {slice.recommendationRationale && (
           <p className="text-xs text-muted-foreground" data-testid={`text-rationale-${index}`}>
             {slice.recommendationRationale}
           </p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function KeywordListPanel({ 
+  categoryName, 
+  keywords,
+  onClose 
+}: { 
+  categoryName: string;
+  keywords: { 
+    topOpportunities: RankedKeyword[]; 
+    needsReview: RankedKeyword[]; 
+    outOfPlay: RankedKeyword[];
+  };
+  onClose: () => void;
+}) {
+  const [activeKeywordTab, setActiveKeywordTab] = useState<"pass" | "review" | "out">("pass");
+  const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
+
+  const currentKeywords = activeKeywordTab === "pass" 
+    ? keywords.topOpportunities 
+    : activeKeywordTab === "review" 
+      ? keywords.needsReview 
+      : keywords.outOfPlay;
+
+  return (
+    <Card data-testid="panel-keyword-list">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Keywords: {categoryName}
+          </CardTitle>
+          <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-close-keywords">
+            <XCircle className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Tabs value={activeKeywordTab} onValueChange={(v) => setActiveKeywordTab(v as any)}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="pass" className="text-xs" data-testid="tab-pass">
+              <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
+              PASS ({keywords.topOpportunities.length})
+            </TabsTrigger>
+            <TabsTrigger value="review" className="text-xs" data-testid="tab-review">
+              <AlertTriangle className="h-3 w-3 mr-1 text-amber-500" />
+              REVIEW ({keywords.needsReview.length})
+            </TabsTrigger>
+            <TabsTrigger value="out" className="text-xs" data-testid="tab-out">
+              <XCircle className="h-3 w-3 mr-1 text-red-500" />
+              OUT ({keywords.outOfPlay.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={activeKeywordTab} className="mt-4">
+            {currentKeywords.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No keywords in this category</p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {currentKeywords.map((kw, idx) => (
+                  <div 
+                    key={kw.keyword} 
+                    className="border rounded-md p-3 space-y-2"
+                    data-testid={`keyword-row-${idx}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{kw.keyword}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">{kw.intentType}</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Vol: {kw.scoreComponents.searchVolume?.toLocaleString() || 'N/A'}
+                          </span>
+                          {kw.scoreComponents.keywordDifficulty && (
+                            <span className="text-xs text-muted-foreground">
+                              KD: {kw.scoreComponents.keywordDifficulty}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-semibold">{Math.round(kw.opportunityScore * 100)}%</div>
+                        <div className="text-xs text-muted-foreground">opportunity</div>
+                      </div>
+                    </div>
+
+                    {kw.reasons.length > 0 && (
+                      <p className="text-xs text-muted-foreground">{kw.reasons[0]}</p>
+                    )}
+
+                    {kw.trace.length > 0 && (
+                      <button
+                        onClick={() => setExpandedKeyword(expandedKeyword === kw.keyword ? null : kw.keyword)}
+                        className="text-xs text-primary flex items-center gap-1"
+                        data-testid={`button-expand-trace-${idx}`}
+                      >
+                        <FileText className="h-3 w-3" />
+                        {expandedKeyword === kw.keyword ? 'Hide' : 'Show'} trace ({kw.trace.length})
+                      </button>
+                    )}
+
+                    {expandedKeyword === kw.keyword && kw.trace.length > 0 && (
+                      <div className="bg-muted/50 rounded p-2 space-y-1 text-xs">
+                        {kw.trace.map((t, ti) => (
+                          <div key={ti} className="flex items-start gap-2">
+                            <Badge variant="outline" className="shrink-0 text-xs">
+                              {t.ucrSection}
+                            </Badge>
+                            <span className="text-muted-foreground">{t.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
@@ -239,6 +497,8 @@ export default function MarketDemandPage() {
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [analysisToDelete, setAnalysisToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [selectedKeywordCategory, setSelectedKeywordCategory] = useState<string | null>(null);
+  const [keywordsResult, setKeywordsResult] = useState<MarketDemandWithKeywordsResult | null>(null);
 
   useEffect(() => {
     if (params.configId) {
@@ -274,11 +534,35 @@ export default function MarketDemandPage() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/market-demand", selectedConfigId], data);
+      setKeywordsResult(null);
+      setSelectedKeywordCategory(null);
     },
     onError: (error: any) => {
       toast({
         title: "Analysis Failed",
         description: error.message || "Failed to analyze market demand",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const analyzeWithKeywordsMutation = useMutation({
+    mutationFn: async (configId: string) => {
+      const response = await apiRequest("POST", "/api/market-demand/analyze-with-keywords", {
+        configurationId: configId,
+        timeRange,
+        countryCode: "US",
+      });
+      return response.json() as Promise<MarketDemandWithKeywordsResult>;
+    },
+    onSuccess: (data) => {
+      setKeywordsResult(data);
+      queryClient.setQueryData(["/api/market-demand", selectedConfigId], data);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Keyword Analysis Failed",
+        description: error.message || "Failed to analyze keywords",
         variant: "destructive",
       });
     },
@@ -362,8 +646,14 @@ export default function MarketDemandPage() {
     }
   };
 
+  const handleRunWithKeywords = () => {
+    if (selectedConfigId) {
+      analyzeWithKeywordsMutation.mutate(selectedConfigId);
+    }
+  };
+
   const handleSaveAnalysis = () => {
-    const resultToSave = analyzeMutation.data;
+    const resultToSave = keywordsResult || analyzeMutation.data;
     if (selectedConfigId && selectedConfig && resultToSave) {
       saveAnalysisMutation.mutate({
         configurationId: selectedConfigId,
@@ -392,10 +682,10 @@ export default function MarketDemandPage() {
     setSelectedAnalysisId(analysis.id);
   };
 
-  const displayedResult: MarketDemandByCategoryResult | MarketDemandResult | undefined = selectedAnalysisId && selectedSavedAnalysis 
+  const displayedResult: MarketDemandByCategoryResult | MarketDemandResult | MarketDemandWithKeywordsResult | undefined = selectedAnalysisId && selectedSavedAnalysis 
     ? selectedSavedAnalysis.results 
-    : (analyzeMutation.data || analysisResult);
-  const isDisplayLoading = selectedAnalysisId ? selectedAnalysisLoading : (analysisLoading || analyzeMutation.isPending);
+    : (keywordsResult || analyzeMutation.data || analysisResult);
+  const isDisplayLoading = selectedAnalysisId ? selectedAnalysisLoading : (analysisLoading || analyzeMutation.isPending || analyzeWithKeywordsMutation.isPending);
 
   const aggregatedChartData = (() => {
     if (!displayedResult) return [];
@@ -584,7 +874,7 @@ export default function MarketDemandPage() {
                       </p>
                     </div>
                   </div>
-                  {renderAnalysisResults(displayedResult, isDisplayLoading, aggregatedChartData, monthlyHeatmapData)}
+                  {renderAnalysisResults(displayedResult, isDisplayLoading, aggregatedChartData, monthlyHeatmapData, keywordsResult, selectedKeywordCategory, setSelectedKeywordCategory)}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -711,7 +1001,7 @@ export default function MarketDemandPage() {
 
               <Button
                 onClick={handleRunAnalysis}
-                disabled={!selectedConfigId || analyzeMutation.isPending}
+                disabled={!selectedConfigId || analyzeMutation.isPending || analyzeWithKeywordsMutation.isPending}
                 data-testid="button-run-analysis"
               >
                 {analyzeMutation.isPending ? (
@@ -719,10 +1009,24 @@ export default function MarketDemandPage() {
                 ) : (
                   <BarChart3 className="h-4 w-4 mr-2" />
                 )}
-                Run Analysis
+                Timing Only
               </Button>
 
-              {analyzeMutation.data && !analyzeMutation.isPending && selectedConfigId && (
+              <Button
+                onClick={handleRunWithKeywords}
+                disabled={!selectedConfigId || analyzeMutation.isPending || analyzeWithKeywordsMutation.isPending}
+                variant="default"
+                data-testid="button-run-with-keywords"
+              >
+                {analyzeWithKeywordsMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Search className="h-4 w-4 mr-2" />
+                )}
+                Timing + Keywords
+              </Button>
+
+              {(analyzeMutation.data || keywordsResult) && !analyzeMutation.isPending && !analyzeWithKeywordsMutation.isPending && selectedConfigId && (
                 <Button
                   variant="outline"
                   onClick={handleSaveAnalysis}
@@ -791,10 +1095,13 @@ export default function MarketDemandPage() {
 }
 
 function renderAnalysisResults(
-  analysisResult: MarketDemandByCategoryResult | MarketDemandResult | undefined,
+  analysisResult: MarketDemandByCategoryResult | MarketDemandResult | MarketDemandWithKeywordsResult | undefined,
   isLoading: boolean,
   aggregatedChartData: Record<string, any>[],
-  monthlyHeatmapData: { value: number }[]
+  monthlyHeatmapData: { value: number }[],
+  keywordsResult: MarketDemandWithKeywordsResult | null,
+  selectedKeywordCategory: string | null,
+  setSelectedKeywordCategory: (category: string | null) => void
 ) {
   if (isLoading) {
     return (
@@ -867,10 +1174,31 @@ function renderAnalysisResults(
               </Badge>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="grid-category-cards">
-              {byCategoryResult.byCategory.map((slice, index) => (
-                <CategoryDemandCard key={slice.categoryName} slice={slice} index={index} />
+              {(keywordsResult?.byCategory || byCategoryResult.byCategory).map((slice, index) => (
+                <CategoryDemandCard 
+                  key={slice.categoryName} 
+                  slice={slice} 
+                  index={index}
+                  onViewKeywords={keywordsResult ? setSelectedKeywordCategory : undefined}
+                />
               ))}
             </div>
+
+            {selectedKeywordCategory && keywordsResult && (() => {
+              const categoryData = keywordsResult.byCategory.find(c => c.categoryName === selectedKeywordCategory);
+              if (!categoryData) return null;
+              return (
+                <KeywordListPanel
+                  categoryName={selectedKeywordCategory}
+                  keywords={{
+                    topOpportunities: categoryData.topOpportunities,
+                    needsReview: categoryData.needsReview,
+                    outOfPlay: categoryData.outOfPlay,
+                  }}
+                  onClose={() => setSelectedKeywordCategory(null)}
+                />
+              );
+            })()}
           </div>
 
           {byCategoryResult.overall && (

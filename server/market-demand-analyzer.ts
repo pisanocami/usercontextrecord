@@ -17,7 +17,18 @@ import type {
   CategoryCacheTrace,
   CategoryDemandTrace,
   OverallDemandAggregate,
+  RankedKeyword,
+  CategoryActionCard,
+  CategoryKeywordStats,
+  CategoryDemandWithKeywords,
+  MarketDemandWithKeywordsResult,
+  KeywordIntentType,
+  KeywordDisposition,
+  KeywordSeverity,
+  UCRSectionID,
+  KeywordItemTrace,
 } from "@shared/schema";
+import type { KeywordGapResult as KeywordGapResultType, KeywordResult as KeywordResultType } from "./keyword-gap-lite";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -386,8 +397,8 @@ export class MarketDemandAnalyzer {
     }
 
     const aggregatedSeries: TrendsDataPoint[] = [];
-    for (const [date, values] of seriesMap) {
-      const avg = values.reduce((s, v) => s + v, 0) / values.length;
+    for (const [date, values] of Array.from(seriesMap.entries())) {
+      const avg = values.reduce((s: number, v: number) => s + v, 0) / values.length;
       aggregatedSeries.push({ date, value: Math.round(avg) });
     }
     aggregatedSeries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -935,6 +946,256 @@ export class MarketDemandAnalyzer {
       declinePhase: { start: "" },
       yoyConsistency: "low",
       consistencyScore: 0,
+    };
+  }
+
+  /**
+   * Analyze by category WITH keyword priority integration
+   * Combines Market Demand timing with Keyword Gap opportunities per category
+   */
+  async analyzeByCategoryWithKeywords(
+    config: Configuration,
+    keywordGapResult: KeywordGapResultType | null,
+    params: Partial<MarketDemandAnalysisParams> = {}
+  ): Promise<MarketDemandWithKeywordsResult> {
+    const byCategoryResult = await this.analyzeByCategory(config, params);
+
+    if (!keywordGapResult || keywordGapResult.totalGapKeywords === 0) {
+      return {
+        ...byCategoryResult,
+        byCategory: byCategoryResult.byCategory.map(slice => ({
+          ...slice,
+          actionCard: this.generateActionCard(slice),
+          stats: { totalKeywords: 0, pass: 0, review: 0, outOfPlay: 0 },
+          topOpportunities: [],
+          needsReview: [],
+          outOfPlay: [],
+        })),
+        keywordPriorityEnabled: false,
+      };
+    }
+
+    const categoryKeywordMap = this.groupKeywordsByCategory(
+      keywordGapResult,
+      byCategoryResult.byCategory.map(c => c.categoryName)
+    );
+
+    const byCategoryWithKeywords: CategoryDemandWithKeywords[] = byCategoryResult.byCategory.map(slice => {
+      const keywords = categoryKeywordMap.get(slice.categoryName) || [];
+      const topOpportunities = keywords.filter(k => k.disposition === "PASS").slice(0, 50);
+      const needsReview = keywords.filter(k => k.disposition === "REVIEW").slice(0, 50);
+      const outOfPlay = keywords.filter(k => k.disposition === "OUT_OF_PLAY").slice(0, 20);
+
+      const stats = this.computeCategoryStats(keywords);
+      const actionCard = this.generateActionCard(slice, stats);
+
+      return {
+        ...slice,
+        actionCard,
+        stats,
+        topOpportunities,
+        needsReview,
+        outOfPlay,
+      };
+    });
+
+    return {
+      ...byCategoryResult,
+      byCategory: byCategoryWithKeywords,
+      keywordPriorityEnabled: true,
+    };
+  }
+
+  private groupKeywordsByCategory(
+    keywordGapResult: KeywordGapResultType,
+    categoryNames: string[]
+  ): Map<string, RankedKeyword[]> {
+    const result = new Map<string, RankedKeyword[]>();
+    
+    for (const catName of categoryNames) {
+      result.set(catName, []);
+    }
+
+    const allKeywords = [
+      ...keywordGapResult.topOpportunities,
+      ...keywordGapResult.needsReview,
+      ...keywordGapResult.outOfPlay,
+    ];
+
+    const categoryTermsNormalized = categoryNames.map(name => ({
+      name,
+      tokens: name.toLowerCase().split(/\s+/).filter(t => t.length > 2),
+    }));
+
+    for (const kw of allKeywords) {
+      const normalizedKw = kw.keyword.toLowerCase();
+      let bestMatch: string | null = null;
+      let bestScore = 0;
+
+      for (const cat of categoryTermsNormalized) {
+        let score = 0;
+        for (const token of cat.tokens) {
+          if (normalizedKw.includes(token)) {
+            score += token.length;
+          }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = cat.name;
+        }
+      }
+
+      const categoryName = bestMatch || categoryNames[0] || "Other";
+      const rankedKeyword = this.convertToRankedKeyword(kw, categoryName);
+      
+      if (result.has(categoryName)) {
+        result.get(categoryName)!.push(rankedKeyword);
+      } else {
+        if (!result.has("Other")) {
+          result.set("Other", []);
+        }
+        result.get("Other")!.push(rankedKeyword);
+      }
+    }
+
+    for (const [, keywords] of Array.from(result.entries())) {
+      keywords.sort((a, b) => b.opportunityScore - a.opportunityScore);
+    }
+
+    return result;
+  }
+
+  private convertToRankedKeyword(kw: KeywordResultType, categoryName: string): RankedKeyword {
+    return {
+      keyword: kw.keyword,
+      normalizedKeyword: kw.normalizedKeyword,
+      categoryName,
+      intentType: kw.intentType as KeywordIntentType,
+      disposition: kw.disposition as KeywordDisposition,
+      flags: kw.flags,
+      capabilityScore: kw.capabilityScore,
+      opportunityScore: kw.opportunityScore,
+      scoreComponents: {
+        searchVolume: kw.searchVolume,
+        cpc: kw.cpc,
+        keywordDifficulty: kw.keywordDifficulty,
+        competitorBestPosition: kw.competitorPosition,
+        intentWeight: null,
+        difficultyFactor: kw.difficultyFactor,
+        positionFactor: kw.positionFactor,
+      },
+      competitorsSeen: kw.competitorsSeen,
+      confidence: kw.confidence,
+      reasons: kw.reasons,
+      trace: kw.trace.map(t => ({
+        ruleId: t.ruleId,
+        ucrSection: t.ucrSection as UCRSectionID,
+        reason: t.reason,
+        severity: t.severity as KeywordSeverity,
+        evidence: t.evidence,
+      })),
+    };
+  }
+
+  private computeCategoryStats(keywords: RankedKeyword[]): CategoryKeywordStats {
+    const pass = keywords.filter(k => k.disposition === "PASS").length;
+    const review = keywords.filter(k => k.disposition === "REVIEW").length;
+    const outOfPlay = keywords.filter(k => k.disposition === "OUT_OF_PLAY").length;
+
+    const kds = keywords
+      .map(k => k.scoreComponents.keywordDifficulty)
+      .filter((v): v is number => v !== null && v !== undefined);
+    
+    const avgKD = kds.length > 0 ? Math.round(kds.reduce((a, b) => a + b, 0) / kds.length) : null;
+    const sortedKds = [...kds].sort((a, b) => a - b);
+    const medianKD = sortedKds.length > 0 ? sortedKds[Math.floor(sortedKds.length / 2)] : null;
+
+    const totalSearchVolume = keywords.reduce((sum, k) => sum + (k.scoreComponents.searchVolume || 0), 0);
+
+    return {
+      totalKeywords: keywords.length,
+      pass,
+      review,
+      outOfPlay,
+      avgKD,
+      medianKD,
+      totalSearchVolume: totalSearchVolume > 0 ? totalSearchVolume : null,
+    };
+  }
+
+  private generateActionCard(slice: CategoryDemandSlice, stats?: CategoryKeywordStats): CategoryActionCard {
+    const hasKeywords = stats && stats.totalKeywords > 0;
+    const hasHighOpportunity = stats && stats.pass > 10;
+
+    let recommendedWindowLabel = "Timing neutral";
+    let startISO: string | null = null;
+    let endISO: string | null = null;
+
+    if (slice.inflectionMonth && slice.peakWindow.length > 0) {
+      const inflectionIdx = SHORT_MONTHS.indexOf(slice.inflectionMonth);
+      const startMonthIdx = (inflectionIdx - 1 + 12) % 12;
+      const endMonthIdx = (inflectionIdx + 2) % 12;
+      
+      const today = new Date();
+      const year = today.getFullYear();
+      const startDate = new Date(year, startMonthIdx, 15);
+      const endDate = new Date(year, endMonthIdx, 15);
+      
+      if (startDate < today) {
+        startDate.setFullYear(year + 1);
+        endDate.setFullYear(year + 1);
+      }
+      
+      startISO = startDate.toISOString().split("T")[0];
+      endISO = endDate.toISOString().split("T")[0];
+      recommendedWindowLabel = `Pre-peak (2-4 weeks before ${slice.inflectionMonth})`;
+    }
+
+    let primaryChannel: CategoryActionCard["primaryChannel"] = "Mixed";
+    let objective: CategoryActionCard["objective"] = "TOF";
+
+    if (hasHighOpportunity && stats!.avgKD && stats!.avgKD < 40) {
+      primaryChannel = "SEO";
+      objective = "TOF";
+    } else if (stats?.avgKD && stats.avgKD > 60) {
+      primaryChannel = "Paid Search";
+      objective = "BOF";
+    }
+
+    const nextSteps: string[] = [];
+    const risks: string[] = [];
+
+    if (slice.consistencyLabel === "high" || slice.consistencyLabel === "medium") {
+      nextSteps.push(`Launch content ${slice.inflectionMonth ? `before ${slice.inflectionMonth}` : "consistently"}`);
+    }
+    
+    if (hasKeywords) {
+      nextSteps.push(`Target ${stats!.pass} high-opportunity keywords`);
+      if (stats!.review > 0) {
+        nextSteps.push(`Review ${stats!.review} borderline keywords for brand fit`);
+      }
+    } else {
+      nextSteps.push("Run keyword gap analysis to identify opportunities");
+    }
+
+    if (slice.consistencyLabel === "low") {
+      risks.push("Low seasonal consistency - consider always-on strategy");
+    }
+    if (stats?.avgKD && stats.avgKD > 50) {
+      risks.push("High keyword difficulty - expect longer time to rank");
+    }
+    if (!hasKeywords) {
+      risks.push("No keyword data available for this category");
+    }
+
+    return {
+      recommendedWindowLabel,
+      startISO,
+      endISO,
+      primaryChannel,
+      objective,
+      nextSteps: nextSteps.slice(0, 3),
+      risks: risks.slice(0, 2),
     };
   }
 }
