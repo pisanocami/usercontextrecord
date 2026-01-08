@@ -1,0 +1,189 @@
+
+Brand Intelligence
+User Record Context
+Navigation
+
+All Contexts
+
+New Context
+
+Version History
+Tools
+
+Bulk Generation
+Analysis
+
+Keyword Gap
+
+Market Demand
+
+Gap Report
+
+One Pager
+Identity
+
+Brand Context
+
+Category Definition
+Market
+
+Competitive Set
+
+Demand Definition
+Strategy
+
+Strategic Intent
+
+Channel Context
+Guardrails
+
+Negative Scope
+
+Governance
+Not Validated
+Toggle Sidebar
+
+
+
+Market Demand Analysis
+View saved analyses or run new ones
+
+Saved Analyses (3)
+Run New Analysis
+Analysis Settings
+Configuration
+
+Fitbod Context
+Time Range
+
+5 Years
+Run Analysis
+Save Analysis
+Executive Summary
+Analyzed 5 category groups: - Health and Fitness Technology: peaks in Nov (low consistency) - Fitness apps: peaks in Jan (medium consistency) - Workout planning apps: peaks in Dec (medium consistency) - Personal trainers solutions: peaks in Sep (medium consistency) - Digital health platforms: peaks in Sep (medium consistency)
+
+DataForSEO Trends
+Category Analysis
+5 categories
+Health and Fitness Technology
+low stability
+1 query term
+Peak Month
+Nov
+Low Month
+Jan
+Monthly Pattern
+
+Timing neutral - demand pattern shows low year-over-year consistency.
+
+Fitness apps
+medium stability
+1 query term
+Peak Month
+Jan
+Low Month
+May
+Monthly Pattern
+
+Launch content 2-4 weeks before Nov when demand begins rising. Peak demand in Jan.
+
+Workout planning apps
+medium stability
+1 query term
+Peak Month
+Dec
+Low Month
+Dec
+Monthly Pattern
+
+Launch content 2-4 weeks before Jan when demand begins rising. Peak demand in Dec.
+
+Personal trainers solutions
+medium stability
+1 query term
+Peak Month
+Sep
+Low Month
+Sep
+Monthly Pattern
+
+Launch content 2-4 weeks before Jan when demand begins rising. Peak demand in Sep.
+
+Digital health platforms
+medium stability
+1 query term
+Peak Month
+Sep
+Low Month
+Jan
+Monthly Pattern
+
+Launch content 2-4 weeks before Aug when demand begins rising. Peak demand in Sep.
+
+Overall Aggregate
+Weighted average across all categories
+Peak Month
+Sep
+Low Month
+Mar
+Stability Score
+44%
+Launch By
+Aug 14, 2026
+Monthly Pattern
+
+Jan
+16
+Feb
+15
+Mar
+14
+Apr
+14
+May
+15
+Jun
+19
+Jul
+24
+Aug
+29
+Sep
+48
+Oct
+27
+Nov
+26
+Dec
+33
+Demand Trend by Category
+Search interest over time for each category
+Jan '21
+Feb '22
+Apr '22
+Jul '22
+Apr '23
+Oct '23
+Jan '24
+Aug '24
+Dec '24
+Mar '25
+May '25
+Aug '25
+Sep '25
+Dec '25
+0
+25
+50
+75
+100
+Interest
+Health and Fitness TechnologyFitness appsWorkout planning appsPersonal trainers solutionsDigital health platforms
+
+Analysis Trace
+Section B
+Section E
+negative_scope
+per_category_analysis
+timing_consistency_check
+Mar '25
