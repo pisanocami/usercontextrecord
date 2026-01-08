@@ -31,6 +31,8 @@ import type {
   CategoryActionCard,
   CategoryKeywordStats,
   RankedKeyword,
+  CategoryVolumeValidationResult,
+  CategoryVolumeResult,
 } from "@shared/schema";
 import {
   ArrowLeft,
@@ -55,6 +57,9 @@ import {
   FileText,
   XCircle,
   Eye,
+  ShieldCheck,
+  CircleDot,
+  Edit,
 } from "lucide-react";
 import {
   LineChart,
@@ -499,6 +504,9 @@ export default function MarketDemandPage() {
   const [analysisToDelete, setAnalysisToDelete] = useState<{ id: number; name: string } | null>(null);
   const [selectedKeywordCategory, setSelectedKeywordCategory] = useState<string | null>(null);
   const [keywordsResult, setKeywordsResult] = useState<MarketDemandWithKeywordsResult | null>(null);
+  const [validationResult, setValidationResult] = useState<CategoryVolumeValidationResult | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
+  const [excludedCategories, setExcludedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (params.configId) {
@@ -628,6 +636,32 @@ export default function MarketDemandPage() {
     },
   });
 
+  const validateCategoriesMutation = useMutation({
+    mutationFn: async (configId: string) => {
+      const response = await apiRequest("POST", "/api/market-demand/validate-categories", {
+        configurationId: configId,
+        timeRange,
+        countryCode: "US",
+      });
+      return response.json() as Promise<CategoryVolumeValidationResult>;
+    },
+    onSuccess: (data) => {
+      setValidationResult(data);
+      setShowValidation(true);
+      const lowVolume = data.validated
+        .filter(v => v.status === "none" || v.status === "low")
+        .map(v => v.categoryName);
+      setExcludedCategories(new Set(lowVolume.filter(c => data.validated.find(v => v.categoryName === c)?.status === "none")));
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Validation Failed",
+        description: error.message || "Failed to validate categories",
+        variant: "destructive",
+      });
+    },
+  });
+
   const { data: analysisResult, isLoading: analysisLoading } = useQuery<MarketDemandByCategoryResult | MarketDemandResult>({
     queryKey: ["/api/market-demand", selectedConfigId],
     enabled: !!selectedConfigId && activeTab === "run",
@@ -680,6 +714,30 @@ export default function MarketDemandPage() {
 
   const handleViewAnalysis = (analysis: MarketDemandAnalysis) => {
     setSelectedAnalysisId(analysis.id);
+  };
+
+  const handleValidateCategories = () => {
+    if (selectedConfigId) {
+      setValidationResult(null);
+      setShowValidation(false);
+      validateCategoriesMutation.mutate(selectedConfigId);
+    }
+  };
+
+  const handleToggleCategory = (categoryName: string) => {
+    setExcludedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryName)) {
+        newSet.delete(categoryName);
+      } else {
+        newSet.add(categoryName);
+      }
+      return newSet;
+    });
+  };
+
+  const handleProceedToAnalysis = () => {
+    setShowValidation(false);
   };
 
   const displayedResult: MarketDemandByCategoryResult | MarketDemandResult | MarketDemandWithKeywordsResult | undefined = selectedAnalysisId && selectedSavedAnalysis 
@@ -1000,6 +1058,20 @@ export default function MarketDemandPage() {
               </div>
 
               <Button
+                onClick={handleValidateCategories}
+                disabled={!selectedConfigId || validateCategoriesMutation.isPending}
+                variant="outline"
+                data-testid="button-validate-categories"
+              >
+                {validateCategoriesMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                )}
+                Validate Categories
+              </Button>
+
+              <Button
                 onClick={handleRunAnalysis}
                 disabled={!selectedConfigId || analyzeMutation.isPending || analyzeWithKeywordsMutation.isPending}
                 data-testid="button-run-analysis"
@@ -1043,6 +1115,115 @@ export default function MarketDemandPage() {
               )}
             </CardContent>
           </Card>
+
+          {showValidation && validationResult && (
+            <Card className="mb-6" data-testid="card-validation-results">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5" />
+                  Category Volume Validation
+                </CardTitle>
+                <CardDescription>
+                  Review category data availability before running analysis. Toggle categories to include/exclude them.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4 flex-wrap text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-green-500" />
+                    <span>High: {validationResult.summary.high}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-amber-400" />
+                    <span>Medium: {validationResult.summary.medium}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-orange-500" />
+                    <span>Low: {validationResult.summary.low}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-red-500" />
+                    <span>None: {validationResult.summary.none}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {validationResult.validated.map((cat, index) => {
+                    const isExcluded = excludedCategories.has(cat.categoryName);
+                    const statusColor = cat.status === "high" 
+                      ? "bg-green-500" 
+                      : cat.status === "medium" 
+                        ? "bg-amber-400" 
+                        : cat.status === "low"
+                          ? "bg-orange-500"
+                          : "bg-red-500";
+                    const statusBorder = cat.status === "high" 
+                      ? "border-green-200 dark:border-green-800" 
+                      : cat.status === "medium" 
+                        ? "border-amber-200 dark:border-amber-800" 
+                        : cat.status === "low"
+                          ? "border-orange-200 dark:border-orange-800"
+                          : "border-red-200 dark:border-red-800";
+
+                    return (
+                      <div 
+                        key={index}
+                        className={`flex items-center justify-between p-3 rounded-md border ${statusBorder} ${isExcluded ? 'opacity-50' : ''}`}
+                        data-testid={`validation-category-${index}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`h-3 w-3 rounded-full ${statusColor}`} />
+                          <div>
+                            <p className={`font-medium ${isExcluded ? 'line-through' : ''}`}>{cat.categoryName}</p>
+                            <p className="text-xs text-muted-foreground">{cat.dataPoints} data points</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground max-w-[200px] truncate hidden md:block">
+                            {cat.recommendation}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant={isExcluded ? "outline" : "secondary"}
+                            onClick={() => handleToggleCategory(cat.categoryName)}
+                            disabled={cat.status === "none"}
+                            data-testid={`button-toggle-category-${index}`}
+                          >
+                            {isExcluded ? (
+                              <>
+                                <Plus className="h-3 w-3 mr-1" />
+                                Include
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Exclude
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {validationResult.validated.length - excludedCategories.size} categories will be analyzed
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setShowValidation(false)} data-testid="button-cancel-validation">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleProceedToAnalysis} data-testid="button-proceed-analysis">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Proceed to Analysis
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {renderAnalysisResults(displayedResult, isDisplayLoading && activeTab === "run", aggregatedChartData, monthlyHeatmapData)}
 
