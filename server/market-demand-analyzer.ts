@@ -44,6 +44,7 @@ interface CategoryCacheEntry {
 
 const categoryCache = new Map<string, CategoryCacheEntry>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MIN_DATA_POINTS_THRESHOLD = 20; // Minimum data points required for a category to be included
 
 function buildCacheKey(configId: number, categoryName: string, queries: string[], country: string, timeRange: string): string {
   const sortedQueries = [...queries].sort().join("|");
@@ -174,6 +175,7 @@ export class MarketDemandAnalyzer {
     console.log(`[MarketDemandAnalyzer] Analyzing ${categoryGroups.length} category groups for ${countryCode}`);
 
     const byCategory: CategoryDemandSlice[] = [];
+    const excludedCategories: { name: string; reason: string; dataPoints: number }[] = [];
     const sectionsUsed: string[] = ["B"];
     const filtersApplied: string[] = [];
 
@@ -190,6 +192,15 @@ export class MarketDemandAnalyzer {
 
       const cached = categoryCache.get(cacheKey);
       if (cached && cached.expiresAt > now) {
+        if (cached.slice.series.length < MIN_DATA_POINTS_THRESHOLD) {
+          console.log(`[MarketDemandAnalyzer] Cache hit for ${group.categoryName} but excluding: insufficient data (${cached.slice.series.length} points)`);
+          excludedCategories.push({
+            name: group.categoryName,
+            reason: "insufficient_data",
+            dataPoints: cached.slice.series.length,
+          });
+          continue;
+        }
         console.log(`[MarketDemandAnalyzer] Cache hit for ${group.categoryName}`);
         byCategory.push(cached.slice);
         continue;
@@ -199,6 +210,16 @@ export class MarketDemandAnalyzer {
 
       const trendsData = await this.fetchTrendsData(filteredQueries, countryCode, timeRange, interval);
       const aggregatedData = this.aggregateTrendsData(trendsData);
+
+      if (aggregatedData.length < MIN_DATA_POINTS_THRESHOLD) {
+        console.log(`[MarketDemandAnalyzer] Excluding ${group.categoryName}: insufficient data (${aggregatedData.length} points < ${MIN_DATA_POINTS_THRESHOLD} minimum)`);
+        excludedCategories.push({
+          name: group.categoryName,
+          reason: "insufficient_data",
+          dataPoints: aggregatedData.length,
+        });
+        continue;
+      }
 
       const heatmap = this.buildHeatmap(aggregatedData);
       const { peak, low } = this.findPeakAndLowMonths(heatmap);
@@ -302,6 +323,7 @@ export class MarketDemandAnalyzer {
         fetchedAt: new Date().toISOString(),
         cached: byCategory.some(c => c.trace.cache.hit),
         dataSource: this.provider.displayName,
+        excludedCategories: excludedCategories.length > 0 ? excludedCategories : undefined,
       },
     };
   }

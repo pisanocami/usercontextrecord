@@ -987,6 +987,7 @@ export interface MarketDemandByCategoryResult {
     fetchedAt: string;
     cached: boolean;
     dataSource: string;
+    excludedCategories?: { name: string; reason: string; dataPoints: number }[];
   };
 }
 
