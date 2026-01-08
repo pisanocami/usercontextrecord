@@ -647,9 +647,9 @@ export const MarketDemandSeasonalityContract: ModuleContract = {
   name: "Market Demand & Seasonality",
   category: "Market Intelligence",
   layer: "Signal",
-  version: "contract.v1",
+  version: "contract.v2",
 
-  description: "Surfaces historical and near-term demand cycles using Google Trends data for timing decisions. Answers WHEN to act, not HOW MUCH to spend.",
+  description: "Surfaces historical and near-term demand cycles using Google Trends data for timing decisions. Answers WHEN to act, not HOW MUCH to spend. Context-First: Demand clusters derived from UCR.D.demand_themes.",
   strategicQuestion: "When does our market actually wake up — and when should we act?",
 
   dataSources: ["DataForSEO", "GoogleTrends"],
@@ -663,26 +663,29 @@ export const MarketDemandSeasonalityContract: ModuleContract = {
   caching: {
     cadence: "monthly",
     ttlSeconds: 2592000,
-    bustOnChanges: ["category_scope", "market"]
+    bustOnChanges: ["category_scope", "market", "governance"]
   },
 
   executionGate: {
-    allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED", "AI_ANALYSIS_RUN"],
+    // Context-First: Require AI_READY or higher
+    allowedStatuses: ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"],
     allowMissingOptionalSections: true,
     requireAuditTrail: true
   },
 
   contextInjection: {
-    requiredSections: ["A", "B"],
-    optionalSections: ["C", "D", "E", "G", "H"],
+    // Context-First: D (demand themes) and H (governance) are required
+    requiredSections: ["D", "H"],
+    optionalSections: ["A", "B", "C", "E", "F", "G"],
     sectionUsage: {
-      A: "Defines brand domain and geo for market context.",
-      B: "Defines category queries for demand tracking.",
+      A: "Optional: brand domain and geo for market context.",
+      B: "Optional: category fence for query validation.",
       C: "Optional: competitor brands for trend comparison.",
-      D: "Maps demand themes for trend classification.",
-      E: "Adjusts timing sensitivity (aggressive vs conservative).",
-      G: "Hard exclusions for prohibited categories.",
-      H: "Defines confidence thresholds for timing recommendations."
+      D: "REQUIRED: demand_themes provide query clusters for analysis.",
+      E: "Optional: risk_tolerance adjusts timing sensitivity.",
+      F: "Optional: channel context for recommendation framing.",
+      G: "Hard exclusions for prohibited categories/keywords.",
+      H: "REQUIRED: module_defaults.forecast_policy controls forecast behavior."
     },
     gates: {
       fenceMode: "soft",
@@ -693,40 +696,34 @@ export const MarketDemandSeasonalityContract: ModuleContract = {
   inputs: {
     fields: [
       {
-        name: "query_groups",
-        type: "string[]",
-        required: true,
-        description: "Category-level clusters, not single keywords"
+        name: "demand_theme_clusters",
+        type: "json",
+        required: false,
+        description: "Derived from UCR.D.demand_themes - not user-provided"
       },
       {
         name: "country_code",
         type: "string",
         required: false,
         default: "US",
-        description: "Demand timing varies by geography"
+        description: "Defaults to H.module_defaults.default_geo"
       },
       {
         name: "time_range",
         type: "string",
         required: false,
         default: "today 5-y",
-        description: "Captures multi-year seasonality"
+        description: "Defaults to H.module_defaults.default_time_range"
       },
       {
         name: "interval",
         type: "string",
         required: false,
         default: "weekly",
-        description: "Balances resolution and stability",
+        description: "Defaults to H.module_defaults.default_interval",
         constraints: { enum: ["daily", "weekly", "monthly"] }
-      },
-      {
-        name: "forecast_enabled",
-        type: "boolean",
-        required: false,
-        default: false,
-        description: "Enable 8-12 week forecast"
       }
+      // NOTE: forecast_enabled removed - controlled by H.module_defaults.forecast_policy
     ]
   },
 

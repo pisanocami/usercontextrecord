@@ -238,6 +238,14 @@ export const competitorsSchema = z.object({
   pending_review_count: z.number().default(0),
 });
 
+// Demand Theme Schema (Context-First: Section D provides demand clusters)
+export const demandThemeSchema = z.object({
+  name: z.string(),
+  keywords: z.array(z.string()).min(1),
+  description: z.string().default(""),
+  priority: z.enum(["high", "medium", "low"]).default("medium"),
+});
+
 // Demand Definition Schema
 export const demandDefinitionSchema = z.object({
   brand_keywords: z.object({
@@ -249,6 +257,8 @@ export const demandDefinitionSchema = z.object({
     problem_terms: z.array(z.string()),
     top_n: z.number().min(1).max(200),
   }),
+  // Context-First: Demand themes for Market Demand module (Section D.demand_themes)
+  demand_themes: z.array(demandThemeSchema).default([]),
 });
 
 // Helper to normalize enum values to lowercase
@@ -459,6 +469,27 @@ export const sectionApprovalsSchema = z.object({
 export type SectionApproval = z.infer<typeof sectionApprovalSchema>;
 export type SectionApprovals = z.infer<typeof sectionApprovalsSchema>;
 
+// Forecast Policy enum (Context-First: H.forecast_policy controls module behavior)
+export const forecastPolicyEnum = z.enum([
+  "DISABLED",            // No forecast rendered
+  "DIRECTIONAL_ONLY",    // Dotted extension, 8-12 week max
+  "ENABLED_WITH_GUARDRAILS", // Only when YoY consistency is not erratic
+]);
+
+export type ForecastPolicy = z.infer<typeof forecastPolicyEnum>;
+
+// Module Defaults Schema (Context-First: H contains module-specific defaults)
+export const moduleDefaultsSchema = z.object({
+  default_time_range: z.string().default("today 5-y"),
+  default_interval: z.enum(["daily", "weekly", "monthly"]).default("weekly"),
+  default_geo: z.string().default("US"),
+  forecast_policy: forecastPolicyEnum.default("DISABLED"),
+  min_theme_keywords: z.number().min(1).default(2), // Minimum keywords per theme
+  cache_ttl_seconds: z.number().default(2592000), // 30 days default
+});
+
+export type ModuleDefaults = z.infer<typeof moduleDefaultsSchema>;
+
 // Governance Schema
 export const governanceSchema = z.object({
   model_suggested: z.boolean(),
@@ -475,6 +506,15 @@ export const governanceSchema = z.object({
   reviewed_by: z.string(),
   context_valid_until: z.string(),
   cmo_safe: z.boolean(),
+  // Context-First: Module defaults (Section H provides governance for modules)
+  module_defaults: moduleDefaultsSchema.default({
+    default_time_range: "today 5-y",
+    default_interval: "weekly",
+    default_geo: "US",
+    forecast_policy: "DISABLED",
+    min_theme_keywords: 2,
+    cache_ttl_seconds: 2592000,
+  }),
   // Phase 1: Validation & Versioning
   context_hash: z.string().default(""), // Deterministic fingerprint for reproducibility
   context_version: z.number().default(1), // Incrementing version number
@@ -583,6 +623,7 @@ export type CompetitorEvidence = z.infer<typeof competitorEvidenceSchema>;
 export type CompetitorEntry = z.infer<typeof competitorEntrySchema>;
 export type Competitors = z.infer<typeof competitorsSchema>;
 export type DemandDefinition = z.infer<typeof demandDefinitionSchema>;
+export type DemandTheme = z.infer<typeof demandThemeSchema>;
 export type StrategicIntent = z.infer<typeof strategicIntentSchema>;
 export type ChannelContext = z.infer<typeof channelContextSchema>;
 export type ExclusionEntry = z.infer<typeof exclusionEntrySchema>;
@@ -658,6 +699,7 @@ export const defaultConfiguration: InsertConfiguration = {
       problem_terms: [],
       top_n: 50,
     },
+    demand_themes: [], // Context-First: Populated by AI or user
   },
   strategic_intent: {
     growth_priority: "",
@@ -710,6 +752,15 @@ export const defaultConfiguration: InsertConfiguration = {
     reviewed_by: "",
     context_valid_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     cmo_safe: false,
+    // Context-First: Module defaults (Section H)
+    module_defaults: {
+      default_time_range: "today 5-y",
+      default_interval: "weekly" as const,
+      default_geo: "US",
+      forecast_policy: "DISABLED" as const,
+      min_theme_keywords: 2,
+      cache_ttl_seconds: 2592000, // 30 days
+    },
     context_hash: "",
     context_version: 1,
     validation_status: "incomplete",
@@ -927,6 +978,34 @@ export type InsertMarketDemandAnalysis = Omit<MarketDemandAnalysis, "id" | "crea
 
 export type Month = "Jan" | "Feb" | "Mar" | "Apr" | "May" | "Jun" | "Jul" | "Aug" | "Sep" | "Oct" | "Nov" | "Dec";
 
+// Timing Classification (Context-First: per-cluster timing pattern classification)
+export type TimingClassification = 
+  | "early_ramp_dominant"   // Demand starts rising early, gradual build
+  | "peak_driven"           // Sharp peak, timing around peak is critical
+  | "flat_timing_neutral"   // Flat demand, no strong seasonal pattern
+  | "erratic_unreliable";   // Inconsistent YoY, don't over-optimize timing
+
+// YoY Consistency Label
+export type YoYConsistencyLabel = "stable" | "shifting" | "erratic";
+
+// Cluster-level flags for auditing
+export type ClusterFlag = 
+  | "outside_fence"
+  | "anomaly_detected"
+  | "insufficient_theme_keywords"
+  | "forecast_blocked_by_policy"
+  | "forecast_enabled_by_policy"
+  | "low_yoy_consistency";
+
+// Item-level trace for explainability (Context-First)
+export interface DemandItemTrace {
+  ruleId: string;
+  ucrSection: string;
+  reason: string;
+  severity: "low" | "medium" | "high" | "critical";
+  evidence?: string;
+}
+
 export interface CategoryCacheTrace {
   hit: boolean;
   key: string;
@@ -954,6 +1033,38 @@ export interface CategoryDemandSlice {
   series: TrendsDataPoint[];
   heatmap: Record<Month, number>;
   trace: CategoryDemandTrace;
+  // Context-First enhancements
+  timingClassification?: TimingClassification;
+  yoyConsistencyLabel?: YoYConsistencyLabel;
+  confidence?: "high" | "medium" | "low";
+  flags?: ClusterFlag[];
+  itemTraces?: DemandItemTrace[];
+  forecast?: TrendsDataPoint[];
+}
+
+// Context-First: Demand Theme Cluster (derived from UCR.D.demand_themes)
+export interface DemandThemeCluster {
+  themeName: string;
+  queriesUsed: string[];
+  queriesExcluded?: string[];
+  geo: string;
+  timeRange: string;
+  interval: "daily" | "weekly" | "monthly";
+  seasonalityProfile: {
+    inflectionMonth: Month | null;
+    peakWindow: Month[];
+    declineStart: Month | null;
+  };
+  yoyConsistency: YoYConsistencyLabel;
+  timingClassification: TimingClassification;
+  confidence: "high" | "medium" | "low";
+  flags: ClusterFlag[];
+  trace: DemandItemTrace[];
+  series: TrendsDataPoint[];
+  heatmap: Record<Month, number>;
+  forecast?: TrendsDataPoint[];
+  recommendedLaunchByISO: string | null;
+  recommendationRationale: string;
 }
 
 export interface OverallDemandAggregate {
@@ -987,6 +1098,35 @@ export interface MarketDemandByCategoryResult {
     fetchedAt: string;
     cached: boolean;
     dataSource: string;
+  };
+  // Context-First envelope fields
+  contextStatus?: string;
+  warnings?: string[];
+}
+
+// Context-First: Full Module Output Envelope (per playbook spec)
+export interface MarketDemandModuleOutput {
+  moduleId: "market_demand_seasonality";
+  runId: string;
+  generatedAt: string;
+  // Context traceability
+  contextVersion: number;
+  contextStatus: string;
+  ucrSectionsUsed: string[];
+  filtersApplied: string[];
+  warnings: string[];
+  // Per-cluster results
+  clusters: DemandThemeCluster[];
+  // Overall aggregate
+  overall?: OverallDemandAggregate;
+  // Executive summary
+  executiveSummary: string;
+  // Metadata
+  metadata: {
+    fetchedAt: string;
+    cached: boolean;
+    dataSource: string;
+    forecastPolicy: string;
   };
 }
 

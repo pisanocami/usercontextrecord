@@ -162,18 +162,47 @@ function isByCategoryResult(result: any): result is MarketDemandByCategoryResult
   return result && Array.isArray(result.byCategory) && result.byCategory.length > 0;
 }
 
+function getTimingClassificationLabel(classification?: string): { label: string; description: string; color: string } {
+  switch (classification) {
+    case "early_ramp_dominant":
+      return { label: "Early Ramp", description: "Demand builds gradually - plan content early", color: "text-blue-600 dark:text-blue-400" };
+    case "peak_driven":
+      return { label: "Peak Driven", description: "Sharp peak - timing around peak is critical", color: "text-amber-600 dark:text-amber-400" };
+    case "flat_timing_neutral":
+      return { label: "Flat/Neutral", description: "Stable demand - always-on strategy works", color: "text-slate-600 dark:text-slate-400" };
+    case "erratic_unreliable":
+      return { label: "Erratic", description: "Inconsistent pattern - don't over-optimize timing", color: "text-red-600 dark:text-red-400" };
+    default:
+      return { label: "Unknown", description: "Pattern not classified", color: "text-muted-foreground" };
+  }
+}
+
 function CategoryDemandCard({ slice, index }: { slice: CategoryDemandSlice; index: number }) {
+  const timingInfo = getTimingClassificationLabel(slice.timingClassification);
+  
   return (
     <Card data-testid={`card-category-${index}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center justify-between gap-2">
+        <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
           <span>{slice.categoryName}</span>
-          <Badge variant={slice.consistencyLabel === 'high' ? 'default' : slice.consistencyLabel === 'medium' ? 'secondary' : 'destructive'}>
-            {slice.consistencyLabel} stability
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            {slice.timingClassification && (
+              <Badge variant="outline" className={timingInfo.color} title={timingInfo.description} data-testid={`badge-timing-${index}`}>
+                {timingInfo.label}
+              </Badge>
+            )}
+            <Badge variant={slice.consistencyLabel === 'high' ? 'default' : slice.consistencyLabel === 'medium' ? 'secondary' : 'destructive'}>
+              {slice.consistencyLabel} stability
+            </Badge>
+          </div>
         </CardTitle>
         <CardDescription>
           {slice.queries.length} query term{slice.queries.length > 1 ? 's' : ''}
+          {slice.yoyConsistencyLabel && (
+            <span className="ml-2 text-xs">
+              (YoY: {slice.yoyConsistencyLabel})
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -193,6 +222,16 @@ function CategoryDemandCard({ slice, index }: { slice: CategoryDemandSlice; inde
             <span className="font-semibold">{slice.lowMonth || 'N/A'}</span>
           </div>
         </div>
+        
+        {slice.flags && slice.flags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {slice.flags.map((flag, flagIndex) => (
+              <Badge key={flagIndex} variant="outline" className="text-xs">
+                {flag.replace(/_/g, ' ')}
+              </Badge>
+            ))}
+          </div>
+        )}
         
         <div>
           <p className="text-xs text-muted-foreground mb-1">Monthly Pattern</p>
@@ -234,7 +273,7 @@ export default function MarketDemandPage() {
   const { toast } = useToast();
   const [selectedConfigId, setSelectedConfigId] = useState<string>("");
   const [timeRange, setTimeRange] = useState<string>("today 5-y");
-  const [forecastEnabled, setForecastEnabled] = useState(false);
+  // Note: forecastEnabled removed - now controlled by UCR.H.module_defaults.forecast_policy
   const [activeTab, setActiveTab] = useState<string>("saved");
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -788,8 +827,48 @@ function renderAnalysisResults(
   const byCategoryResult = isByCategory ? analysisResult as MarketDemandByCategoryResult : null;
   const legacyResult = !isByCategory ? analysisResult as MarketDemandResult : null;
 
+  // Context-First: Extract enhanced result fields
+  const contextStatus = (analysisResult as any)?.contextStatus;
+  const forecastPolicy = (analysisResult as any)?.forecastPolicy;
+  const warnings = (analysisResult as any)?.warnings || [];
+
   return (
     <div className="space-y-6" data-testid="results-container">
+      {(contextStatus || forecastPolicy || warnings.length > 0) && (
+        <Card className="bg-muted/50" data-testid="card-context-first">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              Context-First Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {contextStatus && (
+                <Badge variant="outline" data-testid="badge-context-status">
+                  Status: {contextStatus}
+                </Badge>
+              )}
+              {forecastPolicy && (
+                <Badge variant={forecastPolicy === 'DISABLED' ? 'secondary' : 'default'} data-testid="badge-forecast-policy">
+                  Forecast: {forecastPolicy.replace(/_/g, ' ')}
+                </Badge>
+              )}
+            </div>
+            {warnings.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {warnings.map((warning: string, idx: number) => (
+                  <p key={idx} className="text-xs text-muted-foreground flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    {warning}
+                  </p>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

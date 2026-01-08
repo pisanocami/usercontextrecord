@@ -937,6 +937,233 @@ export class MarketDemandAnalyzer {
       consistencyScore: 0,
     };
   }
+
+  // ==========================================
+  // Context-First Methods (Playbook v1)
+  // ==========================================
+
+  /**
+   * Build demand theme clusters from UCR.D.demand_themes
+   * Context-First: Clusters must be derived from UCR, not freeform
+   */
+  buildDemandThemeClusters(config: Configuration): { name: string; keywords: string[] }[] {
+    const demandThemes = config.demand_definition?.demand_themes || [];
+    const clusters: { name: string; keywords: string[] }[] = [];
+
+    for (const theme of demandThemes) {
+      if (theme.keywords && theme.keywords.length > 0) {
+        // Apply negative scope filtering
+        const filteredKeywords = this.applyNegativeScope(theme.keywords, config);
+        if (filteredKeywords.length > 0) {
+          clusters.push({
+            name: theme.name,
+            keywords: filteredKeywords,
+          });
+        }
+      }
+    }
+
+    // Fallback to category-based clusters if no demand themes defined
+    if (clusters.length === 0) {
+      console.log("[MarketDemandAnalyzer] No demand themes found, falling back to category-based clusters");
+      const categoryGroups = buildCategoryGroups(config);
+      for (const group of categoryGroups) {
+        const filteredQueries = this.applyNegativeScope(group.queries, config);
+        if (filteredQueries.length > 0) {
+          clusters.push({
+            name: group.categoryName,
+            keywords: filteredQueries,
+          });
+        }
+      }
+    }
+
+    return clusters;
+  }
+
+  /**
+   * Determine timing classification based on seasonality pattern
+   * Context-First: Per-cluster classification for exec-safe framing
+   */
+  determineTimingClassification(
+    stabilityScore: number,
+    variance: number,
+    inflectionTopeakWeeks: number
+  ): "early_ramp_dominant" | "peak_driven" | "flat_timing_neutral" | "erratic_unreliable" {
+    // Erratic: low consistency
+    if (stabilityScore < 0.4 || variance > 0.6) {
+      return "erratic_unreliable";
+    }
+
+    // Flat: minimal variance in monthly patterns
+    if (variance < 0.15) {
+      return "flat_timing_neutral";
+    }
+
+    // Peak driven: short ramp to peak (less than 6 weeks)
+    if (inflectionTopeakWeeks < 6) {
+      return "peak_driven";
+    }
+
+    // Early ramp: gradual build over time
+    return "early_ramp_dominant";
+  }
+
+  /**
+   * Determine YoY consistency label per playbook spec
+   */
+  determineYoYConsistencyLabel(
+    consistencyScore: number,
+    yearlyPatterns: number[][]
+  ): "stable" | "shifting" | "erratic" {
+    if (consistencyScore > 0.7) {
+      return "stable";
+    }
+
+    // Check if peak is shifting earlier/later
+    if (yearlyPatterns.length >= 2) {
+      const peakShift = this.detectPeakShift(yearlyPatterns);
+      if (peakShift !== 0) {
+        return "shifting";
+      }
+    }
+
+    if (consistencyScore < 0.4) {
+      return "erratic";
+    }
+
+    return "stable";
+  }
+
+  /**
+   * Detect if peak timing is shifting earlier or later over years
+   */
+  private detectPeakShift(yearlyPatterns: number[][]): number {
+    const peaks: number[] = [];
+    for (const pattern of yearlyPatterns) {
+      const maxVal = Math.max(...pattern);
+      const peakMonth = pattern.indexOf(maxVal);
+      peaks.push(peakMonth);
+    }
+
+    if (peaks.length < 2) return 0;
+
+    // Simple trend: is peak moving?
+    const firstHalf = peaks.slice(0, Math.floor(peaks.length / 2));
+    const secondHalf = peaks.slice(Math.floor(peaks.length / 2));
+
+    const avgFirst = firstHalf.reduce((s, v) => s + v, 0) / firstHalf.length;
+    const avgSecond = secondHalf.reduce((s, v) => s + v, 0) / secondHalf.length;
+
+    const shift = avgSecond - avgFirst;
+    if (Math.abs(shift) > 1) {
+      return shift > 0 ? 1 : -1; // 1 = later, -1 = earlier
+    }
+
+    return 0;
+  }
+
+  /**
+   * Check if forecast should be enabled based on H.forecast_policy
+   * Context-First: Forecast is policy-driven, not a user toggle
+   */
+  shouldEnableForecast(
+    config: Configuration,
+    yoyConsistency: "stable" | "shifting" | "erratic",
+    yearlyPatterns: number[][]
+  ): { enabled: boolean; reason: string } {
+    const policy = config.governance?.module_defaults?.forecast_policy || "DISABLED";
+
+    if (policy === "DISABLED") {
+      return { enabled: false, reason: "Forecast disabled by governance policy" };
+    }
+
+    if (policy === "DIRECTIONAL_ONLY") {
+      return { enabled: true, reason: "Directional forecast enabled by policy (8-12 week max)" };
+    }
+
+    // ENABLED_WITH_GUARDRAILS: Check conditions
+    if (policy === "ENABLED_WITH_GUARDRAILS") {
+      if (yoyConsistency === "erratic") {
+        return { enabled: false, reason: "Forecast blocked: YoY consistency is erratic" };
+      }
+
+      // Check if at least 3 of last 5 years show similar timing
+      if (yearlyPatterns.length < 3) {
+        return { enabled: false, reason: "Forecast blocked: Insufficient historical data (<3 years)" };
+      }
+
+      const consistentYears = this.countConsistentYears(yearlyPatterns);
+      if (consistentYears < 3) {
+        return { enabled: false, reason: `Forecast blocked: Only ${consistentYears} of ${yearlyPatterns.length} years show consistent timing` };
+      }
+
+      return { enabled: true, reason: "Forecast enabled with guardrails (12 week max)" };
+    }
+
+    return { enabled: false, reason: "Unknown forecast policy" };
+  }
+
+  /**
+   * Count how many years show consistent peak timing
+   */
+  private countConsistentYears(yearlyPatterns: number[][]): number {
+    if (yearlyPatterns.length < 2) return 0;
+
+    const peaks: number[] = yearlyPatterns.map(pattern => {
+      const maxVal = Math.max(...pattern);
+      return pattern.indexOf(maxVal);
+    });
+
+    // Find modal peak month
+    const peakCounts = new Map<number, number>();
+    for (const peak of peaks) {
+      peakCounts.set(peak, (peakCounts.get(peak) || 0) + 1);
+    }
+
+    let modalPeak = 0;
+    let maxCount = 0;
+    for (const [peak, count] of peakCounts) {
+      if (count > maxCount) {
+        maxCount = count;
+        modalPeak = peak;
+      }
+    }
+
+    // Count years within 1 month of modal peak
+    return peaks.filter(p => Math.abs(p - modalPeak) <= 1).length;
+  }
+
+  /**
+   * Generate policy-driven forecast with appropriate horizon
+   */
+  generatePolicyForecast(
+    data: TrendsDataPoint[],
+    policy: string,
+    yoyConsistency: "stable" | "shifting" | "erratic"
+  ): TrendsDataPoint[] {
+    if (policy === "DISABLED") {
+      return [];
+    }
+
+    const maxWeeks = policy === "DIRECTIONAL_ONLY" ? 8 : 12;
+    return this.generateForecast(data, maxWeeks);
+  }
+
+  /**
+   * Calculate weeks from inflection to peak
+   */
+  private calculateInflectionToPeakWeeks(monthlyAvg: Map<number, number>): number {
+    const inflection = this.findInflectionPoint(monthlyAvg);
+    const peak = this.findPeakWindow(monthlyAvg);
+
+    if (peak.months.length === 0) return 12; // Default to 12 weeks if no clear peak
+
+    const peakMonthIndex = MONTH_NAMES.indexOf(peak.months[0]);
+    const weeksDiff = (peakMonthIndex - inflection.month + 12) % 12 * 4;
+
+    return Math.max(1, weeksDiff);
+  }
 }
 
 export const marketDemandAnalyzer = new MarketDemandAnalyzer();

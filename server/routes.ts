@@ -14,6 +14,7 @@ import { validateContext, type ContextValidationResult } from "./context-validat
 import { validateConfiguration as validateConfigurationFull, type FullValidationResult } from "@shared/validation";
 import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES } from "@shared/module.contract";
 import { validateModuleExecution } from "./execution-gateway";
+import { validateModuleExecution as validateModulePreExecution, validateForecastPolicy, generateValidationTrace } from "./module-validation";
 import { marketDemandAnalyzer } from "./market-demand-analyzer";
 import { getAllTrendsProviderStatuses } from "./providers/trends-index";
 
@@ -2314,7 +2315,7 @@ IMPORTANT:
     }
   });
 
-  // Per-category market demand analysis (v2 - recommended)
+  // Per-category market demand analysis (v2 - Context-First with validation gate)
   app.post("/api/market-demand/analyze-by-category", async (req: any, res) => {
     const userId = (req.user as any)?.id || "anonymous-user";
     const { configurationId, timeRange, countryCode } = req.body;
@@ -2336,13 +2337,54 @@ IMPORTANT:
         updated_at: config.updated_at.toISOString(),
       } as any;
 
+      // Context-First: Pre-execution validation gate (always enforced)
+      const validationResult = validateModulePreExecution(configForAnalyzer, "market_demand_seasonality");
+      
+      if (!validationResult.canProceed) {
+        console.log("[Market Demand] Validation gate blocked execution:", validationResult.errors);
+        return res.status(400).json({
+          error: "UCR validation failed",
+          validationResult: {
+            valid: validationResult.valid,
+            contextStatus: validationResult.contextStatus,
+            contextVersion: validationResult.contextVersion,
+            errors: validationResult.errors,
+            warnings: validationResult.warnings,
+            sectionsValidated: validationResult.sectionsValidated,
+            sectionsMissing: validationResult.sectionsMissing,
+          },
+          trace: generateValidationTrace(validationResult),
+        });
+      }
+
+      // Log warnings but proceed
+      if (validationResult.warnings.length > 0) {
+        console.log("[Market Demand] Validation warnings:", validationResult.warnings);
+      }
+
+      // Get module defaults from governance
+      const moduleDefaults = configForAnalyzer.governance?.module_defaults;
+      const effectiveTimeRange = timeRange || moduleDefaults?.default_time_range || "today 5-y";
+      const effectiveCountryCode = countryCode || moduleDefaults?.default_geo || "US";
+      const effectiveInterval = moduleDefaults?.default_interval || "weekly";
+
       const result = await marketDemandAnalyzer.analyzeByCategory(configForAnalyzer, {
-        timeRange: timeRange || "today 5-y",
-        countryCode: countryCode,
-        interval: "weekly",
+        timeRange: effectiveTimeRange,
+        countryCode: effectiveCountryCode,
+        interval: effectiveInterval,
       });
 
-      res.json(result);
+      // Enhance result with Context-First envelope
+      const forecastPolicy = validateForecastPolicy(configForAnalyzer);
+      const enhancedResult = {
+        ...result,
+        contextStatus: configForAnalyzer.governance?.context_status || "DRAFT_AI",
+        contextVersion: configForAnalyzer.governance?.context_version || 1,
+        forecastPolicy: forecastPolicy.policy,
+        warnings: result.warnings || [],
+      };
+
+      res.json(enhancedResult);
     } catch (error: any) {
       console.error("Error analyzing market demand by category:", error);
       res.status(500).json({ error: error.message || "Failed to analyze market demand" });
