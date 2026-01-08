@@ -18,24 +18,41 @@ const getOidcConfig = memoize(
   { maxAge: 3600 * 1000 }
 );
 
+import MemoryStoreFactory from "memorystore";
+const MemoryStore = MemoryStoreFactory(session);
+
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  const isProd = process.env.NODE_ENV === "production";
+
+  let sessionStore: session.Store | undefined;
+
+  if (isProd && process.env.DATABASE_URL) {
+    const pgStore = connectPg(session);
+    sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: false,
+      ttl: sessionTtl / 1000,
+      tableName: "sessions",
+    });
+  } else {
+    // Default to memory store for stability in dev
+    sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
+    console.log("Using MemoryStore for sessions (Development mode or missing DATABASE_URL)");
+  }
+
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || "BI_PLATFORM_SECRET_2026",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: isProd, // Only require HTTPS in production
       maxAge: sessionTtl,
+      sameSite: "lax",
     },
   });
 }

@@ -16,6 +16,12 @@ export interface ValidationResult {
   sectionsMissing: string[];
 }
 
+/**
+ * Result of a specific section validation.
+ * @property section - The UCR section ID (A-H).
+ * @property required - Whether this section is mandatory for the module.
+ * @property valid - Whether the section meets the requirements.
+ */
 export interface SectionValidation {
   section: string;
   required: boolean;
@@ -180,6 +186,15 @@ export function validateOptionalSections(
 /**
  * Full pre-execution validation gate
  * Context-First: Blocks execution if UCR doesn't meet requirements
+ */
+/**
+ * Full pre-execution validation gate.
+ * Ensures the User Context Record (UCR) is in an acceptable state and has 
+ * all required blocks for the specified module.
+ * 
+ * @param config - The current configuration state.
+ * @param moduleId - The ID of the module to validate against.
+ * @returns A consolidated validation result.
  */
 export function validateModuleExecution(
   config: Configuration,

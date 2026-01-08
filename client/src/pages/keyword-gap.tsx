@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { downloadKeywordGapXLSX } from "@/lib/downloadUtils";
+import { TraceViewer } from "@/components/TraceViewer";
 
 interface RankedKeyword {
   keyword: string;
@@ -73,8 +74,8 @@ interface Configuration {
   id: number;
   name: string;
   brand: { domain: string; name: string };
-  competitors: { 
-    direct: string[]; 
+  competitors: {
+    direct: string[];
     indirect: string[];
     competitors?: { status: string; name: string }[];
   };
@@ -123,7 +124,7 @@ function formatScoreBreakdown(kw: KeywordLiteResult): string {
   const capability = kw.capabilityScore ?? 0;
   const diffFactor = kw.difficultyFactor ?? 1;
   const posFactor = kw.positionFactor ?? 1;
-  
+
   return [
     `Volume: ${volume.toLocaleString()}`,
     `CPC: $${cpc.toFixed(2)}`,
@@ -134,10 +135,10 @@ function formatScoreBreakdown(kw: KeywordLiteResult): string {
   ].join("\n");
 }
 
-import type { 
-  Disposition, 
-  Severity, 
-  UCRSectionID, 
+import type {
+  Disposition,
+  Severity,
+  UCRSectionID,
   ItemTrace,
   UCR_SECTION_NAMES as UCR_NAMES
 } from "@shared/module.contract";
@@ -175,45 +176,22 @@ function getSeverityColor(severity: Severity): string {
   }
 }
 
-function TraceDisplay({ trace }: { trace: ItemTrace[] }) {
-  if (!trace || trace.length === 0) return null;
-  
-  return (
-    <div className="p-3 bg-muted/50 text-xs space-y-1">
-      <div className="font-medium text-muted-foreground mb-1">Gate Evaluation Trace:</div>
-      {trace.map((t, i) => (
-        <div key={i} className="flex items-start gap-2 py-0.5 flex-wrap">
-          <Badge variant="outline" className="text-xs shrink-0 font-mono">
-            {t.ucrSection}
-          </Badge>
-          <span className={`shrink-0 ${getSeverityColor(t.severity)}`}>
-            [{t.severity}]
-          </span>
-          <span className="text-muted-foreground">{t.ruleId}:</span>
-          <span>{t.reason}</span>
-          {t.evidence && (
-            <span className="text-muted-foreground italic">({t.evidence})</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+// Local TraceDisplay removed in favor of centralized TraceViewer component
 
-function KeywordRowWithTrace({ 
-  kw, 
-  index, 
+function KeywordRowWithTrace({
+  kw,
+  index,
   testIdPrefix,
-  showScore = true 
-}: { 
-  kw: KeywordLiteResult; 
-  index: number; 
+  showScore = true
+}: {
+  kw: KeywordLiteResult;
+  index: number;
   testIdPrefix: string;
   showScore?: boolean;
 }) {
   const [showTrace, setShowTrace] = useState(false);
   const hasTrace = kw.trace && kw.trace.length > 0;
-  
+
   return (
     <>
       <TableRow data-testid={`row-${testIdPrefix}-${index}`}>
@@ -281,7 +259,7 @@ function KeywordRowWithTrace({
           {kw.reason}
         </TableCell>
         <TableCell className="text-center">
-          <Badge 
+          <Badge
             variant={kw.confidence === "high" ? "default" : kw.confidence === "medium" ? "secondary" : "outline"}
             className="text-xs capitalize"
           >
@@ -290,9 +268,9 @@ function KeywordRowWithTrace({
         </TableCell>
         <TableCell className="text-center">
           {hasTrace && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowTrace(!showTrace)}
               data-testid={`btn-trace-${testIdPrefix}-${index}`}
             >
@@ -302,9 +280,13 @@ function KeywordRowWithTrace({
         </TableCell>
       </TableRow>
       {hasTrace && showTrace && (
-        <TableRow className="bg-muted/30">
-          <TableCell colSpan={showScore ? 9 : 8} className="p-0">
-            <TraceDisplay trace={kw.trace!} />
+        <TableRow className="bg-muted/10">
+          <TableCell colSpan={showScore ? 9 : 8} className="p-2 pt-0">
+            <TraceViewer
+              traces={kw.trace!}
+              disposition={kw.disposition || (kw.status === "pass" ? "PASS" : kw.status === "review" ? "REVIEW" : "OUT_OF_PLAY")}
+              isInitialOpen={true}
+            />
           </TableCell>
         </TableRow>
       )}
@@ -358,36 +340,36 @@ function runAutoChecks(config: Configuration | undefined) {
   if (!config) {
     return { passed: false, checks: [{ name: "Context loaded", passed: false }] };
   }
-  
+
   const checks: { name: string; passed: boolean }[] = [];
-  
+
   // Check 1: Category Included not empty
   const hasIncluded = (config.category_definition?.included?.length || 0) > 0;
   checks.push({ name: "Category fence (included terms)", passed: hasIncluded });
-  
+
   // Check 2: Negative Scope not empty (has exclusions)
   const hasNegativeScope = (
     (config.negative_scope?.excluded_categories?.length || 0) > 0 ||
     (config.negative_scope?.excluded_keywords?.length || 0) > 0
   );
   checks.push({ name: "Negative scope defined", passed: hasNegativeScope });
-  
+
   // Check 3: At least 2 direct competitors with domain
   const approvedCompetitors = config.competitors?.competitors?.filter(c => c.status === "approved")?.length || 0;
   const directCompetitors = config.competitors?.direct?.length || 0;
   const hasCompetitors = (approvedCompetitors + directCompetitors) >= 2;
   checks.push({ name: "2+ competitors defined", passed: hasCompetitors });
-  
+
   // Check 4: Hard exclusions active
   const hardExclusionEnabled = config.negative_scope?.enforcement_rules?.hard_exclusion !== false;
   checks.push({ name: "Hard exclusions enabled", passed: hardExclusionEnabled });
-  
+
   // Check 5: Confidence not low
   const confidenceNotLow = config.governance?.context_confidence?.level !== "low";
   checks.push({ name: "Context confidence not low", passed: confidenceNotLow });
-  
+
   const allPassed = checks.every(c => c.passed);
-  
+
   return { passed: allPassed, checks };
 }
 
@@ -398,17 +380,17 @@ function getEffectiveContextStatus(config: Configuration | undefined): {
 } {
   const autoChecks = runAutoChecks(config);
   const storedStatus = config?.governance?.context_status || "DRAFT_AI";
-  
+
   // If stored status is DRAFT_AI but auto-checks pass, it's effectively AI_READY
   if (storedStatus === "DRAFT_AI" && autoChecks.passed) {
     return { status: "AI_READY", autoChecks };
   }
-  
+
   // If stored status is AI_READY but auto-checks fail, it's effectively DRAFT_AI
   if (storedStatus === "AI_READY" && !autoChecks.passed) {
     return { status: "DRAFT_AI", autoChecks };
   }
-  
+
   return { status: storedStatus, autoChecks };
 }
 
@@ -416,46 +398,46 @@ function getEffectiveContextStatus(config: Configuration | undefined): {
 function getContextStatusInfo(status: ContextStatus) {
   switch (status) {
     case "DRAFT_AI":
-      return { 
-        label: "Draft (AI)", 
+      return {
+        label: "Draft (AI)",
         color: "text-gray-600 dark:text-gray-400",
         bgColor: "bg-gray-100 dark:bg-gray-800",
-        description: "Auto-checks not yet passed" 
+        description: "Auto-checks not yet passed"
       };
     case "AI_READY":
-      return { 
-        label: "AI Ready", 
+      return {
+        label: "AI Ready",
         color: "text-amber-600 dark:text-amber-400",
         bgColor: "bg-amber-100 dark:bg-amber-900/30",
-        description: "Ready for AI-generated analysis" 
+        description: "Ready for AI-generated analysis"
       };
     case "AI_ANALYSIS_RUN":
-      return { 
-        label: "AI Analysis Run", 
+      return {
+        label: "AI Analysis Run",
         color: "text-blue-600 dark:text-blue-400",
         bgColor: "bg-blue-100 dark:bg-blue-900/30",
-        description: "Results are provisional, pending validation" 
+        description: "Results are provisional, pending validation"
       };
     case "HUMAN_CONFIRMED":
-      return { 
-        label: "Human Confirmed", 
+      return {
+        label: "Human Confirmed",
         color: "text-green-600 dark:text-green-400",
         bgColor: "bg-green-100 dark:bg-green-900/30",
-        description: "Analysis adopted and validated" 
+        description: "Analysis adopted and validated"
       };
     case "LOCKED":
-      return { 
-        label: "Locked", 
+      return {
+        label: "Locked",
         color: "text-purple-600 dark:text-purple-400",
         bgColor: "bg-purple-100 dark:bg-purple-900/30",
-        description: "Context is locked" 
+        description: "Context is locked"
       };
     default:
-      return { 
-        label: status, 
+      return {
+        label: status,
         color: "text-gray-600",
         bgColor: "bg-gray-100",
-        description: "" 
+        description: ""
       };
   }
 }
@@ -498,7 +480,7 @@ export default function KeywordGap() {
   const [selectedProvider, setSelectedProvider] = useState<ProviderType>("dataforseo");
 
   const configId = id ? parseInt(id, 10) : null;
-  
+
   // Parse analysisId from query string
   const urlParams = new URLSearchParams(searchString);
   const analysisIdParam = urlParams.get("analysisId");
@@ -568,8 +550,8 @@ export default function KeywordGap() {
   });
 
   const liteMutation = useMutation({
-    mutationFn: async (params: { 
-      configurationId: number; 
+    mutationFn: async (params: {
+      configurationId: number;
       limitPerDomain?: number;
       locationCode?: number;
       languageCode?: string;
@@ -641,7 +623,7 @@ export default function KeywordGap() {
               Back to Contexts
             </Button>
           </Link>
-          
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -683,7 +665,7 @@ export default function KeywordGap() {
               Back to Contexts
             </Button>
           </Link>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Context not found</CardTitle>
@@ -702,14 +684,14 @@ export default function KeywordGap() {
   // Get effective context status (auto-checks determine if AI_READY)
   const { status: contextStatus, autoChecks } = getEffectiveContextStatus(config);
   const statusInfo = getContextStatusInfo(contextStatus);
-  
+
   // Can run analysis if AI_READY or higher
   const canRunAnalysis = ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED"].includes(contextStatus);
   const isProvisional = contextStatus === "AI_READY" || contextStatus === "AI_ANALYSIS_RUN";
   const isConfirmed = contextStatus === "HUMAN_CONFIRMED" || contextStatus === "LOCKED";
 
   const result = analyzeMutation.data;
-  
+
   // Use saved analysis results if available, otherwise use live mutation data
   const liteResult = savedAnalysis?.results || liteMutation.data;
   const isViewingSavedAnalysis = !!savedAnalysis;
@@ -773,174 +755,174 @@ export default function KeywordGap() {
         )}
 
         {!isViewingSavedAnalysis && (
-        <div className="grid gap-6 md:grid-cols-3 mb-6">
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg">Analyze Competitor</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="e.g., competitor.com"
-                  value={competitorDomain}
-                  onChange={(e) => setCompetitorDomain(e.target.value)}
-                  data-testid="input-competitor-domain"
-                />
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={analyzeMutation.isPending}
-                  data-testid="button-analyze"
-                >
-                  {analyzeMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Search className="h-4 w-4 mr-2" />
-                  )}
-                  Analyze
-                </Button>
-              </div>
-
-              {allCompetitors.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-2">Configured competitors:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {allCompetitors.map((comp) => (
-                      <Button
-                        key={comp}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleQuickAnalyze(comp)}
-                        disabled={analyzeMutation.isPending}
-                        data-testid={`button-competitor-${comp}`}
-                      >
-                        {comp}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                Quick Analysis
-              </CardTitle>
-              <CardDescription>
-                <Badge className={`${statusInfo.bgColor} ${statusInfo.color} border-0`}>
-                  {statusInfo.label}
-                </Badge>
-                <span className="ml-2 text-xs">{statusInfo.description}</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Auto-checks status */}
-              {!autoChecks.passed && (
-                <div className="text-xs border rounded-md p-3 bg-muted/50">
-                  <p className="font-medium mb-2">Auto-Checks Required:</p>
-                  <ul className="space-y-1">
-                    {autoChecks.checks.map((check, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        {check.passed ? (
-                          <CheckCircle className="h-3 w-3 text-green-600" />
-                        ) : (
-                          <XCircle className="h-3 w-3 text-red-500" />
-                        )}
-                        <span className={check.passed ? "text-muted-foreground" : ""}>{check.name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {/* AI-Ready messaging */}
-              {canRunAnalysis && isProvisional && (
-                <div className="text-xs border border-amber-200 dark:border-amber-800 rounded-md p-3 bg-amber-50/50 dark:bg-amber-950/20">
-                  <p className="font-medium text-amber-700 dark:text-amber-300 mb-1">AI-Generated Mode</p>
-                  <p className="text-amber-600 dark:text-amber-400">
-                    Results will be generated automatically and must be reviewed before adoption.
-                  </p>
-                </div>
-              )}
-              
-              {/* Human Confirmed messaging */}
-              {isConfirmed && (
-                <div className="text-xs border border-green-200 dark:border-green-800 rounded-md p-3 bg-green-50/50 dark:bg-green-950/20">
-                  <p className="font-medium text-green-700 dark:text-green-300 mb-1">Human Confirmed</p>
-                  <p className="text-green-600 dark:text-green-400">
-                    This context has been validated and adopted. Analysis results are official.
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Select 
-                    value={selectedProvider} 
-                    onValueChange={(v) => setSelectedProvider(v as ProviderType)}
-                    data-testid="select-provider"
-                  >
-                    <SelectTrigger className="w-40" data-testid="select-provider-trigger">
-                      <SelectValue placeholder="Data Source" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providersData?.providers?.map((p) => (
-                        <SelectItem 
-                          key={p.provider} 
-                          value={p.provider}
-                          disabled={!p.configured}
-                          data-testid={`select-provider-${p.provider}`}
-                        >
-                          {p.displayName} {!p.configured && "(Not configured)"}
-                        </SelectItem>
-                      )) || (
-                        <>
-                          <SelectItem value="dataforseo">DataForSEO</SelectItem>
-                          <SelectItem value="ahrefs" disabled>Ahrefs (Coming soon)</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
+          <div className="grid gap-6 md:grid-cols-3 mb-6">
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-lg">Analyze Competitor</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g., competitor.com"
+                    value={competitorDomain}
+                    onChange={(e) => setCompetitorDomain(e.target.value)}
+                    data-testid="input-competitor-domain"
+                  />
                   <Button
-                    className="flex-1"
-                    onClick={() => liteMutation.mutate({
-                      configurationId: Number(id),
-                      provider: selectedProvider,
-                    })}
-                    disabled={liteMutation.isPending || !canRunAnalysis}
-                    data-testid="button-gap-lite"
+                    onClick={handleAnalyze}
+                    disabled={analyzeMutation.isPending}
+                    data-testid="button-analyze"
                   >
-                    {liteMutation.isPending ? (
+                    {analyzeMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
-                      <Zap className="h-4 w-4 mr-2" />
+                      <Search className="h-4 w-4 mr-2" />
                     )}
-                    {isProvisional ? "Run Keyword Gap (AI-Generated)" : "Run Keyword Gap Lite"}
+                    Analyze
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  {isProvisional && "Results are provisional until human validation"}
-                </p>
-              </div>
-              <Button
-                className="w-full"
-                variant="secondary"
-                onClick={() => compareAllMutation.mutate()}
-                disabled={compareAllMutation.isPending || !canRunAnalysis}
-                data-testid="button-compare-all"
-              >
-                {compareAllMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Users className="h-4 w-4 mr-2" />
+
+                {allCompetitors.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground mb-2">Configured competitors:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {allCompetitors.map((comp) => (
+                        <Button
+                          key={comp}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQuickAnalyze(comp)}
+                          disabled={analyzeMutation.isPending}
+                          data-testid={`button-competitor-${comp}`}
+                        >
+                          {comp}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 )}
-                Compare All Competitors
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Quick Analysis
+                </CardTitle>
+                <CardDescription>
+                  <Badge className={`${statusInfo.bgColor} ${statusInfo.color} border-0`}>
+                    {statusInfo.label}
+                  </Badge>
+                  <span className="ml-2 text-xs">{statusInfo.description}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Auto-checks status */}
+                {!autoChecks.passed && (
+                  <div className="text-xs border rounded-md p-3 bg-muted/50">
+                    <p className="font-medium mb-2">Auto-Checks Required:</p>
+                    <ul className="space-y-1">
+                      {autoChecks.checks.map((check, i) => (
+                        <li key={i} className="flex items-center gap-2">
+                          {check.passed ? (
+                            <CheckCircle className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-red-500" />
+                          )}
+                          <span className={check.passed ? "text-muted-foreground" : ""}>{check.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* AI-Ready messaging */}
+                {canRunAnalysis && isProvisional && (
+                  <div className="text-xs border border-amber-200 dark:border-amber-800 rounded-md p-3 bg-amber-50/50 dark:bg-amber-950/20">
+                    <p className="font-medium text-amber-700 dark:text-amber-300 mb-1">AI-Generated Mode</p>
+                    <p className="text-amber-600 dark:text-amber-400">
+                      Results will be generated automatically and must be reviewed before adoption.
+                    </p>
+                  </div>
+                )}
+
+                {/* Human Confirmed messaging */}
+                {isConfirmed && (
+                  <div className="text-xs border border-green-200 dark:border-green-800 rounded-md p-3 bg-green-50/50 dark:bg-green-950/20">
+                    <p className="font-medium text-green-700 dark:text-green-300 mb-1">Human Confirmed</p>
+                    <p className="text-green-600 dark:text-green-400">
+                      This context has been validated and adopted. Analysis results are official.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={selectedProvider}
+                      onValueChange={(v) => setSelectedProvider(v as ProviderType)}
+                      data-testid="select-provider"
+                    >
+                      <SelectTrigger className="w-40" data-testid="select-provider-trigger">
+                        <SelectValue placeholder="Data Source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {providersData?.providers?.map((p) => (
+                          <SelectItem
+                            key={p.provider}
+                            value={p.provider}
+                            disabled={!p.configured}
+                            data-testid={`select-provider-${p.provider}`}
+                          >
+                            {p.displayName} {!p.configured && "(Not configured)"}
+                          </SelectItem>
+                        )) || (
+                            <>
+                              <SelectItem value="dataforseo">DataForSEO</SelectItem>
+                              <SelectItem value="ahrefs" disabled>Ahrefs (Coming soon)</SelectItem>
+                            </>
+                          )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      className="flex-1"
+                      onClick={() => liteMutation.mutate({
+                        configurationId: Number(id),
+                        provider: selectedProvider,
+                      })}
+                      disabled={liteMutation.isPending || !canRunAnalysis}
+                      data-testid="button-gap-lite"
+                    >
+                      {liteMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Zap className="h-4 w-4 mr-2" />
+                      )}
+                      {isProvisional ? "Run Keyword Gap (AI-Generated)" : "Run Keyword Gap Lite"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {isProvisional && "Results are provisional until human validation"}
+                  </p>
+                </div>
+                <Button
+                  className="w-full"
+                  variant="secondary"
+                  onClick={() => compareAllMutation.mutate()}
+                  disabled={compareAllMutation.isPending || !canRunAnalysis}
+                  data-testid="button-compare-all"
+                >
+                  {compareAllMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Users className="h-4 w-4 mr-2" />
+                  )}
+                  Compare All Competitors
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {liteResult && (
@@ -1031,7 +1013,7 @@ export default function KeywordGap() {
                       <TooltipContent className="max-w-xs">
                         <p className="font-medium">Regenerar datos frescos</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Esto hara una nueva llamada a la API de {selectedProvider === "ahrefs" ? "Ahrefs" : "DataForSEO"}, 
+                          Esto hara una nueva llamada a la API de {selectedProvider === "ahrefs" ? "Ahrefs" : "DataForSEO"},
                           lo cual consume creditos de tu plan.
                         </p>
                       </TooltipContent>
@@ -1131,15 +1113,15 @@ export default function KeywordGap() {
                         } else {
                           statusFactor = 0.05; // Out of play (shouldn't happen but safe default)
                         }
-                        
+
                         // Confidence factor
                         const confidenceMap: Record<string, number> = { high: 1.0, medium: 0.7, low: 0.4 };
                         const confidenceFactor = confidenceMap[kw.confidence] || 0.7;
-                        
+
                         // KD factor (lower KD = easier to rank) - clamp to 0-100 range
                         const kd = Math.min(100, Math.max(0, kw.keywordDifficulty ?? 50));
                         const kdFactor = 1 - (kd / 100) * 0.5; // 100 KD -> 0.5x, 0 KD -> 1.0x
-                        
+
                         // Position factor (competitor at pos 15+ = easier opportunity)
                         const pos = kw.competitorPosition ?? 10;
                         let posFactor: number;
@@ -1147,26 +1129,26 @@ export default function KeywordGap() {
                         else if (pos <= 10) posFactor = 0.7;
                         else if (pos <= 20) posFactor = 0.9;
                         else posFactor = 1.0; // Weak competitor hold
-                        
+
                         return Math.max(0, Math.min(1, statusFactor * confidenceFactor * kdFactor * posFactor));
                       };
-                      
+
                       // Sum both Pass and Review keywords with capture probability
                       const passValue = liteResult.topOpportunities.reduce((sum, kw) => {
                         const baseValue = (kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03;
                         const captureProbability = computeCaptureProbability(kw);
                         return sum + (baseValue * captureProbability);
                       }, 0);
-                      
+
                       const reviewValue = liteResult.needsReview.reduce((sum, kw) => {
                         const baseValue = (kw.searchVolume || 0) * (kw.cpc || 0.5) * 0.03;
                         const captureProbability = computeCaptureProbability(kw);
                         return sum + (baseValue * captureProbability);
                       }, 0);
-                      
+
                       const totalValue = passValue + reviewValue;
-                      return totalValue > 1000 
-                        ? `${(totalValue / 1000).toFixed(1)}K` 
+                      return totalValue > 1000
+                        ? `${(totalValue / 1000).toFixed(1)}K`
                         : totalValue.toFixed(0);
                     })()}
                     <span className="text-sm font-normal text-muted-foreground">/mo</span>
@@ -1266,10 +1248,10 @@ export default function KeywordGap() {
                         </TableHeader>
                         <TableBody>
                           {liteResult.topOpportunities.slice(0, 50).map((kw, i) => (
-                            <KeywordRowWithTrace 
-                              key={i} 
-                              kw={kw} 
-                              index={i} 
+                            <KeywordRowWithTrace
+                              key={i}
+                              kw={kw}
+                              index={i}
                               testIdPrefix="opportunity"
                               showScore={true}
                             />
@@ -1305,10 +1287,10 @@ export default function KeywordGap() {
                         </TableHeader>
                         <TableBody>
                           {liteResult.needsReview.slice(0, 50).map((kw, i) => (
-                            <KeywordRowWithTrace 
-                              key={i} 
-                              kw={kw} 
-                              index={i} 
+                            <KeywordRowWithTrace
+                              key={i}
+                              kw={kw}
+                              index={i}
                               testIdPrefix="review"
                               showScore={false}
                             />
@@ -1338,7 +1320,7 @@ export default function KeywordGap() {
                         low_capability: { label: "Low Capability Fit", keywords: [] },
                         other: { label: "Other", keywords: [] },
                       };
-                      
+
                       liteResult.outOfPlay.forEach(kw => {
                         if (kw.flags.includes("competitor_brand")) {
                           reasonGroups.competitor_brand.keywords.push(kw);
@@ -1354,11 +1336,11 @@ export default function KeywordGap() {
                           reasonGroups.other.keywords.push(kw);
                         }
                       });
-                      
+
                       const nonEmptyGroups = Object.entries(reasonGroups)
                         .filter(([_, group]) => group.keywords.length > 0)
                         .sort((a, b) => b[1].keywords.length - a[1].keywords.length);
-                      
+
                       return (
                         <Accordion type="multiple" className="w-full space-y-2">
                           {nonEmptyGroups.map(([key, group]) => (
@@ -1425,7 +1407,7 @@ export default function KeywordGap() {
                       <p className="font-medium">Ready to adopt this analysis?</p>
                       <p className="text-xs">This will mark the context as Human Confirmed and make results official.</p>
                     </div>
-                    <Button 
+                    <Button
                       size="lg"
                       className="bg-green-600 hover:bg-green-700 text-white"
                       data-testid="button-approve-adopt"

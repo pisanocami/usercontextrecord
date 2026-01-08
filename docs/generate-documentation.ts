@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
+import { CONTRACT_REGISTRY, UCR_SECTION_NAMES } from "../shared/module.contract.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,11 +48,11 @@ interface Manifest {
 
 function generatePDF(markdownContent: string): void {
   console.log("📄 Generating PDF documentation...");
-  
+
   try {
     // Check if pandoc is available
     execSync('pandoc --version', { stdio: 'ignore' });
-    
+
     // Create temporary markdown file with proper image paths
     const tempMarkdownPath = path.join(DOCS_DIR, "..", "temp_docs.md");
     const adjustedMarkdown = markdownContent.replace(
@@ -64,19 +65,19 @@ function generatePDF(markdownContent: string): void {
         return `![${alt}](docs/screenshots/${filename})`;
       }
     );
-    
+
     fs.writeFileSync(tempMarkdownPath, adjustedMarkdown);
-    
+
     // Generate PDF with pandoc
     const pdfCommand = `pandoc "${tempMarkdownPath}" -o "${PDF_OUTPUT_PATH}" --pdf-engine=xelatex --variable=geometry:margin=1in --highlight-style=tango`;
-    
+
     execSync(pdfCommand, { stdio: 'inherit' });
-    
+
     // Clean up temporary file
     fs.unlinkSync(tempMarkdownPath);
-    
+
     console.log(`✅ PDF generated: ${PDF_OUTPUT_PATH}`);
-    
+
   } catch (error) {
     console.log("⚠️  PDF generation failed (pandoc not available or other error)");
     console.log("   To enable PDF generation, install pandoc:");
@@ -138,15 +139,15 @@ ${manifest.metadata.title} es una plataforma B2B SaaS de configuración de intel
 | Componente | Tecnología |
 |------------|------------|
 ${Object.entries(manifest.technicalArchitecture.frontend)
-  .map(([key, value]) => `| ${key} | ${value} |`)
-  .join("\n")}
+      .map(([key, value]) => `| ${key} | ${value} |`)
+      .join("\n")}
 
 ### Backend
 | Componente | Tecnología |
 |------------|------------|
 ${Object.entries(manifest.technicalArchitecture.backend)
-  .map(([key, value]) => `| ${key} | ${value} |`)
-  .join("\n")}
+      .map(([key, value]) => `| ${key} | ${value} |`)
+      .join("\n")}
 
 ### Diagrama de Arquitectura
 
@@ -272,6 +273,16 @@ ${hasScreenshot ? `#### Captura de Pantalla\n![${screen.name}](${screenshotPath}
 
 ---
 
+## Registro de Módulos (UCR Contracts)
+
+El sistema utiliza un sistema de contratos para definir qué secciones del UCR requiere cada módulo de análisis.
+
+| Módulo | Categoría | Secciones Requeridas | Propósito Estratégico |
+|--------|-----------|----------------------|-----------------------|
+${Object.values(CONTRACT_REGISTRY).map(c => `| ${c.name} | ${c.category} | ${c.contextInjection.requiredSections.join(", ")} | ${c.strategicQuestion} |`).join("\n")}
+
+---
+
 ## Modelo de Datos
 
 ### Tabla: configurations
@@ -356,7 +367,7 @@ ${hasScreenshot ? `#### Captura de Pantalla\n![${screen.name}](${screenshotPath}
   console.log(`✅ Documentation generated: ${OUTPUT_PATH}`);
   console.log(`   Total screens documented: ${manifest.screens.length}`);
   console.log(`   Total flows documented: ${Object.keys(manifest.flows).length}`);
-  
+
   // Generate PDF if screenshots exist
   const screenshotsDir = path.join(DOCS_DIR, "screenshots");
   if (fs.existsSync(screenshotsDir)) {

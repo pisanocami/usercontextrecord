@@ -4,30 +4,37 @@ Este directorio contiene la documentación técnica del Brand Intelligence Confi
 
 ---
 
-## Índice de Documentación
+## Cuadrantes de Documentación
 
-### Documentación Principal
+Esta plataforma utiliza el sistema de cuatro cuadrantes para facilitar la navegación y el aprendizaje.
 
+### 1. Tutoriales (Aprendizaje Orientado)
+Enfoque en el aprendizaje paso a paso para usuarios nuevos.
+*   *Próximamente: Guía del Primer UCR*
+
+### 2. Guías de Tarea (Enfoque en Objetivos)
+Instrucciones prácticas para resolver problemas específicos.
 | Documento | Descripción |
 |-----------|-------------|
-| [SYSTEM_DOCUMENTATION.md](../SYSTEM_DOCUMENTATION.md) | Documentación general del sistema |
+| [replit.md](../replit.md) | Configuración del proyecto en Replit |
+| [capture-screenshots.ts](./capture-screenshots.ts) | Guía de uso para scripts de captura |
+
+### 3. Explicaciones (Comprensión Técnica)
+Documentos conceptuales sobre "por qué" y "cómo" funciona el diseño.
+| Documento | Descripción |
+|-----------|-------------|
 | [CONTEXT_MODULE_ARCHITECTURE.md](../CONTEXT_MODULE_ARCHITECTURE.md) | Arquitectura Context-First |
-| [KEYWORD_GAP_ANALYSIS.md](../KEYWORD_GAP_ANALYSIS.md) | Documentación de Keyword Gap |
-| [OOFOS_CASE_STUDY.md](../OOFOS_CASE_STUDY.md) | Caso de estudio DTC footwear |
+| [KEYWORD_GAP_ANALYSIS.md](../KEYWORD_GAP_ANALYSIS.md) | Análisis de Keyword Gap |
+| [OOFOS_CASE_STUDY.md](../OOFOS_CASE_STUDY.md) | Caso de estudio DTC |
 
-### Documentación Técnica
-
+### 4. Referencia (Información Técnica)
+Descripciones precisas de la API, esquemas y componentes.
 | Documento | Descripción |
 |-----------|-------------|
-| [MODULE_CONTRACTS.md](./MODULE_CONTRACTS.md) | Sistema de contratos de módulos |
-| [UCR_SPECIFICATION.md](./UCR_SPECIFICATION.md) | Especificación del User Context Record |
-
-### Configuración
-
-| Documento | Descripción |
-|-----------|-------------|
-| [replit.md](../replit.md) | Configuración del proyecto Replit |
-| [design_guidelines.md](../design_guidelines.md) | Guías de diseño UI/UX |
+| [SYSTEM_DOCUMENTATION.md](../SYSTEM_DOCUMENTATION.md) | Documentación técnica general |
+| [MODULE_CONTRACTS.md](./MODULE_CONTRACTS.md) | Contratos de módulos (UCR) |
+| [UCR_SPECIFICATION.md](./UCR_SPECIFICATION.md) | Especificación del registro |
+| [design_guidelines.md](../design_guidelines.md) | Guías de diseño de UI |
 
 ---
 

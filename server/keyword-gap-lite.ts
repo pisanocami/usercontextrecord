@@ -3,25 +3,28 @@ import type { Configuration, CapabilityModel, ScoringConfig } from "@shared/sche
 import type { KeywordDataProvider, GapKeyword } from "./keyword-data-provider";
 import { getProvider } from "./providers";
 import { getCapabilityPreset, getScoringPreset } from "./capability-presets";
-import { 
-  validateModuleExecution, 
+import {
+  validateModuleExecution,
   createExecutionContext,
   addTriggeredRule,
+  processItemThroughGates,
   RULES,
-  type UCRSection 
+  VARIANT_TERMS_REGEX,
+  SIZE_NUMBERS_REGEX,
+  type UCRSection
 } from "./execution-gateway";
 import { SEO_VISIBILITY_GAP, UCR_SECTION_NAMES } from "@shared/module.contract";
-import type { 
-  Disposition, 
-  Severity, 
+import type {
+  Disposition,
+  Severity,
   ItemTrace,
-  UCRSectionID 
+  UCRSectionID
 } from "@shared/module.contract";
 
 export type KeywordStatus = "pass" | "review" | "out_of_play";
 export type ConfidenceLevel = "high" | "medium" | "low";
 
-export type IntentType = 
+export type IntentType =
   | "category_capture"
   | "problem_solution"
   | "product_generic"
@@ -133,12 +136,12 @@ function getCacheKey(brandDomain: string, competitorDomain: string, locationCode
 function getFromCache(key: string): GapKeyword[] | null {
   const entry = keywordCache.get(key);
   if (!entry) return null;
-  
+
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
     keywordCache.delete(key);
     return null;
   }
-  
+
   return entry.data;
 }
 
@@ -149,174 +152,28 @@ function setCache(key: string, data: GapKeyword[]): void {
   });
 }
 
-export function checkExclusions(
-  keyword: string,
-  exclusions: {
-    excludedCategories?: string[];
-    excludedKeywords?: string[];
-    excludedUseCases?: string[];
-    excludedCompetitors?: string[];
-  }
-): { hasMatch: boolean; reason: string } {
-  const normalizedKw = normalizeKeyword(keyword);
-  
-  const allExclusions = [
-    ...(exclusions.excludedCategories || []),
-    ...(exclusions.excludedKeywords || []),
-    ...(exclusions.excludedUseCases || []),
-    ...(exclusions.excludedCompetitors || []),
-  ].filter(Boolean);
-  
-  for (const exclusion of allExclusions) {
-    const normalizedExclusion = normalizeKeyword(exclusion);
-    if (!normalizedExclusion) continue;
-    
-    try {
-      const regex = new RegExp(`\\b${escapeRegex(normalizedExclusion)}\\b`, 'i');
-      if (regex.test(normalizedKw)) {
-        return { hasMatch: true, reason: `Matches exclusion: "${exclusion}"` };
-      }
-    } catch {
-      if (normalizedKw.includes(normalizedExclusion)) {
-        return { hasMatch: true, reason: `Matches exclusion: "${exclusion}"` };
-      }
-    }
-  }
-  
-  return { hasMatch: false, reason: "" };
-}
-
-export function fenceCheck(
-  keyword: string,
-  inScopeConcepts: string[],
-  demandThemes: string[],
-  semanticExtensions: string[] = []
-): { inFence: boolean; reason: string; matchType: "core" | "semantic" | "none" } {
-  const normalizedKw = normalizeKeyword(keyword);
-  
-  // Core concepts (strict fence)
-  const coreConcepts = [
-    ...inScopeConcepts.map(c => normalizeKeyword(c)),
-    ...demandThemes.map(t => normalizeKeyword(t)),
-  ].filter(Boolean);
-  
-  // Semantic extensions (soft fence - matches count as in-fence)
-  const semanticTerms = semanticExtensions.map(s => normalizeKeyword(s)).filter(Boolean);
-  
-  if (coreConcepts.length === 0 && semanticTerms.length === 0) {
-    return { inFence: true, reason: "No fence defined - auto-pass", matchType: "core" };
-  }
-  
-  // Check core concepts first
-  for (const concept of coreConcepts) {
-    const conceptTokens = concept.split(" ").filter(t => t.length > 2);
-    const keywordTokens = normalizedKw.split(" ");
-    
-    const hasMatch = conceptTokens.some(token => 
-      keywordTokens.some(kwToken => 
-        kwToken.includes(token) || token.includes(kwToken)
-      )
-    );
-    
-    if (hasMatch) {
-      return { inFence: true, reason: `Matches core: "${concept}"`, matchType: "core" };
-    }
-  }
-  
-  // Check semantic extensions (soft match - still counts as in-fence)
-  for (const extension of semanticTerms) {
-    const extTokens = extension.split(" ").filter(t => t.length > 2);
-    const keywordTokens = normalizedKw.split(" ");
-    
-    const hasMatch = extTokens.some(token => 
-      keywordTokens.some(kwToken => 
-        kwToken.includes(token) || token.includes(kwToken)
-      )
-    );
-    
-    if (hasMatch) {
-      return { inFence: true, reason: `Matches semantic extension: "${extension}"`, matchType: "semantic" };
-    }
-  }
-  
-  return { inFence: false, reason: "Outside category fence - needs review", matchType: "none" };
-}
-
-const VARIANT_TERMS_REGEX = /\b(size\s*\d|wide\s*width|narrow\s*width|4e|2e|w\s*width|mens\s*size|womens\s*size|kids\s*size|black\s+shoe|white\s+shoe|grey\s+shoe|navy\s+shoe)\b/i;
-
-const SIZE_NUMBERS_REGEX = /\bsize\s*(\d{1,2}\.?\d?)\b/i;
-
-// Irrelevant entity detection patterns
-const SPORTS_TEAMS_REGEX = /\b(bulldogs?|crimson tide|wolverines?|buckeyes?|longhorns?|gators?|seminoles?|tigers?|wildcats?|hurricanes?|tar heels?|jayhawks?|spartans?|hoosiers?|hawkeyes?|badgers?|trojans?|bruins?|ducks?|beavers?|cougar|razorbacks?|sooners?|cowboys?|aggies?|bears?|cardinals?|patriots?|raiders?|chiefs?|eagles?|giants?|steelers?|packers?|saints?|falcons?|panthers?|seahawks?|49ers?|broncos?|chargers?|dolphins?|bills?|jets?|colts?|texans?|jaguars?|titans?|ravens?|browns?|bengals?|lions?|vikings?|lakers?|celtics?|warriors?|heat|cavaliers?|thunder|rockets?|spurs?|mavericks?|clippers?|nuggets?|suns?|blazers?|bucks?|hornets?|hawks?|pistons?|pacers?|nets?|knicks?|raptors?|magic?)\b/i;
-
-const COLLEGE_NAMES_REGEX = /\b(alabama|auburn|clemson|ohio state|michigan|texas|florida|georgia|lsu|oklahoma|penn state|notre dame|wisconsin|oregon|usc|ucla|stanford|washington|tennessee|kentucky|kansas|duke|north carolina|unc|arkansas|missouri|mississippi|ole miss|iowa|nebraska|colorado|arizona|arizona state|baylor|tcu|texas a&m|texas tech|virginia|virginia tech|west virginia|maryland|rutgers|indiana|purdue|illinois|northwestern|minnesota|michigan state|iowa state|kansas state|oklahoma state|louisville|cincinnati|south carolina|nc state|wake forest|boston college|syracuse|pittsburgh|miami|florida state|georgia tech|vanderbilt|memphis|houston|byu|smu|tulane|ucf|usf)\b/i;
-
-// Influencer/celebrity names - common patterns
-const INFLUENCER_REGEX = /\b(olivia|emma|liam|noah|ava|sophia|isabella|mia|charlotte|amelia|harper|evelyn|abigail|emily|elizabeth|madison|luna|chloe|layla|riley|aria|zoey|nora|lily|eleanor|hannah|grace|addison|aubrey|brooklyn|victoria|stella|camila|penelope|leah|natalie|anna|alexa|hazel|ariana|aurora|savannah|bella|skylar|claire|violet|paisley|genesis|naomi|valentina|piper|kinsley|sarah|caroline|maya|peyton|willow|ruby|madelyn|alice|gianna|melanie|allison|alexandra|kaylee|aubree|charlie|audrey|autumn|kennedy|samantha|jasmine|julia|eva|quinn|nevaeh|brooklyn|nicolas|jose|santiago|julian|adriana|elena|isabella|sienna|maria|emilia|serenity|delilah|ivy|athena|vera|noa|jade|ada|nova|everleigh)\s+(amato|nguyen|smith|johnson|williams|brown|jones|garcia|miller|davis|rodriguez|martinez|hernandez|lopez|gonzalez|wilson|anderson|thomas|taylor|moore|jackson|martin|lee|perez|thompson|white|harris|sanchez|clark|ramirez|lewis|robinson|walker|young|allen|king|wright|scott|torres|hill|flores|green|adams|nelson|baker|hall|rivera|campbell|mitchell|carter|roberts)\b/i;
-
-// Idioms/meme phrases that indicate non-product intent
-const IDIOM_PHRASES_REGEX = /\b(walking on water|walk on water|jesus shoes?|walk a mile|if the shoe fits|put yourself in|in someone'?s shoes?|fill (his|her|their|big) shoes?|dead man'?s shoes?|another man'?s shoes?|old woman who lived in a shoe|drop of a hat|when pigs fly|raining cats and dogs|break a leg|hit the hay|piece of cake|cost an arm and a leg|once in a blue moon|under the weather|bite the bullet|spill the beans|let the cat out|burn bridges|jump the shark|throw in the towel)\b/i;
-
-// Names that are clearly people not products (first name + last name pattern)
-const PERSON_NAME_PATTERN = /^[a-z]+\s+[a-z]+$/i;
-
-export function detectIrrelevantEntity(keyword: string): { isIrrelevant: boolean; reason: string } {
-  const normalizedKw = normalizeKeyword(keyword);
-  
-  // Check for sports team references (college/pro)
-  if (SPORTS_TEAMS_REGEX.test(normalizedKw) || COLLEGE_NAMES_REGEX.test(normalizedKw)) {
-    // Only flag if combined with "shoes" or similar - sports team merchandise
-    if (/\b(shoes?|sneakers?|boots?|footwear|sandals?|slides?|slippers?)\b/i.test(normalizedKw)) {
-      return { isIrrelevant: true, reason: "Sports team merchandise keyword" };
-    }
-  }
-  
-  // Check for influencer/celebrity names
-  if (INFLUENCER_REGEX.test(normalizedKw)) {
-    return { isIrrelevant: true, reason: "Influencer/celebrity name keyword" };
-  }
-  
-  // Check for idioms and meme phrases
-  if (IDIOM_PHRASES_REGEX.test(normalizedKw)) {
-    return { isIrrelevant: true, reason: "Idiom or non-literal phrase" };
-  }
-  
-  // Simple person name pattern - 2 word query that looks like a name
-  // Only if it doesn't contain any product-related terms
-  const words = normalizedKw.split(/\s+/);
-  if (words.length === 2 && PERSON_NAME_PATTERN.test(normalizedKw)) {
-    const hasProductTerm = /\b(shoes?|sandals?|boots?|sneakers?|footwear|slides?|clogs?|slippers?|recovery|comfort|walking|running|hiking|orthopedic|plantar|arch)\b/i.test(normalizedKw);
-    if (!hasProductTerm) {
-      // Check if both words look like names (capitalized in original or common names)
-      const commonFirstNames = new Set(['olivia', 'emma', 'liam', 'noah', 'ava', 'sophia', 'john', 'mike', 'sarah', 'david', 'jennifer', 'jessica', 'chris', 'amanda', 'ashley', 'brittany', 'nicole', 'stephanie', 'melissa', 'kevin', 'brian', 'jason', 'justin', 'ryan', 'brandon', 'tyler', 'jacob', 'joshua', 'matthew', 'daniel', 'andrew', 'joseph', 'anthony', 'william', 'robert', 'james', 'michael', 'charles', 'thomas', 'mark', 'steven', 'paul', 'jeffrey', 'scott', 'eric', 'greg', 'timothy', 'jose', 'larry', 'frank', 'raymond', 'jerry', 'dennis', 'walter', 'peter', 'harold', 'douglas', 'henry', 'carl', 'arthur', 'lawrence', 'ronald', 'albert', 'johnny', 'gerald', 'roger', 'keith', 'jeremy', 'terry', 'sean', 'austin', 'christian', 'randy', 'eugene', 'russell', 'louis', 'howard', 'vincent', 'adam', 'harry', 'billy', 'bruce']);
-      if (commonFirstNames.has(words[0])) {
-        return { isIrrelevant: true, reason: "Person name - not product related" };
-      }
-    }
-  }
-  
-  return { isIrrelevant: false, reason: "" };
-}
+// Redundant local helpers removed. 
+// checkExclusions, fenceCheck, and detectIrrelevantEntity are now imported from ./execution-gateway.
 
 function getCompetitorBrandTerms(config: Configuration): string[] {
   const competitors = config.competitors?.competitors || [];
   const terms: string[] = [];
-  
+
   const stopWords = new Set([
     "new", "on", "the", "inc", "llc", "co", "company", "corp", "ltd", "limited",
     "shoes", "sandals", "footwear", "shoe", "sandal", "boot", "boots",
     "best", "top", "good", "great", "for", "and", "with"
   ]);
-  
+
   for (const comp of competitors) {
     if (typeof comp === "object" && comp !== null) {
       const name = (comp as { name?: string }).name || "";
       const domain = (comp as { domain?: string }).domain || "";
-      
+
       if (name) {
         const fullNameLower = name.toLowerCase().trim();
         terms.push(fullNameLower);
-        
+
         const nameParts = fullNameLower.split(/[\s\-\_]+/);
         for (const part of nameParts) {
           if (part.length > 2 && !stopWords.has(part)) {
@@ -327,7 +184,7 @@ function getCompetitorBrandTerms(config: Configuration): string[] {
       if (domain) {
         const domainName = domain.replace(/\.(com|net|org|io|co|uk|au)$/i, "").toLowerCase();
         terms.push(domainName);
-        
+
         const domainParts = domainName.split(/[\-\_]/);
         for (const part of domainParts) {
           if (part.length > 2 && !stopWords.has(part)) {
@@ -337,14 +194,14 @@ function getCompetitorBrandTerms(config: Configuration): string[] {
       }
     }
   }
-  
+
   const commonBrands = [
     "hoka", "birkenstock", "crocs", "brooks", "asics", "new balance",
     "nike", "adidas", "saucony", "vionic", "orthofeet", "propet", "drew",
     "alegria", "dansko", "merrell", "keen", "teva", "chaco", "altra",
     "skechers", "clarks", "ecco", "sperry", "ugg", "reef", "kane"
   ];
-  
+
   return Array.from(new Set([...terms, ...commonBrands]));
 }
 
@@ -364,7 +221,7 @@ export function intentTypeToTheme(intentType: IntentType): string {
 export function classifyIntent(keyword: string, config: Configuration): { intentType: IntentType; flags: string[] } {
   const normalizedKw = normalizeKeyword(keyword);
   const flags: string[] = [];
-  
+
   const competitorBrands = getCompetitorBrandTerms(config);
   for (const brand of competitorBrands) {
     if (normalizedKw.includes(brand)) {
@@ -372,29 +229,29 @@ export function classifyIntent(keyword: string, config: Configuration): { intent
       break;
     }
   }
-  
+
   if (VARIANT_TERMS_REGEX.test(normalizedKw) || SIZE_NUMBERS_REGEX.test(normalizedKw)) {
     flags.push("size_variant");
   }
-  
+
   if (flags.includes("competitor_brand")) {
     return { intentType: "brand_capture", flags };
   }
-  
+
   if (flags.includes("size_variant") && flags.includes("competitor_brand")) {
     return { intentType: "variant_or_size", flags };
   }
-  
+
   const problemTerms = /\b(best|plantar fasciitis|arch support|pain relief|recovery|heel pain|foot pain|back pain|knee pain|standing all day|nurses?|doctors?|healthcare|walking|comfort)\b/i;
   if (problemTerms.test(normalizedKw)) {
     return { intentType: "problem_solution", flags };
   }
-  
+
   const categoryTerms = /\b(sandals?|slides?|flip flops?|clogs?|slippers?|recovery shoes?|comfort shoes?|orthopedic)\b/i;
   if (categoryTerms.test(normalizedKw)) {
     return { intentType: "category_capture", flags };
   }
-  
+
   const productTerms = /\b(shoes?|sneakers?|boots?|footwear|running|walking|hiking|training|marathon)\b/i;
   if (productTerms.test(normalizedKw)) {
     if (flags.includes("size_variant")) {
@@ -402,11 +259,11 @@ export function classifyIntent(keyword: string, config: Configuration): { intent
     }
     return { intentType: "product_generic", flags };
   }
-  
+
   if (flags.includes("size_variant")) {
     return { intentType: "variant_or_size", flags };
   }
-  
+
   return { intentType: "other", flags };
 }
 
@@ -418,8 +275,8 @@ function getEffectiveCapabilityModel(config: Configuration): CapabilityModel {
   if (govCapability && (govCapability.boosters?.length || govCapability.penalties?.length)) {
     return govCapability as CapabilityModel;
   }
-  const presetName = config.scoring_config?.vertical_preset || 
-                     (config.governance as any)?.scoring_config?.vertical_preset;
+  const presetName = config.scoring_config?.vertical_preset ||
+    (config.governance as any)?.scoring_config?.vertical_preset;
   return getCapabilityPreset(presetName);
 }
 
@@ -438,7 +295,7 @@ export function computeCapabilityScore(keyword: string, config: Configuration): 
   const normalizedKw = normalizeKeyword(keyword);
   const capabilityModel = getEffectiveCapabilityModel(config);
   let score = capabilityModel.base_score ?? 0.5;
-  
+
   for (const booster of capabilityModel.boosters || []) {
     try {
       const regex = new RegExp(`\\b(${booster.pattern})\\b`, 'i');
@@ -451,7 +308,7 @@ export function computeCapabilityScore(keyword: string, config: Configuration): 
       }
     }
   }
-  
+
   for (const penalty of capabilityModel.penalties || []) {
     try {
       const regex = new RegExp(`\\b(${penalty.pattern})\\b`, 'i');
@@ -464,18 +321,18 @@ export function computeCapabilityScore(keyword: string, config: Configuration): 
       }
     }
   }
-  
+
   const competitorBrands = getCompetitorBrandTerms(config);
   const commonBrands = capabilityModel.common_brands || [];
   const allBrands = Array.from(new Set([...competitorBrands, ...commonBrands]));
-  
+
   for (const brand of allBrands) {
     if (normalizedKw.includes(brand)) {
       score -= 0.6;
       break;
     }
   }
-  
+
   return Math.max(0, Math.min(1, score));
 }
 
@@ -532,13 +389,13 @@ export function computeOpportunityScore(
   const volume = searchVolume || 0;
   const cpcValue = cpc || 1;
   const intentWeight = INTENT_WEIGHTS[intentType];
-  
+
   const difficultyWeight = scoringConfig?.difficulty_weight ?? 0.5;
   const positionWeight = scoringConfig?.position_weight ?? 0.5;
-  
+
   const difficultyFactor = computeDifficultyFactor(keywordDifficulty, difficultyWeight);
   const positionFactor = computePositionFactor(competitorPosition, positionWeight);
-  
+
   return volume * cpcValue * intentWeight * capabilityScore * difficultyFactor * positionFactor;
 }
 
@@ -560,9 +417,9 @@ export interface KeywordEvaluation {
 
 
 function createTrace(
-  ruleId: string, 
-  ucrSection: UCRSectionID, 
-  reason: string, 
+  ruleId: string,
+  ucrSection: UCRSectionID,
+  reason: string,
   severity: Severity,
   evidence?: string
 ): ItemTrace {
@@ -587,7 +444,7 @@ export function evaluateKeyword(
   const scoringConfig = getEffectiveScoringConfig(config);
   const passThreshold = scoringConfig.pass_threshold;
   const reviewThreshold = scoringConfig.review_threshold;
-  
+
   const { intentType, flags } = classifyIntent(keyword, config);
   const capabilityScore = computeCapabilityScore(keyword, config);
   const difficultyFactor = computeDifficultyFactor(keywordDifficulty, scoringConfig.difficulty_weight);
@@ -596,11 +453,11 @@ export function evaluateKeyword(
     searchVolume, cpc, intentType, capabilityScore,
     keywordDifficulty, competitorPosition, scoringConfig
   );
-  
+
   const trace: ItemTrace[] = [];
   const reasons: string[] = [];
   const resultFlags = [...flags];
-  
+
   const baseResult = {
     intentType,
     capabilityScore,
@@ -610,65 +467,21 @@ export function evaluateKeyword(
   };
 
   // ============================================
-  // GATE 1: G (Negative Scope) - HARD GATE FIRST
+  // GATES G, B, H (Centralized Core Check)
   // ============================================
-  const exclusions = {
-    excludedCategories: config.negative_scope?.excluded_categories || [],
-    excludedKeywords: config.negative_scope?.excluded_keywords || [],
-    excludedUseCases: config.negative_scope?.excluded_use_cases || [],
-    excludedCompetitors: config.negative_scope?.excluded_competitors || [],
-  };
-  
-  const exclusionResult = checkExclusions(keyword, exclusions);
-  if (exclusionResult.hasMatch) {
-    const reason = exclusionResult.reason;
-    trace.push(createTrace("negative_scope.hard_gate", "G", reason, "critical", keyword));
-    reasons.push(reason);
-    resultFlags.push("excluded");
+  const gatedResult = processItemThroughGates(baseResult, keyword, config);
+
+  // Transfer traces and reasons from centralization
+  trace.push(...gatedResult.trace);
+  reasons.push(...gatedResult.reasons);
+
+  if (gatedResult.disposition === "OUT_OF_PLAY") {
     return {
       ...baseResult,
       status: "out_of_play",
       disposition: "OUT_OF_PLAY",
       statusIcon: "X",
-      reason,
-      reasons,
-      flags: resultFlags,
-      confidence: "high",
-      trace,
-    };
-  }
-  
-  // Check competitor brand terms (also part of G - hard exclusion)
-  if (flags.includes("competitor_brand")) {
-    const reason = "Competitor brand term";
-    trace.push(createTrace("negative_scope.competitor_brand", "G", reason, "high", keyword));
-    reasons.push(reason);
-    return {
-      ...baseResult,
-      status: "out_of_play",
-      disposition: "OUT_OF_PLAY",
-      statusIcon: "X",
-      reason,
-      reasons,
-      flags: resultFlags,
-      confidence: "high",
-      trace,
-    };
-  }
-  
-  // Check for irrelevant entities (part of G - hard gate)
-  const irrelevantCheck = detectIrrelevantEntity(keyword);
-  if (irrelevantCheck.isIrrelevant) {
-    const reason = irrelevantCheck.reason;
-    trace.push(createTrace("negative_scope.irrelevant_entity", "G", reason, "high", keyword));
-    reasons.push(reason);
-    resultFlags.push("irrelevant_entity");
-    return {
-      ...baseResult,
-      status: "out_of_play",
-      disposition: "OUT_OF_PLAY",
-      statusIcon: "X",
-      reason,
+      reason: reasons[0] || "Hard-gate exclusion",
       reasons,
       flags: resultFlags,
       confidence: "high",
@@ -676,40 +489,34 @@ export function evaluateKeyword(
     };
   }
 
-  // ============================================
-  // GATE 2: B (Category Fence) - SOFT GATE
-  // ============================================
-  const inScopeConcepts = [
-    ...(config.category_definition?.included || []),
-    config.category_definition?.primary_category || "",
-    ...(config.category_definition?.approved_categories || []),
-  ].filter(Boolean);
-  
-  const demandThemes = [
-    ...(config.demand_definition?.brand_keywords?.seed_terms || []),
-    ...(config.demand_definition?.non_brand_keywords?.category_terms || []),
-    ...(config.demand_definition?.non_brand_keywords?.problem_terms || []),
-  ];
-  
-  // v3.3: Get semantic extensions for soft fence matching
-  const semanticExtensions = config.category_definition?.semantic_extensions || [];
-  
-  const fenceResult = fenceCheck(keyword, inScopeConcepts, demandThemes, semanticExtensions);
-  let outsideFence = false;
-  
-  if (!fenceResult.inFence) {
-    outsideFence = true;
+  // Handle REVIEW state from gates (mostly Gate B)
+  const outsideFence = gatedResult.disposition === "REVIEW";
+  if (outsideFence) {
     resultFlags.push("outside_fence");
-    trace.push(createTrace("category_fence.soft_gate", "B", fenceResult.reason, "medium", keyword));
-    reasons.push(fenceResult.reason);
-  } else {
-    trace.push(createTrace("category_fence.in_scope", "B", fenceResult.reason, "low"));
+  }
+
+  // Additional scoring/local flags
+  if (flags.includes("competitor_brand")) {
+    const reason = "Competitor brand term";
+    trace.push({ ruleId: "negative_scope.competitor_brand", ucrSection: "G", reason, severity: "high", evidence: keyword });
+    reasons.push(reason);
+    return {
+      ...baseResult,
+      status: "out_of_play",
+      disposition: "OUT_OF_PLAY",
+      statusIcon: "X",
+      reason,
+      reasons,
+      flags: resultFlags,
+      confidence: "high",
+      trace,
+    };
   }
 
   // ============================================
   // GATE 3: H (Scoring/Governance) - THRESHOLDS
   // ============================================
-  
+
   // Size/variant check (scoring decision)
   if (intentType === "variant_or_size") {
     const reason = "Size/variant query - low commercial value";
@@ -727,7 +534,7 @@ export function evaluateKeyword(
       trace,
     };
   }
-  
+
   // Capability score check
   if (capabilityScore < reviewThreshold) {
     const reason = "Low capability fit";
@@ -745,11 +552,11 @@ export function evaluateKeyword(
       trace,
     };
   }
-  
+
   // Record scoring trace
   trace.push(createTrace(
-    "scoring.capability_evaluated", 
-    "H", 
+    "scoring.capability_evaluated",
+    "H",
     `Capability score: ${capabilityScore.toFixed(2)}`,
     "low",
     `pass: ${passThreshold}, review: ${reviewThreshold}`
@@ -783,47 +590,15 @@ export function evaluateKeyword(
     }
   }
 
-  // ============================================
-  // GATE 4: E/F (Strategic/Channel) - PRIORITIZATION
-  // ============================================
-  const strategicIntent = config.strategic_intent;
-  const channelContext = config.channel_context;
-  
-  // Apply strategic posture adjustments
-  if (strategicIntent?.risk_tolerance === "low" && outsideFence) {
-    const reason = "Conservative posture + outside fence = needs review";
-    trace.push(createTrace("strategic.conservative_posture", "E", reason, "medium"));
-    reasons.push(reason);
-    return {
-      ...baseResult,
-      status: "review",
-      disposition: "REVIEW",
-      statusIcon: "?",
-      reason,
-      reasons,
-      flags: resultFlags,
-      confidence: "medium",
-      trace,
-    };
-  }
-  
-  // Channel context (SEO investment level)
-  if (channelContext?.seo_investment_level) {
-    trace.push(createTrace(
-      "channel.seo_context", 
-      "F", 
-      `SEO investment: ${channelContext.seo_investment_level}`,
-      "low"
-    ));
-  }
+  // Gate 4 (Strategic/Channel) logic has been moved to processItemThroughGates in execution-gateway.ts
 
   // ============================================
   // FINAL DISPOSITION
   // ============================================
   if (capabilityScore >= passThreshold) {
-    const reason = outsideFence 
+    const reason = outsideFence
       ? "Strong capability fit - verify category alignment"
-      : (fenceResult.reason || "High capability match");
+      : (gatedResult.reasons[0] || "High capability match");
     trace.push(createTrace("disposition.pass", "H", reason, "low", `score: ${capabilityScore.toFixed(2)}`));
     reasons.push(reason);
     return {
@@ -838,10 +613,10 @@ export function evaluateKeyword(
       trace,
     };
   }
-  
+
   if (capabilityScore >= reviewThreshold) {
     const confidence: ConfidenceLevel = capabilityScore >= (passThreshold - 0.1) ? "medium" : "low";
-    const reason = outsideFence 
+    const reason = outsideFence
       ? "Medium capability - outside fence"
       : "Medium capability - needs review";
     trace.push(createTrace("disposition.review", "H", reason, "medium", `score: ${capabilityScore.toFixed(2)}`));
@@ -858,7 +633,7 @@ export function evaluateKeyword(
       trace,
     };
   }
-  
+
   const reason = "Low relevance";
   trace.push(createTrace("disposition.out_of_play", "H", reason, "low"));
   reasons.push(reason);
@@ -877,25 +652,25 @@ export function evaluateKeyword(
 
 export function assignTheme(keyword: string, config: Configuration): string {
   const normalizedKw = normalizeKeyword(keyword);
-  
+
   const themes = [
     { name: "Brand", terms: config.demand_definition?.brand_keywords?.seed_terms || [] },
     { name: "Category", terms: config.demand_definition?.non_brand_keywords?.category_terms || [] },
     { name: "Problem/Solution", terms: config.demand_definition?.non_brand_keywords?.problem_terms || [] },
     { name: "Product", terms: config.category_definition?.included || [] },
   ];
-  
+
   for (const theme of themes) {
     for (const term of theme.terms) {
       const normalizedTerm = normalizeKeyword(term);
       const termTokens = normalizedTerm.split(" ");
-      
+
       if (termTokens.some(token => token.length > 2 && normalizedKw.includes(token))) {
         return theme.name;
       }
     }
   }
-  
+
   return "Other";
 }
 
@@ -918,23 +693,23 @@ export async function computeKeywordGap(
     provider = "dataforseo",
     forceRefresh = false,
   } = options;
-  
+
   const validation = validateModuleExecution(SEO_VISIBILITY_GAP.id, config);
   const execContext = createExecutionContext(
     SEO_VISIBILITY_GAP.id,
     config,
     validation.availableSections
   );
-  
+
   let usedCache = false;
-  
+
   const keywordProvider = getProvider(provider);
-  
+
   const brandDomain = normalizeDomain(config.brand?.domain || "");
-  
+
   const competitorsList = config.competitors?.competitors || [];
   const directCompetitors = competitorsList
-    .filter((c) => 
+    .filter((c) =>
       typeof c === "object" && c !== null && "domain" in c && typeof (c as { domain?: string }).domain === "string" && (c as { domain: string }).domain.length > 0
     )
     .filter((c) => {
@@ -944,7 +719,7 @@ export async function computeKeywordGap(
     .slice(0, maxCompetitors)
     .map((c) => (c as { domain: string }).domain)
     .filter(Boolean);
-  
+
   if (!brandDomain || directCompetitors.length === 0) {
     return {
       brandDomain,
@@ -978,29 +753,29 @@ export async function computeKeywordGap(
       },
     };
   }
-  
+
   const limit = pLimit(3);
-  
+
   const allKeywordsMap = new Map<string, {
     keyword: GapKeyword;
     competitors: string[];
   }>();
-  
+
   // Track provider errors for reporting
   const providerErrors: ProviderError[] = [];
-  
+
   await Promise.all(
     directCompetitors.map(competitor =>
       limit(async () => {
         const competitorDomain = normalizeDomain(competitor);
         const cacheKey = getCacheKey(brandDomain, competitorDomain, locationCode, languageCode, provider);
         let cachedKeywords = forceRefresh ? null : getFromCache(cacheKey);
-        
+
         if (cachedKeywords) {
           usedCache = true;
           console.log(`[${keywordProvider.displayName}] Using cached data for ${competitorDomain}`);
         }
-        
+
         if (!cachedKeywords) {
           try {
             console.log(`[${keywordProvider.displayName}] Fetching gap: ${brandDomain} vs ${competitorDomain}${forceRefresh ? ' (force refresh)' : ''}`);
@@ -1013,7 +788,7 @@ export async function computeKeywordGap(
                 limit: limitPerDomain,
               }
             );
-            
+
             // Check if provider returned an error (from Promise.allSettled handling)
             if (result.error) {
               console.warn(`[${keywordProvider.displayName}] Provider returned error for ${competitorDomain}: ${result.error}`);
@@ -1023,7 +798,7 @@ export async function computeKeywordGap(
                 timestamp: new Date().toISOString(),
               });
             }
-            
+
             cachedKeywords = result.gapKeywords;
             if (cachedKeywords.length > 0) {
               setCache(cacheKey, cachedKeywords);
@@ -1031,34 +806,34 @@ export async function computeKeywordGap(
             console.log(`[${keywordProvider.displayName}] Got ${cachedKeywords.length} gap keywords from ${competitorDomain}`);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            
+
             // Check if this is a fatal brand-domain error (critical - should propagate)
-            const isBrandDomainError = errorMessage.includes("Brand Domain Failed") || 
-                                        errorMessage.includes("brand fetch") ||
-                                        errorMessage.includes("client domain");
-            
+            const isBrandDomainError = errorMessage.includes("Brand Domain Failed") ||
+              errorMessage.includes("brand fetch") ||
+              errorMessage.includes("client domain");
+
             if (isBrandDomainError) {
               console.error(`[${keywordProvider.displayName}] FATAL brand-domain error - re-throwing:`, error);
               throw error; // Don't swallow brand-domain errors - they're critical
             }
-            
+
             // Non-fatal competitor error - track but continue
             console.warn(`[${keywordProvider.displayName}] Competitor fetch error for ${competitorDomain}:`, errorMessage);
-            
+
             providerErrors.push({
               competitor: competitorDomain,
               error: errorMessage,
               timestamp: new Date().toISOString(),
             });
-            
+
             cachedKeywords = [];
           }
         }
-        
+
         for (const kw of cachedKeywords) {
           const normalizedKw = normalizeKeyword(kw.keyword);
           const existing = allKeywordsMap.get(normalizedKw);
-          
+
           if (existing) {
             existing.competitors.push(competitorDomain);
             if (kw.searchVolume > existing.keyword.searchVolume) {
@@ -1074,26 +849,26 @@ export async function computeKeywordGap(
       })
     )
   );
-  
+
   const results: KeywordResult[] = [];
   const stats = { passed: 0, review: 0, outOfPlay: 0, percentPassed: 0, percentReview: 0, percentOutOfPlay: 0 };
   let competitorBrandCount = 0;
   let variantCount = 0;
   let irrelevantEntityCount = 0;
   let lowCapabilityCount = 0;
-  
+
   allKeywordsMap.forEach(({ keyword: kw, competitors }) => {
     const evaluation = evaluateKeyword(
       kw.keyword, config, kw.searchVolume, kw.cpc,
       kw.keywordDifficulty, kw.competitorPosition
     );
     const demandTheme = assignTheme(kw.keyword, config);
-    
+
     // Use intent type as fallback when no demand_definition match
-    const theme = demandTheme !== "Other" 
-      ? demandTheme 
+    const theme = demandTheme !== "Other"
+      ? demandTheme
       : intentTypeToTheme(evaluation.intentType);
-    
+
     results.push({
       keyword: kw.keyword,
       normalizedKeyword: normalizeKeyword(kw.keyword),
@@ -1117,22 +892,22 @@ export async function computeKeywordGap(
       theme,
       trace: evaluation.trace,
     });
-    
+
     if (evaluation.status === "pass") stats.passed++;
     else if (evaluation.status === "review") stats.review++;
     else stats.outOfPlay++;
-    
+
     if (evaluation.flags.includes("competitor_brand")) competitorBrandCount++;
     if (evaluation.flags.includes("size_variant")) variantCount++;
     if (evaluation.flags.includes("irrelevant_entity")) irrelevantEntityCount++;
     if (evaluation.reason === "Low capability fit") lowCapabilityCount++;
   });
-  
+
   const total = results.length || 1;
   stats.percentPassed = Math.round((stats.passed / total) * 100);
   stats.percentReview = Math.round((stats.review / total) * 100);
   stats.percentOutOfPlay = Math.round((stats.outOfPlay / total) * 100);
-  
+
   results.sort((a, b) => {
     const statusOrder: Record<KeywordStatus, number> = { pass: 0, review: 1, out_of_play: 2 };
     if (a.status !== b.status) {
@@ -1140,11 +915,11 @@ export async function computeKeywordGap(
     }
     return (b.opportunityScore || 0) - (a.opportunityScore || 0);
   });
-  
+
   const topOpportunities = results.filter(r => r.status === "pass");
   const needsReview = results.filter(r => r.status === "review");
   const outOfPlay = results.filter(r => r.status === "out_of_play");
-  
+
   const grouped: Record<string, KeywordResult[]> = {};
   topOpportunities.forEach(result => {
     if (!grouped[result.theme]) {
@@ -1152,12 +927,12 @@ export async function computeKeywordGap(
     }
     grouped[result.theme].push(result);
   });
-  
+
   const negativeScope = config.negative_scope || {};
   const excludedCategories = (negativeScope.excluded_categories as string[] || []).length;
   const excludedKeywords = (negativeScope.excluded_keywords as string[] || []).length;
   const excludedUseCases = (negativeScope.excluded_use_cases as string[] || []).length;
-  
+
   if (competitorBrandCount > 0) addTriggeredRule(execContext, RULES.COMPETITOR_BRAND_DETECTED);
   if (variantCount > 0) addTriggeredRule(execContext, RULES.SIZE_VARIANT_DETECTED);
   if (irrelevantEntityCount > 0) addTriggeredRule(execContext, RULES.IRRELEVANT_ENTITY);
@@ -1168,12 +943,12 @@ export async function computeKeywordGap(
   if (config.scoring_config || config.capability_model) {
     addTriggeredRule(execContext, RULES.GOVERNANCE_THRESHOLD);
   }
-  
+
   // If all competitors failed and we have no results, log a strong warning
   if (results.length === 0 && providerErrors.length > 0) {
     console.error(`[KeywordGapLite] ALL competitors failed! Provider errors:`, providerErrors);
   }
-  
+
   return {
     brandDomain,
     competitors: directCompetitors,
