@@ -27,6 +27,9 @@ import type {
   KeywordSeverity,
   UCRSectionID,
   KeywordItemTrace,
+  CategoryVolumeResult,
+  CategoryVolumeValidationResult,
+  CategoryVolumeStatus,
 } from "@shared/schema";
 import type { KeywordGapResult as KeywordGapResultType, KeywordResult as KeywordResultType } from "./keyword-gap-lite";
 
@@ -1219,6 +1222,111 @@ export class MarketDemandAnalyzer {
       nextSteps: nextSteps.slice(0, 3),
       risks: risks.slice(0, 2),
     };
+  }
+
+  /**
+   * Validates category volume before full analysis - helps users identify
+   * low-volume categories and adjust their selection
+   */
+  async validateCategories(
+    config: Configuration,
+    params: { countryCode?: string; timeRange?: string } = {}
+  ): Promise<CategoryVolumeValidationResult> {
+    const countryCode = params.countryCode || this.extractCountryCode(config);
+    const timeRange = params.timeRange || "today 5-y";
+    const configId = parseInt(config.id, 10) || 0;
+
+    const categoryGroups = buildCategoryGroups(config);
+    const validated: CategoryVolumeResult[] = [];
+
+    console.log(`[CategoryVolumeProbe] Validating ${categoryGroups.length} categories for config ${configId}`);
+
+    for (const group of categoryGroups) {
+      const query = group.queries[0] || group.categoryName;
+      const cacheKey = buildCacheKey(configId, group.categoryName, group.queries, countryCode, timeRange);
+      const cached = categoryCache.get(cacheKey);
+
+      let dataPoints = 0;
+      let estimatedVolume = 0;
+      let fromCache = false;
+
+      if (cached && cached.expiresAt > Date.now()) {
+        dataPoints = cached.slice.series.length;
+        estimatedVolume = cached.slice.series.reduce((sum, p) => sum + p.value, 0);
+        fromCache = true;
+        console.log(`[CategoryVolumeProbe] Cache hit for "${group.categoryName}": ${dataPoints} points`);
+      } else {
+        try {
+          const trendsData = await this.provider.fetchTrends({
+            query,
+            country: countryCode,
+            timeRange,
+            interval: "weekly",
+          });
+          dataPoints = trendsData.data.length;
+          estimatedVolume = trendsData.data.reduce((sum, p) => sum + p.value, 0);
+          console.log(`[CategoryVolumeProbe] Fetched "${group.categoryName}": ${dataPoints} points`);
+        } catch (error) {
+          console.warn(`[CategoryVolumeProbe] Failed to fetch "${group.categoryName}":`, error);
+          dataPoints = 0;
+          estimatedVolume = 0;
+        }
+      }
+
+      const status = this.categorizeVolumeStatus(dataPoints, estimatedVolume);
+      const recommendation = this.getVolumeRecommendation(status, group.categoryName);
+
+      validated.push({
+        categoryName: group.categoryName,
+        query,
+        dataPoints,
+        status,
+        estimatedVolume,
+        recommendation,
+        canOverride: status !== "none",
+      });
+    }
+
+    const summary = {
+      total: validated.length,
+      high: validated.filter(v => v.status === "high").length,
+      medium: validated.filter(v => v.status === "medium").length,
+      low: validated.filter(v => v.status === "low").length,
+      none: validated.filter(v => v.status === "none").length,
+    };
+
+    console.log(`[CategoryVolumeProbe] Validation complete: ${summary.high} high, ${summary.medium} medium, ${summary.low} low, ${summary.none} none`);
+
+    return {
+      configurationId: configId,
+      validated,
+      summary,
+      metadata: {
+        validatedAt: new Date().toISOString(),
+        cached: validated.some(v => v.dataPoints > 0),
+        dataSource: this.provider.displayName,
+      },
+    };
+  }
+
+  private categorizeVolumeStatus(dataPoints: number, volume: number): CategoryVolumeStatus {
+    if (dataPoints === 0) return "none";
+    if (dataPoints >= 200 && volume >= 1000) return "high";
+    if (dataPoints >= 100 && volume >= 200) return "medium";
+    return "low";
+  }
+
+  private getVolumeRecommendation(status: CategoryVolumeStatus, categoryName: string): string {
+    switch (status) {
+      case "high":
+        return `"${categoryName}" has excellent data coverage - recommended for analysis`;
+      case "medium":
+        return `"${categoryName}" has moderate data - suitable for analysis with some caution`;
+      case "low":
+        return `"${categoryName}" has limited data - consider using a broader term or excluding`;
+      case "none":
+        return `"${categoryName}" has no data available - try a different search term`;
+    }
   }
 }
 

@@ -997,6 +997,39 @@ export interface CategoryQueryGroup {
 }
 
 // ==========================================
+// Category Volume Validation Types
+// ==========================================
+
+export type CategoryVolumeStatus = "high" | "medium" | "low" | "none";
+
+export interface CategoryVolumeResult {
+  categoryName: string;
+  query: string;
+  dataPoints: number;
+  status: CategoryVolumeStatus;
+  estimatedVolume: number;
+  recommendation: string;
+  canOverride: boolean;
+}
+
+export interface CategoryVolumeValidationResult {
+  configurationId: number;
+  validated: CategoryVolumeResult[];
+  summary: {
+    total: number;
+    high: number;
+    medium: number;
+    low: number;
+    none: number;
+  };
+  metadata: {
+    validatedAt: string;
+    cached: boolean;
+    dataSource: string;
+  };
+}
+
+// ==========================================
 // Category Keyword Priority Types
 // ==========================================
 

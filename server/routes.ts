@@ -2314,6 +2314,40 @@ IMPORTANT:
     }
   });
 
+  // Validate categories volume before running full analysis
+  app.post("/api/market-demand/validate-categories", async (req: any, res) => {
+    const userId = (req.user as any)?.id || "anonymous-user";
+    const { configurationId, countryCode, timeRange } = req.body;
+
+    if (!configurationId) {
+      return res.status(400).json({ error: "configurationId is required" });
+    }
+
+    try {
+      const config = await storage.getConfigurationById(parseInt(configurationId, 10), userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const configForAnalyzer = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString(),
+      } as any;
+
+      const result = await marketDemandAnalyzer.validateCategories(configForAnalyzer, {
+        countryCode,
+        timeRange: timeRange || "today 5-y",
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error validating categories:", error);
+      res.status(500).json({ error: error.message || "Failed to validate categories" });
+    }
+  });
+
   // Per-category market demand analysis (v2 - recommended)
   app.post("/api/market-demand/analyze-by-category", async (req: any, res) => {
     const userId = (req.user as any)?.id || "anonymous-user";
