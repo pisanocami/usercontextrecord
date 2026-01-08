@@ -1590,8 +1590,52 @@ export const MODULE_REGISTRY: Record<string, ModuleDefinition> = {
   'market_demand_seasonality': MARKET_DEMAND_SEASONALITY
 };
 
+/**
+ * Look up a module by ID, checking CONTRACT_REGISTRY first, then MODULE_REGISTRY
+ * This provides backward compatibility while transitioning to the new contract system
+ */
 export function getModuleDefinition(moduleId: string): ModuleDefinition | undefined {
+  // First check the new CONTRACT_REGISTRY (uses versioned IDs like "seo.keyword_gap_visibility.v1")
+  const contract = CONTRACT_REGISTRY[moduleId];
+  if (contract) {
+    return contractToModuleDefinition(contract);
+  }
+  
+  // Fall back to legacy MODULE_REGISTRY (uses old IDs like "seo_visibility_gap")
   return MODULE_REGISTRY[moduleId];
+}
+
+/**
+ * Adapts a ModuleContract to the legacy ModuleDefinition shape
+ * This allows execution-gateway to work with both old and new module formats
+ */
+function contractToModuleDefinition(contract: ModuleContract): ModuleDefinition {
+  const outputTypeMap: Record<string, ModuleDefinition['outputType']> = {
+    'keyword': 'keywords',
+    'keyword_opportunity': 'keywords',
+    'cluster': 'signal',
+    'trend': 'signal',
+    'serp': 'keywords',
+    'share': 'share',
+    'share_percentage': 'share',
+    'action': 'levers',
+    'action_card': 'levers',
+    'summary_text': 'levers',
+    'score': 'signal',
+    'url': 'keywords',
+    'entity': 'signal'
+  };
+  
+  return {
+    id: contract.moduleId,
+    name: contract.name,
+    description: contract.description,
+    question: contract.strategicQuestion,
+    requiredSections: contract.contextInjection.requiredSections,
+    optionalSections: contract.contextInjection.optionalSections || [],
+    outputType: outputTypeMap[contract.output.entityType] || 'signal',
+    status: 'active'
+  };
 }
 
 export function getActiveModules(): ModuleDefinition[] {
@@ -1606,6 +1650,42 @@ export function canModuleExecute(
   moduleId: string,
   availableSections: UCRSectionID[]
 ): { canExecute: boolean; missingSections: UCRSectionID[]; warnings: string[] } {
+  // Check CONTRACT_REGISTRY first for richer execution gate policies
+  const contract = CONTRACT_REGISTRY[moduleId];
+  if (contract) {
+    const requiredSections = contract.contextInjection.requiredSections;
+    const optionalSections = contract.contextInjection.optionalSections || [];
+    
+    const missingSections = requiredSections.filter(
+      section => !availableSections.includes(section)
+    );
+    
+    const missingOptional = optionalSections.filter(
+      section => !availableSections.includes(section)
+    );
+    
+    const warnings: string[] = [];
+    if (missingOptional.length > 0) {
+      warnings.push(
+        `Missing optional sections: ${missingOptional.map(s => `${s} (${UCR_SECTION_NAMES[s]})`).join(', ')}. Results may be less accurate.`
+      );
+    }
+    
+    // Apply execution gate policy from contract
+    const gate = contract.executionGate;
+    const blockedByOptional = gate.allowMissingOptionalSections === false && missingOptional.length > 0;
+    if (blockedByOptional) {
+      warnings.push('Module requires all optional sections to be present.');
+    }
+    
+    return {
+      canExecute: missingSections.length === 0 && !blockedByOptional,
+      missingSections,
+      warnings
+    };
+  }
+  
+  // Fall back to legacy MODULE_REGISTRY
   const module = getModuleDefinition(moduleId);
   if (!module) {
     return { canExecute: false, missingSections: [], warnings: ['Module not found'] };
