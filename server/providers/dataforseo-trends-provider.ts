@@ -254,8 +254,7 @@ export class DataForSEOTrendsProvider implements TrendsDataProvider {
             date: d.date_from,
             value: typeof value === 'number' ? value : 0,
           };
-        })
-        .filter(d => d.value > 0);
+        });
 
       console.log(`[DataForSEO Trends] Extracted ${timelineData.length} data points for "${query}" (index ${actualIndex})`);
       
