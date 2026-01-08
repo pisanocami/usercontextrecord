@@ -392,7 +392,7 @@ function renderAnalysisResults(
                 const csvData = isByCategory 
                   ? byCategoryResult?.byCategory.map(c => ({ Category: c.categoryName, Peak: c.peakMonth, Consistency: c.consistencyLabel }))
                   : [];
-                const ws = XLSX.utils.json_to_sheet(csvData);
+                const ws = XLSX.utils.json_to_sheet(csvData as any[]);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "MarketDemand");
                 XLSX.writeFile(wb, "market_demand_analysis.xlsx");
@@ -421,22 +421,60 @@ export default function MarketDemandPage() {
     queryKey: ["/api/configurations"],
   });
 
-  const { data: analysisResult, isLoading: isAnalyzing } = useQuery({
+  const { data: analysisResult, isLoading: isAnalyzing, error } = useQuery({
     queryKey: ["/api/market-demand", selectedConfigId, timeRange],
     queryFn: async () => {
       if (!selectedConfigId) return null;
-      const res = await apiRequest("POST", "/api/market-demand/analyze-by-category", {
-        configurationId: selectedConfigId,
-        timeRange,
-        countryCode: "US"
-      });
-      return res.json();
+      try {
+        const res = await apiRequest("POST", "/api/market-demand/analyze-by-category", {
+          configurationId: selectedConfigId,
+          timeRange,
+          countryCode: "US"
+        });
+        return await res.json();
+      } catch (err: any) {
+        // Handle API errors gracefully for the UI
+        console.error("Market Demand API Error:", err);
+        
+        // If the error object has a json method (from apiRequest/fetch)
+        if (err.json && typeof err.json === 'function') {
+          try {
+            const errorData = await err.json();
+            return {
+              validationResult: errorData.validationResult || {
+                valid: false,
+                errors: [errorData.message || "An unexpected error occurred"],
+                warnings: []
+              },
+              executiveSummary: errorData.message || "Validation failed",
+              byCategory: []
+            };
+          } catch (e) {
+            // Fallback if JSON parsing fails
+          }
+        }
+        
+        // Generic fallback error structure that the UI can render
+        return {
+          validationResult: {
+            valid: false,
+            errors: [err.message || "Connection failed. Please try again."],
+            warnings: []
+          },
+          executiveSummary: "Error connecting to service",
+          byCategory: []
+        };
+      }
     },
     enabled: !!selectedConfigId && activeTab === "run",
+    retry: false
   });
 
-  const aggregatedChartData = analysisResult && isByCategoryResult(analysisResult) && analysisResult.overall
-    ? analysisResult.overall.series.map((d: any) => ({
+  const displayResult = analysisResult;
+
+
+  const aggregatedChartData = displayResult && isByCategoryResult(displayResult) && displayResult.overall
+    ? displayResult.overall.series.map((d: any) => ({
         date: format(new Date(d.date), 'MMM yyyy'),
         value: d.value
       }))
@@ -481,7 +519,7 @@ export default function MarketDemandPage() {
         </Card>
 
         <div className="lg:col-span-3">
-          {renderAnalysisResults(analysisResult, isAnalyzing, aggregatedChartData)}
+          {renderAnalysisResults(displayResult, isAnalyzing, aggregatedChartData)}
         </div>
       </div>
     </div>
