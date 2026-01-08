@@ -28,6 +28,12 @@ import { analyzeCompetitorStrategy } from "./modules/competitor-strategy";
 import { analyzeEmergingCompetitor } from "./modules/emerging-competitor";
 import { analyzeMarketMomentum } from "./modules/market-momentum";
 
+// Batch 3 Imports (Synthesis & Action)
+import { analyzeActionCard } from "./modules/action-card";
+import { analyzePaidOrganicOverlap } from "./modules/paid-organic-overlap";
+import { analyzeStrategicSummary } from "./modules/strategic-summary";
+
+
 /**
  * Orchestrates the execution of a module.
  * 1. Fetches Context (UCR).
@@ -42,7 +48,8 @@ export async function runModule(
 ): Promise<ModuleOutputWrapper<any>> {
 
     // 1. Fetch Configuration (UCR)
-    const dbConfig = await storage.getConfiguration(configId);
+    // FIXED: Use getConfigurationById and ensure configId is a number
+    const dbConfig = await storage.getConfigurationById(Number(configId));
     if (!dbConfig) {
         throw new Error(`Configuration ${configId} not found`);
     }
@@ -136,34 +143,21 @@ export async function runModule(
                 resultData = await analyzeMarketMomentum(config, inputs);
                 break;
 
-            // --- Yet to Implement (Batch 3: Synthesis & Action) ---
-
+            // --- Batch 3: Synthesis & Action ---
             case "sem.action_card.v1":
-                resultData = {
-                    actions: [],
-                    prioritization: "none",
-                    message: "Action Card logic not yet implemented."
-                };
+                resultData = await analyzeActionCard(config, inputs);
                 break;
 
             case "sem.paid_organic_overlap.v1":
-                resultData = {
-                    cannibalization_score: 0,
-                    savings_opportunities: [],
-                    message: "Paid/Organic Overlap logic not yet implemented."
-                };
+                resultData = await analyzePaidOrganicOverlap(config, inputs);
                 break;
 
             case "synthesis.strategic_summary.v1":
-                resultData = {
-                    strategic_narrative: "",
-                    key_findings: [],
-                    message: "Strategic Summary logic not yet implemented."
-                };
+                resultData = await analyzeStrategicSummary(config, inputs);
                 break;
 
             default:
-                // Fallback
+                // Fallback for completely unknown modules
                 throw new Error(`Module implementation for "${moduleId}" is not yet connected to the runner.`);
         }
     } catch (err: any) {
