@@ -1224,6 +1224,67 @@ export async function registerRoutes(
     }
   });
 
+  // DEV OVERRIDE: Approve all sections and set status to HUMAN_CONFIRMED
+  // This endpoint is for development purposes only to bypass the approval workflow
+  app.post("/api/configurations/:id/dev-override", async (req: any, res) => {
+    try {
+      // Only allow in development mode
+      if (process.env.NODE_ENV === "production") {
+        return res.status(403).json({ error: "Dev override is not available in production" });
+      }
+      
+      const userId = "anonymous-user";
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      
+      const existingConfig = await storage.getConfigurationById(id, userId);
+      if (!existingConfig) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+      
+      const now = new Date().toISOString();
+      
+      // Approve all sections
+      const allSectionsApproved = {
+        brand_identity: { status: "approved", approved_at: now, approved_by: "dev-override" },
+        category_definition: { status: "approved", approved_at: now, approved_by: "dev-override" },
+        competitive_set: { status: "approved", approved_at: now, approved_by: "dev-override" },
+        demand_definition: { status: "approved", approved_at: now, approved_by: "dev-override" },
+        strategic_intent: { status: "approved", approved_at: now, approved_by: "dev-override" },
+        channel_context: { status: "approved", approved_at: now, approved_by: "dev-override" },
+        negative_scope: { status: "approved", approved_at: now, approved_by: "dev-override" },
+      };
+      
+      const updatedGovernance = {
+        ...existingConfig.governance,
+        section_approvals: allSectionsApproved,
+        context_status: "HUMAN_CONFIRMED",
+        context_status_updated_at: now,
+        human_verified: true,
+        adopted_at: now,
+        cmo_safe: true,
+        last_reviewed: now,
+        reviewed_by: "dev-override",
+      };
+      
+      const { id: _, created_at, updated_at, ...configWithoutMeta } = existingConfig as any;
+      const updatedConfig = await storage.updateConfiguration(
+        id, 
+        userId, 
+        { ...configWithoutMeta, governance: updatedGovernance },
+        "DEV OVERRIDE: Auto-approved all sections and set to HUMAN_CONFIRMED"
+      );
+      
+      console.log(`[DEV OVERRIDE] Configuration ${id} auto-approved and set to HUMAN_CONFIRMED`);
+      res.json(updatedConfig);
+    } catch (error) {
+      console.error("Error applying dev override:", error);
+      res.status(500).json({ error: "Failed to apply dev override" });
+    }
+  });
+
   // Full validation endpoint - returns detailed section-by-section validation
   app.get("/api/configurations/:id/validate", async (req: any, res) => {
     try {

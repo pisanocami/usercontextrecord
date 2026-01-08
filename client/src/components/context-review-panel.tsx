@@ -32,6 +32,7 @@ import {
   Shield,
   Sparkles,
   User,
+  Zap,
 } from "lucide-react";
 import type { Configuration } from "@shared/schema";
 
@@ -137,6 +138,16 @@ export function ContextReviewPanel({ configuration, onStatusChange }: ContextRev
         status,
         reason,
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/configurations", configuration.id] });
+      onStatusChange?.();
+    },
+  });
+
+  const devOverrideMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/configurations/${configuration.id}/dev-override`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/configurations", configuration.id] });
@@ -275,7 +286,7 @@ export function ContextReviewPanel({ configuration, onStatusChange }: ContextRev
         </div>
 
         {canTransition && nextAction && (
-          <div className="pt-2 border-t">
+          <div className="pt-2 border-t space-y-2">
             <Button
               className="w-full"
               onClick={() => handleStatusTransition(nextAction.action)}
@@ -297,6 +308,23 @@ export function ContextReviewPanel({ configuration, onStatusChange }: ContextRev
               <p className="text-xs text-muted-foreground mt-2 text-center">
                 All sections must be approved before confirming
               </p>
+            )}
+            
+            {import.meta.env.DEV && currentStatus !== "HUMAN_CONFIRMED" && (
+              <Button
+                variant="outline"
+                className="w-full border-dashed border-amber-500 text-amber-600 dark:text-amber-400"
+                onClick={() => devOverrideMutation.mutate()}
+                disabled={devOverrideMutation.isPending}
+                data-testid="button-dev-override"
+              >
+                {devOverrideMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                Dev Override: Skip to Confirmed
+              </Button>
             )}
           </div>
         )}
