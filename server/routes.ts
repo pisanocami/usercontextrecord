@@ -2351,7 +2351,7 @@ IMPORTANT:
   // Per-category market demand analysis (v2 - recommended)
   app.post("/api/market-demand/analyze-by-category", async (req: any, res) => {
     const userId = (req.user as any)?.id || "anonymous-user";
-    const { configurationId, timeRange, countryCode } = req.body;
+    const { configurationId, timeRange, countryCode, excludedCategories = [] } = req.body;
 
     if (!configurationId) {
       return res.status(400).json({ error: "configurationId is required" });
@@ -2374,6 +2374,7 @@ IMPORTANT:
         timeRange: timeRange || "today 5-y",
         countryCode: countryCode,
         interval: "weekly",
+        excludedCategories: excludedCategories,
       });
 
       res.json(result);
@@ -2386,7 +2387,7 @@ IMPORTANT:
   // Per-category market demand with keyword priority (v3 - integrates keyword gap)
   app.post("/api/market-demand/analyze-with-keywords", async (req: any, res) => {
     const userId = (req.user as any)?.id || "anonymous-user";
-    const { configurationId, timeRange, countryCode, includeKeywords = true } = req.body;
+    const { configurationId, timeRange, countryCode, includeKeywords = true, excludedCategories = [] } = req.body;
 
     if (!configurationId) {
       return res.status(400).json({ error: "configurationId is required" });
@@ -2424,6 +2425,7 @@ IMPORTANT:
           timeRange: timeRange || "today 5-y",
           countryCode: countryCode,
           interval: "weekly",
+          excludedCategories: excludedCategories,
         }
       );
 

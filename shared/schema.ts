@@ -847,6 +847,7 @@ export interface MarketDemandAnalysisParams {
   interval?: "daily" | "weekly" | "monthly";
   forecastEnabled?: boolean;
   forceRefresh?: boolean;
+  excludedCategories?: string[];
 }
 
 // Market Demand Cache table

@@ -532,11 +532,12 @@ export default function MarketDemandPage() {
   });
 
   const analyzeMutation = useMutation({
-    mutationFn: async (configId: string) => {
+    mutationFn: async ({ configId, excludedCategories: excluded }: { configId: string; excludedCategories: string[] }) => {
       const response = await apiRequest("POST", "/api/market-demand/analyze-by-category", {
         configurationId: configId,
         timeRange,
         countryCode: "US",
+        excludedCategories: excluded,
       });
       return response.json() as Promise<MarketDemandByCategoryResult>;
     },
@@ -555,11 +556,12 @@ export default function MarketDemandPage() {
   });
 
   const analyzeWithKeywordsMutation = useMutation({
-    mutationFn: async (configId: string) => {
+    mutationFn: async ({ configId, excludedCategories: excluded }: { configId: string; excludedCategories: string[] }) => {
       const response = await apiRequest("POST", "/api/market-demand/analyze-with-keywords", {
         configurationId: configId,
         timeRange,
         countryCode: "US",
+        excludedCategories: excluded,
       });
       return response.json() as Promise<MarketDemandWithKeywordsResult>;
     },
@@ -676,13 +678,19 @@ export default function MarketDemandPage() {
 
   const handleRunAnalysis = () => {
     if (selectedConfigId) {
-      analyzeMutation.mutate(selectedConfigId);
+      analyzeMutation.mutate({
+        configId: selectedConfigId,
+        excludedCategories: Array.from(excludedCategories),
+      });
     }
   };
 
   const handleRunWithKeywords = () => {
     if (selectedConfigId) {
-      analyzeWithKeywordsMutation.mutate(selectedConfigId);
+      analyzeWithKeywordsMutation.mutate({
+        configId: selectedConfigId,
+        excludedCategories: Array.from(excludedCategories),
+      });
     }
   };
 

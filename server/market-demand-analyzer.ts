@@ -47,7 +47,6 @@ interface CategoryCacheEntry {
 
 const categoryCache = new Map<string, CategoryCacheEntry>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const MIN_DATA_POINTS_THRESHOLD = 20; // Minimum data points required for a category to be included
 
 function buildCacheKey(configId: number, categoryName: string, queries: string[], country: string, timeRange: string): string {
   const sortedQueries = [...queries].sort().join("|");
@@ -168,8 +167,15 @@ export class MarketDemandAnalyzer {
     const timeRange = params.timeRange || "today 5-y";
     const interval = params.interval || "weekly";
     const configId = parseInt(config.id, 10) || 0;
+    const excludedCategoryNames = new Set(params.excludedCategories || []);
 
-    const categoryGroups = buildCategoryGroups(config);
+    let categoryGroups = buildCategoryGroups(config);
+
+    if (excludedCategoryNames.size > 0) {
+      const beforeCount = categoryGroups.length;
+      categoryGroups = categoryGroups.filter(g => !excludedCategoryNames.has(g.categoryName));
+      console.log(`[MarketDemandAnalyzer] Filtered out ${beforeCount - categoryGroups.length} excluded categories`);
+    }
 
     if (categoryGroups.length === 0) {
       throw new Error("No category groups available for analysis. Please define category terms in the configuration.");
