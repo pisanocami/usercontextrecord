@@ -1,12 +1,9 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import type { InsertConfiguration, NegativeScope } from "@shared/schema";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
-
 export type BriefType = 'seo' | 'ad_copy' | 'landing_page' | 'email' | 'social';
+
+// OpenAI client is passed from routes.ts to ensure single instance
 
 export interface ContentBriefOptions {
   topic?: string;
@@ -306,11 +303,12 @@ export function validateBriefAgainstGuardrails(
 export async function generateContentBrief(
   config: InsertConfiguration,
   type: BriefType,
+  openaiClient: OpenAI,
   options: ContentBriefOptions = {}
 ): Promise<ContentBrief> {
   const prompt = buildPromptForType(config, type, options);
 
-  const response = await openai.chat.completions.create({
+  const response = await openaiClient.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {

@@ -1,11 +1,8 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import type { Configuration } from "@shared/schema";
 import type { KeywordGapResult } from "./keyword-gap-lite";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+// OpenAI client is passed from routes.ts to ensure single instance
 
 export interface SWOTItem {
   title: string;
@@ -180,7 +177,7 @@ function analyzeFromKeywordGap(
   return { strengths, weaknesses, opportunities, threats };
 }
 
-async function analyzeWithAI(config: Configuration): Promise<Partial<SWOTAnalysis>> {
+async function analyzeWithAI(config: Configuration, openaiClient: OpenAI): Promise<Partial<SWOTAnalysis>> {
   const brand = config.brand;
   const categoryDef = config.category_definition;
   const competitors = config.competitors;
@@ -223,7 +220,7 @@ Return ONLY valid JSON with this exact structure:
   "recommendations": ["..."]
 }`;
 
-  const response = await openai.chat.completions.create({
+  const response = await openaiClient.chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
@@ -257,6 +254,7 @@ Return ONLY valid JSON with this exact structure:
 
 export async function analyzeSWOT(
   config: Configuration,
+  openaiClient: OpenAI,
   keywordGapData?: KeywordGapResult | null,
   marketDemandData?: MarketDemandData | null
 ): Promise<SWOTAnalysis> {
@@ -271,7 +269,7 @@ export async function analyzeSWOT(
     dataSourcesUsed.push("Keyword Gap Analysis");
   } else {
     console.log("[SWOT] No Keyword Gap data, using AI analysis");
-    analysis = await analyzeWithAI(config);
+    analysis = await analyzeWithAI(config, openaiClient);
     dataSourcesUsed.push("AI Analysis (OpenAI)");
   }
 

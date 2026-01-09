@@ -2973,7 +2973,7 @@ IMPORTANT:
         updated_at: config.updated_at.toISOString()
       };
 
-      const swotAnalysis = await analyzeSWOT(configForAnalysis, keywordGapData, marketDemandData);
+      const swotAnalysis = await analyzeSWOT(configForAnalysis, openai, keywordGapData, marketDemandData);
       const executionTimeMs = Date.now() - startTime;
 
       try {
@@ -3072,6 +3072,7 @@ IMPORTANT:
       const brief = await generateContentBrief(
         config as any,
         type as BriefType,
+        openai,
         { topic, keywords }
       );
 

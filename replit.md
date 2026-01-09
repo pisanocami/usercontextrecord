@@ -66,6 +66,44 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
   - Rules triggered during execution
   - API endpoints: `GET /api/module-runs`, `GET /api/module-runs/:id`, `GET /api/configurations/:configId/module-runs`
 
+### Transformational Features (v2.0)
+
+- **Version Comparison & Diff** (`/version-history/:id`): Complete version history system for UCR configurations.
+  - Side-by-side comparison view with color-coded change highlighting (green=added, red=removed, yellow=modified)
+  - Deep JSON diff algorithm in `shared/version-diff.ts` with path tracking and metadata exclusions
+  - Version restoration capability with confirmation dialog
+  - Database tables: `configuration_versions` storing full snapshots with trigger-based auto-creation
+  - API endpoints: `GET /api/configurations/:id/versions`, `GET /api/configurations/:id/versions/:versionId/diff`, `POST /api/configurations/:id/versions/:versionId/restore`
+
+- **Automated Alert System**: Proactive notification infrastructure for UCR-relevant events.
+  - Database tables: `user_alerts` (notifications), `alert_preferences` (user settings)
+  - Event detection for: low quality scores, competitor changes, version updates, module completions
+  - AlertPanel component with badge count, dismiss functionality, and preference management
+  - Storage layer implements dismissed filter for clean UI state
+  - API endpoints: `GET /api/user/alerts`, `POST /api/user/alerts/:id/dismiss`, `GET/PUT /api/user/alert-preferences`
+
+- **AI Content Brief Generator** (`/content-brief/:id`): UCR-contextualized content planning tool.
+  - 5 brief types: SEO Article, Ad Copy, Landing Page, Email Campaign, Social Media
+  - Prompts built from complete UCR context (brand, category, strategic intent, negative scope)
+  - Guardrail validation checking generated content against negative_scope exclusions
+  - Implementation: `server/content-brief-generator.ts` with OpenAI client injection
+  - Types exported from generator: `BriefType`, `ContentBrief`, `ContentBriefOptions`
+
+- **SWOT Competitive Analyzer** (`/swot-analysis/:id`): Strategic analysis using Keyword Gap data + AI fallback.
+  - Primary: Algorithmic analysis from Keyword Gap results (strengths from high-rank keywords, weaknesses from gaps)
+  - Fallback: AI-powered analysis using complete UCR context when no Keyword Gap data available
+  - 2x2 grid visualization with impact indicators (high/medium/low)
+  - Markdown export functionality for sharing
+  - Persisted to `module_runs` table as `analysis.swot.v1`
+  - Implementation: `server/swot-analyzer.ts` with OpenAI client parameter
+
+- **Interactive Gap Visualizations** (Keyword Gap page enhancements):
+  - PositioningMap: Scatter plot of keywords by search volume vs competitive position
+  - OpportunityQuadrant: 2x2 matrix categorizing keywords by opportunity/effort
+  - CategoryOwnershipHeatmap: Heatmap showing category coverage across competitors
+  - All visualizations use Recharts library with responsive containers
+  - Integrated into existing Keyword Gap page with collapsible accordion sections
+
 ### System Design Choices
 The architecture emphasizes modularity with clear separation of concerns (frontend/backend, data providers). It leverages modern web development best practices including type safety (TypeScript, Zod, Drizzle ORM) and component-based UI development. The multi-provider keyword gap architecture allows for flexible integration of various SEO data sources, and the configurable scoring system provides adaptability for different industry verticals.
 
