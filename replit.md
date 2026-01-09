@@ -26,7 +26,13 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
 
 ### Feature Specifications
 - **8 Configuration Sections**: Brand Context, Category Definition, Competitive Set, Demand Definition, Strategic Intent, Channel Context, Negative Scope, and Governance.
-- **Section Comparison Views**: Comparative list views for each of the 8 sections accessible from sidebar under "Secciones" group. Features include:
+- **Configurations List View**: Table-based list of all brand contexts at `/` with:
+  - Sortable columns: Brand, Domain, Industry, Status, Score
+  - Dropdown menu for actions: Quick Actions (One Pager, Keyword Gap, Market Demand), Analysis (Visibility Report, Version History), Manage (Regenerate AI, Edit, Delete)
+  - Quality score calculation based on section field completeness
+  - ValidationStatusBadge component for consistent status display
+  - SPA navigation using wouter's navigate() function
+- **Section Comparison Views**: Comparative list views for each of the 8 sections accessible from sidebar under "Sections" group. Features include:
   - Generic `SectionListPage` component with reusable table layout for all sections
   - Section definitions centralized in `shared/section-definitions.ts`
   - API endpoint `GET /api/sections/:sectionKey` returning all configurations with section-specific data
