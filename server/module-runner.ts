@@ -27,6 +27,7 @@ import { analyzeBrandedDemand } from "./modules/branded-demand";
 import { analyzeCompetitorStrategy } from "./modules/competitor-strategy";
 import { analyzeEmergingCompetitor } from "./modules/emerging-competitor";
 import { analyzeMarketMomentum } from "./modules/market-momentum";
+import { analyzeCategoryDemandTrend } from "./modules/category-demand-trend";
 
 // Batch 3 Imports (Synthesis & Action)
 import { analyzeActionCard } from "./modules/action-card";
@@ -142,6 +143,14 @@ export async function runModule(
                 break;
             case "market.market_momentum.v1":
                 resultData = await analyzeMarketMomentum(config, inputs);
+                break;
+
+            case "market.category_demand_trend.v1":
+                resultData = await analyzeCategoryDemandTrend(config, {
+                    timeRange: inputs.timeRange || "today 5-y",
+                    countryCode: inputs.countryCode,
+                    excludedCategories: inputs.excludedCategories || []
+                });
                 break;
 
             // --- Batch 3: Synthesis & Action ---
