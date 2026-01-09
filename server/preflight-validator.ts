@@ -38,6 +38,12 @@ function runEntityCheck(
       passed = count >= (check.minCount ?? 1);
       break;
     }
+    case "min_competitors": {
+      const count = Array.isArray(value) ? value.length : 0;
+      currentValue = count;
+      passed = count >= (check.minCount ?? 1);
+      break;
+    }
     case "min_categories": {
       const count = Array.isArray(value) ? value.length : 0;
       currentValue = count;

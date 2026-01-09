@@ -334,6 +334,7 @@ export interface CouncilRuleBinding {
 
 export type PreflightCheckType = 
   | "min_approved_competitors"
+  | "min_competitors"
   | "min_categories"
   | "min_brand_keywords"
   | "min_category_terms"
@@ -684,11 +685,11 @@ export const KeywordGapVisibilityContract: ModuleContract = {
   preflight: {
     entityChecks: [
       {
-        checkType: "min_approved_competitors",
+        checkType: "min_competitors",
         minCount: 1,
         ucrSection: "C",
         fieldPath: "competitors.competitors",
-        description: "At least 1 approved competitor is required for gap analysis",
+        description: "At least 1 competitor is required for gap analysis",
         actionLabel: "Add Competitors",
         actionPath: "/configuration/:id/competitive-set"
       },
@@ -887,11 +888,11 @@ export const BrandAttentionContract: ModuleContract = {
   preflight: {
     entityChecks: [
       {
-        checkType: "min_approved_competitors",
+        checkType: "min_competitors",
         minCount: 1,
         ucrSection: "C",
         fieldPath: "competitors.competitors",
-        description: "At least 1 approved competitor is required for share comparison",
+        description: "At least 1 competitor is required for share comparison",
         actionLabel: "Add Competitors",
         actionPath: "/configuration/:id/competitive-set"
       },
