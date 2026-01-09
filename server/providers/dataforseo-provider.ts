@@ -181,6 +181,9 @@ export class DataForSEOProvider implements KeywordDataProvider {
         this.getRankedKeywords(competitorDomain, options),
       ]);
 
+      console.log(`[DataForSEO] Fallback: ${brandDomain} has ${brandResult.items.length} keywords (total: ${brandResult.totalCount})`);
+      console.log(`[DataForSEO] Fallback: ${competitorDomain} has ${competitorResult.items.length} keywords (total: ${competitorResult.totalCount})`);
+
       const brandKeywordSet = new Set(brandResult.items.map(k => k.keyword.toLowerCase()));
       
       const gapKeywords: GapKeyword[] = competitorResult.items
