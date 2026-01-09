@@ -10,7 +10,6 @@ export interface SectionField {
 export interface SectionDefinition {
   key: string;
   title: string;
-  titleEs: string;
   iconName: string;
   fields: SectionField[];
 }
@@ -19,7 +18,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   brand: {
     key: "brand",
     title: "Brand Context",
-    titleEs: "Contexto de Marca",
     iconName: "Building2",
     fields: [
       { label: "Name", key: "name" },
@@ -34,7 +32,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   category_definition: {
     key: "category_definition",
     title: "Category Definition",
-    titleEs: "Definición de Categoría",
     iconName: "Layers",
     fields: [
       { label: "Primary Category", key: "primary_category" },
@@ -46,7 +43,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   competitors: {
     key: "competitors",
     title: "Competitive Set",
-    titleEs: "Set Competitivo",
     iconName: "Users",
     fields: [
       { label: "Direct Competitors", key: "direct", isArray: true },
@@ -57,7 +53,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   demand_definition: {
     key: "demand_definition",
     title: "Demand Definition",
-    titleEs: "Definición de Demanda",
     iconName: "Search",
     fields: [
       { label: "Brand Seed Terms", key: "brand_keywords.seed_terms", isNested: true, isArray: true },
@@ -70,7 +65,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   strategic_intent: {
     key: "strategic_intent",
     title: "Strategic Intent",
-    titleEs: "Intención Estratégica",
     iconName: "Target",
     fields: [
       { label: "Growth Priority", key: "growth_priority" },
@@ -83,7 +77,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   channel_context: {
     key: "channel_context",
     title: "Channel Context",
-    titleEs: "Contexto de Canal",
     iconName: "Megaphone",
     fields: [
       { label: "Paid Media Active", key: "paid_media_active" },
@@ -94,7 +87,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   negative_scope: {
     key: "negative_scope",
     title: "Negative Scope",
-    titleEs: "Alcance Negativo",
     iconName: "ShieldX",
     fields: [
       { label: "Excluded Categories", key: "excluded_categories", isArray: true },
@@ -106,7 +98,6 @@ export const SECTION_DEFINITIONS: Record<string, SectionDefinition> = {
   governance: {
     key: "governance",
     title: "Governance",
-    titleEs: "Gobernanza",
     iconName: "FileCheck",
     fields: [
       { label: "Model Suggested", key: "model_suggested" },

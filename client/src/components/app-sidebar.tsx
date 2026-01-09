@@ -204,11 +204,11 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* SECCIONES - Listas comparativas por sección */}
+        {/* SECTIONS - Section comparison lists */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <LayoutGrid className="h-3 w-3" />
-            Secciones
+            Sections
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

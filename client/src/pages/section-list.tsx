@@ -164,9 +164,9 @@ export default function SectionListPage() {
     return (
       <div className="container max-w-6xl py-6 px-4">
         <Card className="p-8 text-center">
-          <h3 className="font-semibold">Sección no encontrada</h3>
+          <h3 className="font-semibold">Section not found</h3>
           <p className="text-sm text-muted-foreground">
-            La sección "{sectionKey}" no existe
+            The section "{sectionKey}" does not exist
           </p>
         </Card>
       </div>
@@ -187,22 +187,22 @@ export default function SectionListPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight" data-testid="text-section-title">
-                  {sectionDef.titleEs}
+                  {sectionDef.title}
                 </h1>
                 <p className="text-muted-foreground">
-                  Comparar {sectionDef.title.toLowerCase()} entre todas las marcas
+                  Compare {sectionDef.title.toLowerCase()} across all brands
                 </p>
               </div>
             </div>
             <Badge variant="secondary" className="text-sm">
-              {data?.count || 0} contextos
+              {data?.count || 0} contexts
             </Badge>
           </div>
 
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre, dominio o industria..."
+              placeholder="Search by name, domain, or industry..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -231,11 +231,11 @@ export default function SectionListPage() {
                   <Icon className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">No hay contextos</h3>
+                  <h3 className="font-semibold">No contexts found</h3>
                   <p className="text-sm text-muted-foreground">
                     {searchQuery
-                      ? "Intenta con otro término de búsqueda"
-                      : "Crea tu primer contexto para ver datos aquí"}
+                      ? "Try a different search term"
+                      : "Create your first context to see data here"}
                   </p>
                 </div>
               </div>
@@ -255,7 +255,7 @@ export default function SectionListPage() {
                             className="gap-1 -ml-3"
                             data-testid="sort-brand-name"
                           >
-                            Marca
+                            Brand
                             <ArrowUpDown className="h-3 w-3" />
                           </Button>
                         </TableHead>
@@ -267,7 +267,7 @@ export default function SectionListPage() {
                             className="gap-1 -ml-3"
                             data-testid="sort-domain"
                           >
-                            Dominio
+                            Domain
                             <ArrowUpDown className="h-3 w-3" />
                           </Button>
                         </TableHead>
@@ -276,9 +276,9 @@ export default function SectionListPage() {
                             {field.label}
                           </TableHead>
                         ))}
-                        <TableHead className="w-[100px]">Estado</TableHead>
+                        <TableHead className="w-[100px]">Status</TableHead>
                         <TableHead className="w-[80px]">Score</TableHead>
-                        <TableHead className="w-[80px] text-right">Acciones</TableHead>
+                        <TableHead className="w-[80px] text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
