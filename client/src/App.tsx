@@ -37,6 +37,8 @@ import { MobileNav } from "@/components/mobile-nav";
 import { BrandProvider } from "@/contexts/brand-context";
 import GapComplianceReport from "./pages/gap-compliance-report.md?raw";
 import ReactMarkdown from "react-markdown";
+import { MainLayout } from "@/components/layouts/main-layout";
+import SectionListPage from "@/pages/section-list";
 
 function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
@@ -726,6 +728,15 @@ function Router() {
       <Route path="/market-demand/:configId" component={MarketDemandLayout} />
       <Route path="/brands" component={BrandsLayout} />
       <Route path="/modules" component={ModuleCenterLayout} />
+
+      {/* Section Comparison Views */}
+      <Route path="/sections/:sectionKey">
+        {(params) => (
+          <MainLayout activeSection={`section-${params.sectionKey?.split("_")[0] || "brand"}`}>
+            <SectionListPage />
+          </MainLayout>
+        )}
+      </Route>
 
       {/* Dynamic Module Shell - The Future of All Modules */}
       <Route path="/modules/:moduleId">

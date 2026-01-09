@@ -19,6 +19,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  Layers,
+  Users,
+  Target,
+  ShieldX,
+  FileCheck,
+  LayoutGrid,
 } from "lucide-react";
 import {
   Sidebar,
@@ -191,6 +197,146 @@ export function AppSidebar({
                   >
                     <Building2 className="h-4 w-4" />
                     <span>Gestión de Brands</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* SECCIONES - Listas comparativas por sección */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <LayoutGrid className="h-3 w-3" />
+            Secciones
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <Link href="/sections/brand">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-brand"}
+                    className={
+                      activeSection === "section-brand"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-brand"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span>Brand Identity</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/sections/category_definition">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-category"}
+                    className={
+                      activeSection === "section-category"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-category"
+                  >
+                    <Layers className="h-4 w-4" />
+                    <span>Category Definition</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/sections/competitors">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-competitors"}
+                    className={
+                      activeSection === "section-competitors"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-competitors"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>Competitive Set</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/sections/demand_definition">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-demand"}
+                    className={
+                      activeSection === "section-demand"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-demand"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span>Demand Definition</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/sections/strategic_intent">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-strategic"}
+                    className={
+                      activeSection === "section-strategic"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-strategic"
+                  >
+                    <Target className="h-4 w-4" />
+                    <span>Strategic Intent</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/sections/channel_context">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-channel"}
+                    className={
+                      activeSection === "section-channel"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-channel"
+                  >
+                    <Megaphone className="h-4 w-4" />
+                    <span>Channel Context</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/sections/negative_scope">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-negative"}
+                    className={
+                      activeSection === "section-negative"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-negative"
+                  >
+                    <ShieldX className="h-4 w-4" />
+                    <span>Negative Scope</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/sections/governance">
+                  <SidebarMenuButton
+                    isActive={activeSection === "section-governance"}
+                    className={
+                      activeSection === "section-governance"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-section-governance"
+                  >
+                    <FileCheck className="h-4 w-4" />
+                    <span>Governance</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
