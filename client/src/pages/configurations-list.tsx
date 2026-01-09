@@ -522,6 +522,12 @@ export default function ConfigurationsList() {
                                         Market Demand
                                       </DropdownMenuItem>
                                     </Link>
+                                    <Link href={`/content-brief/${config.id}`}>
+                                      <DropdownMenuItem data-testid={`menuitem-contentbrief-${config.id}`}>
+                                        <Sparkles className="h-4 w-4 mr-2" />
+                                        Content Brief
+                                      </DropdownMenuItem>
+                                    </Link>
 
                                     <DropdownMenuSeparator />
                                     <DropdownMenuLabel>Analysis</DropdownMenuLabel>

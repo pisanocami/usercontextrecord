@@ -41,6 +41,8 @@ import { MainLayout } from "@/components/layouts/main-layout";
 import SectionListPage from "@/pages/section-list";
 import { AlertsPanel } from "@/components/alerts-panel";
 import AlertPreferencesPage from "@/pages/alert-preferences";
+import ContentBriefPage from "@/pages/content-brief";
+import SWOTAnalysisPage from "@/pages/swot-analysis";
 
 function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
@@ -715,6 +717,89 @@ function ModuleCenterLayout() {
   );
 }
 
+function ContentBriefLayout() {
+  const { user, logout, isLoggingOut } = useAuth();
+
+  return (
+    <div className="flex h-screen w-full flex-col">
+      <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+        <div />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                  <AvatarFallback>
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <div className="px-2 py-1.5 text-sm">
+                <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                <p className="text-muted-foreground">{user?.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+      <main className="flex-1 overflow-hidden">
+        <ContentBriefPage />
+      </main>
+    </div>
+  );
+}
+
+function SWOTAnalysisLayout() {
+  const { user, logout, isLoggingOut } = useAuth();
+
+  return (
+    <div className="flex h-screen w-full flex-col">
+      <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+        <div />
+        <div className="flex items-center gap-2">
+          <AlertsPanel />
+          <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                  <AvatarFallback>
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <div className="px-2 py-1.5 text-sm">
+                <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                <p className="text-muted-foreground">{user?.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+      <main className="flex-1 overflow-hidden">
+        <SWOTAnalysisPage />
+      </main>
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -733,6 +818,8 @@ function Router() {
       <Route path="/market-demand/:configId" component={MarketDemandLayout} />
       <Route path="/brands" component={BrandsLayout} />
       <Route path="/modules" component={ModuleCenterLayout} />
+      <Route path="/content-brief/:id" component={ContentBriefLayout} />
+      <Route path="/configurations/:id/swot" component={SWOTAnalysisLayout} />
 
       {/* Section Comparison Views */}
       <Route path="/sections/:sectionKey">

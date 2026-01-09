@@ -1,4 +1,4 @@
-import { Building2, Globe, ChevronRight, FileText, BarChart3, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Building2, Globe, ChevronRight, FileText, BarChart3, MoreHorizontal, Pencil, Trash2, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,11 @@ export function ConfigCard({ config, onEdit, onDelete }: ConfigCardProps) {
           <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
             <Link href={`/keyword-gap/${config.id}`}>
               <BarChart3 className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+            <Link href={`/content-brief/${config.id}`}>
+              <Sparkles className="h-4 w-4" />
             </Link>
           </Button>
           

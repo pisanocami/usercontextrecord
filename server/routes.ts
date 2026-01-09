@@ -18,6 +18,7 @@ import { marketDemandAnalyzer } from "./market-demand-analyzer";
 import { runModule } from "./module-runner";
 import { getAllTrendsProviderStatuses } from "./providers/trends-index";
 import { runPreflight } from "./preflight-validator";
+import { generateContentBrief, type BriefType } from "./content-brief-generator";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -2913,6 +2914,178 @@ IMPORTANT:
     } catch (error: any) {
       console.error("Error updating alert preferences:", error);
       res.status(500).json({ error: error.message || "Failed to update alert preferences" });
+    }
+  });
+
+  // ==================== SWOT ANALYSIS ====================
+
+  app.post("/api/configurations/:configId/swot-analysis", async (req: any, res) => {
+    const startTime = Date.now();
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const userId = (req.user as any)?.id || "anonymous-user";
+
+      if (isNaN(configId)) {
+        return res.status(400).json({ error: "ID de configuracion invalido" });
+      }
+
+      const config = await storage.getConfigurationById(configId, userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuracion no encontrada" });
+      }
+
+      console.log(`[SWOT] Generating SWOT analysis for config ${configId}`);
+
+      const { analyzeSWOT, generateSWOTMarkdown } = await import("./swot-analyzer");
+
+      let keywordGapData = null;
+      try {
+        const gapAnalyses = await storage.getModuleRuns(userId, configId, "seo.keyword_gap_visibility.v1");
+        if (gapAnalyses.length > 0) {
+          const latestGap = gapAnalyses[0];
+          if (latestGap.results) {
+            keywordGapData = latestGap.results;
+            console.log(`[SWOT] Using Keyword Gap data from run ${latestGap.id}`);
+          }
+        }
+      } catch (err) {
+        console.log("[SWOT] No Keyword Gap data found, proceeding with AI analysis");
+      }
+
+      let marketDemandData = null;
+      try {
+        const demandAnalyses = await storage.getModuleRuns(userId, configId, "market.demand_seasonality.v1");
+        if (demandAnalyses.length > 0) {
+          const latestDemand = demandAnalyses[0];
+          if (latestDemand.results) {
+            marketDemandData = latestDemand.results;
+            console.log(`[SWOT] Using Market Demand data from run ${latestDemand.id}`);
+          }
+        }
+      } catch (err) {
+        console.log("[SWOT] No Market Demand data found");
+      }
+
+      const configForAnalysis = {
+        ...config,
+        id: String(config.id),
+        created_at: config.created_at.toISOString(),
+        updated_at: config.updated_at.toISOString()
+      };
+
+      const swotAnalysis = await analyzeSWOT(configForAnalysis, keywordGapData, marketDemandData);
+      const executionTimeMs = Date.now() - startTime;
+
+      try {
+        await storage.createModuleRun({
+          userId,
+          configurationId: configId,
+          moduleId: "analysis.swot.v1",
+          moduleName: "Analisis SWOT Competitivo",
+          status: "completed",
+          ucrVersion: null,
+          sectionsUsed: ["A", "B", "C", "E", "G"],
+          inputs: { hasKeywordGap: !!keywordGapData, hasMarketDemand: !!marketDemandData },
+          results: swotAnalysis,
+          error: null,
+          executionTimeMs,
+          rulesTriggered: [],
+        });
+        console.log(`[SWOT] Persisted SWOT analysis for config ${configId} (${executionTimeMs}ms)`);
+      } catch (dbError: any) {
+        console.error(`[SWOT] Failed to persist SWOT run:`, dbError.message);
+      }
+
+      res.json({
+        success: true,
+        analysis: swotAnalysis,
+        markdown: generateSWOTMarkdown(swotAnalysis),
+        executionTimeMs
+      });
+    } catch (error: any) {
+      console.error("[SWOT] Error generating SWOT analysis:", error);
+      res.status(500).json({ 
+        error: error.message || "Error al generar el analisis SWOT" 
+      });
+    }
+  });
+
+  app.get("/api/configurations/:configId/swot-analysis", async (req: any, res) => {
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const userId = (req.user as any)?.id || "anonymous-user";
+
+      if (isNaN(configId)) {
+        return res.status(400).json({ error: "ID de configuracion invalido" });
+      }
+
+      const swotRuns = await storage.getModuleRuns(userId, configId, "analysis.swot.v1");
+      
+      if (swotRuns.length === 0) {
+        return res.json({ analysis: null, history: [] });
+      }
+
+      const { generateSWOTMarkdown } = await import("./swot-analyzer");
+      const latestAnalysis = swotRuns[0].results;
+
+      res.json({
+        analysis: latestAnalysis,
+        markdown: latestAnalysis ? generateSWOTMarkdown(latestAnalysis as any) : null,
+        history: swotRuns.map(r => ({
+          id: r.id,
+          generatedAt: r.created_at,
+          executionTimeMs: r.executionTimeMs
+        }))
+      });
+    } catch (error: any) {
+      console.error("[SWOT] Error fetching SWOT analysis:", error);
+      res.status(500).json({ error: error.message || "Error al obtener el analisis SWOT" });
+    }
+  });
+
+  // ==================== CONTENT BRIEF GENERATOR ====================
+
+  app.post("/api/configurations/:configId/generate-brief", async (req: any, res) => {
+    try {
+      const configId = parseInt(req.params.configId, 10);
+      const userId = (req.user as any)?.id || "anonymous-user";
+
+      if (isNaN(configId)) {
+        return res.status(400).json({ error: "ID de configuracion invalido" });
+      }
+
+      const { type, topic, keywords } = req.body;
+
+      if (!type || !['seo', 'ad_copy', 'landing_page', 'email', 'social'].includes(type)) {
+        return res.status(400).json({ 
+          error: "Tipo de brief invalido. Debe ser: seo, ad_copy, landing_page, email, o social" 
+        });
+      }
+
+      const config = await storage.getConfiguration(configId, userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuracion no encontrada" });
+      }
+
+      console.log(`[ContentBrief] Generating ${type} brief for config ${configId}`);
+
+      const brief = await generateContentBrief(
+        config as any,
+        type as BriefType,
+        { topic, keywords }
+      );
+
+      console.log(`[ContentBrief] Generated brief with ${brief.guardrailWarnings.length} warnings`);
+
+      res.json({
+        success: true,
+        brief,
+      });
+    } catch (error: any) {
+      console.error("[ContentBrief] Error generating brief:", error);
+      res.status(500).json({ 
+        error: error.message || "Error al generar el brief de contenido" 
+      });
     }
   });
 

@@ -1558,13 +1558,63 @@ export const StrategicSummaryContract: ModuleContract = {
   }
 };
 
+export const SWOTAnalysisContract: ModuleContract = {
+  moduleId: "analysis.swot.v1",
+  name: "Analisis SWOT Competitivo",
+  category: "Synthesis",
+  layer: "Synthesis",
+  version: "contract.v1",
+  description: "Genera un analisis SWOT automatico basado en datos de Keyword Gap, Market Demand y el UCR completo.",
+  strategicQuestion: "Cual es nuestra posicion competitiva y donde debemos enfocar nuestros esfuerzos?",
+  dataSources: ["Internal", "OpenAI", "DataForSEO"],
+  riskProfile: { confidence: "medium", riskIfWrong: "low", inferenceType: "hybrid" },
+  caching: { cadence: "weekly", bustOnChanges: ["competitor_set", "category_scope", "governance"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED", "AI_ANALYSIS_RUN"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B", "C"],
+    optionalSections: ["D", "E", "F", "G", "H"],
+    sectionUsage: {
+      A: "Defines brand identity and market positioning.",
+      B: "Defines category scope for competitive analysis.",
+      C: "Defines competitor set for comparison.",
+      D: "Provides demand themes for opportunity identification.",
+      E: "Strategic intent for prioritization.",
+      F: "Channel context for threat assessment.",
+      G: "Negative scope for exclusions.",
+      H: "Governance for confidence levels."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "keywordGapData", type: "json", required: false, description: "Keyword Gap analysis results if available" },
+      { name: "marketDemandData", type: "json", required: false, description: "Market Demand seasonality data if available" }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence"], runTraceFields: ["sectionsUsed", "filtersApplied"] },
+  output: {
+    entityType: "swot_analysis",
+    visuals: [
+      { kind: "matrix", title: "SWOT Matrix", description: "2x2 grid with strengths, weaknesses, opportunities, threats" },
+      { kind: "card", title: "Executive Summary" },
+      { kind: "table", title: "Recommendations" }
+    ],
+    summaryFields: ["total_strengths", "total_weaknesses", "total_opportunities", "total_threats", "summary"]
+  },
+  guardrails: {
+    neverPromiseRevenue: true,
+    alwaysProvideNextStep: true
+  }
+};
+
 /* ---------------------------------- */
 /* Default Registry                    */
 /* ---------------------------------- */
 
 export const CONTRACT_REGISTRY = createContractRegistry([
   KeywordGapVisibilityContract,
-  CategoryDemandTrendContract, // Replaced MarketDemandSeasonality if duplicate, but keeping distinct for now
+  CategoryDemandTrendContract,
   BrandAttentionContract,
   MarketDemandSeasonalityContract,
   ActionCardContract,
@@ -1580,7 +1630,8 @@ export const CONTRACT_REGISTRY = createContractRegistry([
   OSDropContract,
   PaidOrganicOverlapContract,
   ShareOfVoiceContract,
-  StrategicSummaryContract
+  StrategicSummaryContract,
+  SWOTAnalysisContract
 ]);
 
 export function getAllContracts(): ModuleContract[] {
