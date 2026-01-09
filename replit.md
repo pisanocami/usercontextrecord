@@ -26,6 +26,17 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
 
 ### Feature Specifications
 - **8 Configuration Sections**: Brand Context, Category Definition, Competitive Set, Demand Definition, Strategic Intent, Channel Context, Negative Scope, and Governance.
+- **Section Comparison Views**: Comparative list views for each of the 8 sections accessible from sidebar under "Secciones" group. Features include:
+  - Generic `SectionListPage` component with reusable table layout for all sections
+  - Section definitions centralized in `shared/section-definitions.ts`
+  - API endpoint `GET /api/sections/:sectionKey` returning all configurations with section-specific data
+  - Search filtering across brand name, domain, and industry
+  - Sorting by any column (brand name, validation status, quality score)
+  - Validation status badges (Validated, Review, Blocked, Incomplete)
+  - Quality score indicators with visual progress bars
+  - Section-specific fields displayed (top 4 fields per section)
+  - Navigation directly to configuration editor
+  - `MainLayout` component reducing code duplication for sidebar-enabled pages
 - **AI-Powered Suggestions**: Integrated "Generate with AI" functionality across configuration sections.
 - **One Pager Visualization**: Executive summary view of User Context Records (UCR).
 - **Keyword Gap Analysis**: Comprehensive competitor keyword analysis with UCR-based filtering and a 3-tier classification system (Pass, Review, Out of Play) based on capability and opportunity scoring. Features include intent classification, configurable scoring models, vertical presets, and detailed result breakdowns with confidence levels.
