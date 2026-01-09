@@ -118,7 +118,7 @@ export default function SectionListPage() {
   const sectionDef = SECTION_DEFINITIONS[sectionKey];
 
   const { data, isLoading } = useQuery<SectionResponse>({
-    queryKey: [`/api/sections/${sectionKey}`],
+    queryKey: ["/api", "sections", sectionKey],
   });
 
   const filteredItems = useMemo(() => {

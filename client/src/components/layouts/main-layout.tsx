@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { useLocation } from "wouter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,9 +17,27 @@ import { LogOut, User } from "lucide-react";
 
 interface MainLayoutProps {
   children: ReactNode;
-  activeSection: string;
+  activeSection?: string;
   hasUnsavedChanges?: boolean;
   cmoSafe?: boolean;
+}
+
+function getSectionFromPath(path: string): string {
+  if (path.startsWith("/sections/")) {
+    const key = path.replace("/sections/", "");
+    const prefix = key.split("_")[0];
+    return `section-${prefix}`;
+  }
+  if (path === "/") return "list";
+  if (path.startsWith("/brands")) return "brands";
+  if (path.startsWith("/bulk")) return "bulk";
+  if (path.startsWith("/modules")) return "module-center";
+  if (path.startsWith("/market-demand")) return "market-demand";
+  if (path.startsWith("/keyword-gap")) return "keyword-gap";
+  if (path.startsWith("/one-pager")) return "one-pager";
+  if (path.startsWith("/versions")) return "versions";
+  if (path.startsWith("/report")) return "gap-report";
+  return "list";
 }
 
 export function MainLayout({
@@ -28,6 +47,9 @@ export function MainLayout({
   cmoSafe = false,
 }: MainLayoutProps) {
   const { user, logout, isLoggingOut } = useAuth();
+  const [location] = useLocation();
+  
+  const computedActiveSection = activeSection || getSectionFromPath(location);
 
   const style = {
     "--sidebar-width": "16rem",
@@ -38,7 +60,7 @@ export function MainLayout({
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
       <div className="flex h-screen w-full">
         <AppSidebar
-          activeSection={activeSection}
+          activeSection={computedActiveSection}
           onSectionChange={() => {}}
           hasUnsavedChanges={hasUnsavedChanges}
           cmoSafe={cmoSafe}

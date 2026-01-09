@@ -731,8 +731,8 @@ function Router() {
 
       {/* Section Comparison Views */}
       <Route path="/sections/:sectionKey">
-        {(params) => (
-          <MainLayout activeSection={`section-${params.sectionKey?.split("_")[0] || "brand"}`}>
+        {() => (
+          <MainLayout>
             <SectionListPage />
           </MainLayout>
         )}
