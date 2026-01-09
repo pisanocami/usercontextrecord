@@ -41,6 +41,13 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
 - **Module Contract System**: Consolidated module definitions in `shared/module.contract.ts` - single source of truth for UCR sections, module contracts, dispositions, severity levels, and traces. Module IDs use domain-specific prefixes (seo.*, market.*, sem.*) for semantic clarity. Legacy aliases (signal.*, action.*, synthesis.*) are maintained in module-runner.ts for backward compatibility.
 - **Category Demand Trend Module** (`market.category_demand_trend.v1`): Analyzes 5-year demand trends by category. Features CAGR calculation (only with ≥4.5 years data), linear regression slope analysis, trend classification (growing/stagnating/declining), seasonality peak detection, and timing recommendations. Implementation file: `server/modules/category-demand-trend.ts`.
   - **Known Limitation**: `supporting_queries` provides category-level slopes rather than per-query differentiation due to the MarketDemandAnalyzer's aggregation architecture. Future enhancement would require exposing per-query trend series from the analyzer.
+- **Module Run History**: Complete execution history for all modules is persisted to the `module_runs` table. Each run captures:
+  - Module ID, name, and status (running/completed/failed)
+  - UCR version and sections used
+  - Input parameters and full output results
+  - Execution time in milliseconds
+  - Rules triggered during execution
+  - API endpoints: `GET /api/module-runs`, `GET /api/module-runs/:id`, `GET /api/configurations/:configId/module-runs`
 
 ### System Design Choices
 The architecture emphasizes modularity with clear separation of concerns (frontend/backend, data providers). It leverages modern web development best practices including type safety (TypeScript, Zod, Drizzle ORM) and component-based UI development. The multi-provider keyword gap architecture allows for flexible integration of various SEO data sources, and the configurable scoring system provides adaptability for different industry verticals.
