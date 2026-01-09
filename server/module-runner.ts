@@ -110,38 +110,49 @@ export async function runModule(
 
             // --- Batch 1: SEO Signals ---
             case "seo.priority_scoring.v1":
+            case "action.priority_scoring.v1": // Legacy alias
                 resultData = await analyzePriorityScoring(config, inputs);
                 break;
             case "seo.category_visibility.v1":
+            case "signal.category_visibility.v1": // Legacy alias
                 resultData = await analyzeCategoryVisibility(config, inputs);
                 break;
             case "seo.link_authority.v1":
+            case "signal.link_authority.v1": // Legacy alias
                 resultData = await analyzeLinkAuthority(config, inputs);
                 break;
             case "seo.os_drop.v1":
+            case "synthesis.os_drop.v1": // Legacy alias
                 resultData = await analyzeOSDrop(config, inputs);
                 break;
             case "seo.deprioritization.v1":
+            case "action.deprioritization.v1": // Legacy alias
                 resultData = await analyzeDeprioritization(config, inputs);
                 break;
 
             // --- Batch 2: Market Signals ---
             case "market.share_of_voice.v1":
+            case "signal.share_of_voice.v1": // Legacy alias
                 resultData = await analyzeShareOfVoice(config, inputs);
                 break;
             case "market.branded_demand.v1":
+            case "signal.branded_demand.v1": // Legacy alias
                 resultData = await analyzeBrandedDemand(config, inputs);
                 break;
             case "market.breakout_terms.v1":
+            case "signal.breakout_terms.v1": // Legacy alias
                 resultData = await analyzeBreakoutTerms(config, inputs);
                 break;
             case "market.competitor_strategy.v1":
+            case "signal.competitor_strategy.v1": // Legacy alias
                 resultData = await analyzeCompetitorStrategy(config, inputs);
                 break;
             case "market.emerging_competitor.v1":
+            case "signal.emerging_competitor.v1": // Legacy alias
                 resultData = await analyzeEmergingCompetitor(config, inputs);
                 break;
             case "market.market_momentum.v1":
+            case "signal.market_momentum.v1": // Legacy alias
                 resultData = await analyzeMarketMomentum(config, inputs);
                 break;
 
@@ -155,10 +166,12 @@ export async function runModule(
 
             // --- Batch 3: Synthesis & Action ---
             case "sem.action_card.v1":
+            case "action.card_generator.v1": // Legacy alias
                 resultData = await analyzeActionCard(config, inputs);
                 break;
 
             case "sem.paid_organic_overlap.v1":
+            case "signal.paid_organic.v1": // Legacy alias
                 resultData = await analyzePaidOrganicOverlap(config, inputs);
                 break;
 

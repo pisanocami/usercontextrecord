@@ -937,7 +937,7 @@ export const MarketDemandSeasonalityContract: ModuleContract = {
 };
 
 export const ActionCardContract: ModuleContract = {
-  moduleId: "action.card_generator.v1",
+  moduleId: "sem.action_card.v1",
   name: "Action Cards", // 01
   category: "Action",
   layer: "Action",
@@ -975,7 +975,7 @@ export const ActionCardContract: ModuleContract = {
 };
 
 export const PriorityScoringContract: ModuleContract = {
-  moduleId: "action.priority_scoring.v1",
+  moduleId: "seo.priority_scoring.v1",
   name: "Priority Scoring", // 02
   category: "Action",
   layer: "Action",
@@ -1012,7 +1012,7 @@ export const PriorityScoringContract: ModuleContract = {
 };
 
 export const BrandedDemandContract: ModuleContract = {
-  moduleId: "signal.branded_demand.v1",
+  moduleId: "market.branded_demand.v1",
   name: "Branded vs Non-Branded", // 03 (Branded Demand)
   category: "Brand Signal",
   layer: "Signal",
@@ -1049,7 +1049,7 @@ export const BrandedDemandContract: ModuleContract = {
 };
 
 export const BreakoutTermsContract: ModuleContract = {
-  moduleId: "signal.breakout_terms.v1",
+  moduleId: "market.breakout_terms.v1",
   name: "Breakout Terms", // 04
   category: "Market Trends",
   layer: "Signal",
@@ -1085,7 +1085,7 @@ export const BreakoutTermsContract: ModuleContract = {
   }
 };
 export const CategoryVisibilityContract: ModuleContract = {
-  moduleId: "signal.category_visibility.v1",
+  moduleId: "seo.category_visibility.v1",
   name: "Category Visibility", // 05
   category: "SEO Signal",
   layer: "Signal",
@@ -1122,7 +1122,7 @@ export const CategoryVisibilityContract: ModuleContract = {
 };
 
 export const CompetitorStrategyContract: ModuleContract = {
-  moduleId: "signal.competitor_strategy.v1",
+  moduleId: "market.competitor_strategy.v1",
   name: "Competitor Strategy", // 06
   category: "Market Intelligence",
   layer: "Signal",
@@ -1159,7 +1159,7 @@ export const CompetitorStrategyContract: ModuleContract = {
 };
 
 export const DeprioritizationContract: ModuleContract = {
-  moduleId: "action.deprioritization.v1",
+  moduleId: "seo.deprioritization.v1",
   name: "Deprioritization Flags", // 07
   category: "Action",
   layer: "Action",
@@ -1194,7 +1194,7 @@ export const DeprioritizationContract: ModuleContract = {
 };
 
 export const EmergingCompetitorContract: ModuleContract = {
-  moduleId: "signal.emerging_competitor.v1",
+  moduleId: "market.emerging_competitor.v1",
   name: "Emerging Competitor Watch", // 08
   category: "Market Intelligence",
   layer: "Signal",
@@ -1231,7 +1231,7 @@ export const EmergingCompetitorContract: ModuleContract = {
 };
 
 export const LinkAuthorityContract: ModuleContract = {
-  moduleId: "signal.link_authority.v1",
+  moduleId: "seo.link_authority.v1",
   name: "Link Authority & Technical", // 09
   category: "SEO Signal",
   layer: "Signal",
@@ -1267,7 +1267,7 @@ export const LinkAuthorityContract: ModuleContract = {
 };
 
 export const MarketMomentumContract: ModuleContract = {
-  moduleId: "signal.market_momentum.v1",
+  moduleId: "market.market_momentum.v1",
   name: "Market Momentum", // 11
   category: "Market Trends",
   layer: "Signal",
@@ -1303,7 +1303,7 @@ export const MarketMomentumContract: ModuleContract = {
 };
 
 export const OSDropContract: ModuleContract = {
-  moduleId: "synthesis.os_drop.v1",
+  moduleId: "seo.os_drop.v1",
   name: "OS Drop", // 12
   category: "Synthesis",
   layer: "Synthesis",
@@ -1340,7 +1340,7 @@ export const OSDropContract: ModuleContract = {
 };
 
 export const PaidOrganicOverlapContract: ModuleContract = {
-  moduleId: "signal.paid_organic.v1",
+  moduleId: "sem.paid_organic_overlap.v1",
   name: "Paid vs Organic", // 13
   category: "SEO Signal",
   layer: "Signal",
@@ -1378,7 +1378,7 @@ export const PaidOrganicOverlapContract: ModuleContract = {
 
 
 export const ShareOfVoiceContract: ModuleContract = {
-  moduleId: "signal.share_of_voice.v1",
+  moduleId: "market.share_of_voice.v1",
   name: "Share of Voice", // 15
   category: "Brand Signal",
   layer: "Signal",
