@@ -857,6 +857,49 @@ export async function registerRoutes(
     }
   });
 
+  // ============ SECTION COMPARISON API ROUTES ============
+
+  // Get a specific section for all configurations (for comparison views)
+  app.get("/api/sections/:sectionKey", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const { sectionKey } = req.params;
+
+      const validSections = [
+        "brand", "category_definition", "competitors", "demand_definition",
+        "strategic_intent", "channel_context", "negative_scope", "governance"
+      ];
+
+      if (!validSections.includes(sectionKey)) {
+        return res.status(400).json({ error: `Invalid section key. Valid keys: ${validSections.join(", ")}` });
+      }
+
+      const configs = await storage.getAllConfigurations(userId);
+
+      const sectionData = configs.map((config: any) => ({
+        configId: config.id,
+        configName: config.name,
+        brandName: config.brand?.name || "",
+        brandDomain: config.brand?.domain || "",
+        brandIndustry: config.brand?.industry || "",
+        validationStatus: config.governance?.validation_status || "unknown",
+        cmoSafe: config.governance?.cmo_safe || false,
+        qualityScore: config.governance?.quality_score?.overall || 0,
+        updatedAt: config.updated_at,
+        sectionData: (config as any)[sectionKey] || {},
+      }));
+
+      res.json({
+        sectionKey,
+        count: sectionData.length,
+        items: sectionData,
+      });
+    } catch (error) {
+      console.error(`Error fetching section ${req.params.sectionKey}:`, error);
+      res.status(500).json({ error: "Failed to fetch section data" });
+    }
+  });
+
   // Get single configuration by ID
   app.get("/api/configurations/:id", async (req: any, res) => {
     try {
