@@ -81,41 +81,81 @@ function isEmptyResult(data: any): boolean {
         return data.items.length === 0;
     }
     
-    // Primary data arrays at root level
-    const primaryArrays = ['items', 'topOpportunities', 'results', 'keywords', 'clusters', 'rows', 'opportunities', 'needsReview', 'outOfPlay', 'composite_trend'];
-    for (const field of primaryArrays) {
-        if (Array.isArray(data[field]) && data[field].length > 0) {
+    // Fields that should be IGNORED when determining if result has data
+    // These are metadata fields, not actual results
+    const metadataFields = new Set([
+        'success', 'error', 'context', 'persistenceWarning', 'message',
+        'configId', 'configurationName', 'contextVersion', 'brandDomain',
+        'competitors', 'filtersApplied', 'stats', 'executedAt', 'moduleId',
+        'ucr_version', 'sections_used', 'rules_triggered', 'executed_at',
+        'envelope', 'runId', 'startedAt', 'completedAt'
+    ]);
+    
+    // Known count fields - if > 0, there's data
+    const countFields = ['total', 'totalGapKeywords', 'totalKeywords', 'count'];
+    for (const field of countFields) {
+        if (typeof data[field] === 'number' && data[field] > 0) {
             return false;
         }
     }
     
-    // Check summary object for nested data arrays
-    if (data.summary && typeof data.summary === 'object') {
-        for (const field of primaryArrays) {
-            if (Array.isArray(data.summary[field]) && data.summary[field].length > 0) {
-                return false;
+    // Heuristic approach: check all root-level fields for content
+    for (const [key, value] of Object.entries(data)) {
+        // Skip metadata fields
+        if (metadataFields.has(key)) continue;
+        
+        // Check arrays with content
+        if (Array.isArray(value) && value.length > 0) {
+            return false;
+        }
+        
+        // Check meaningful strings (> 20 chars likely content, not just IDs)
+        if (typeof value === 'string' && value.length > 20) {
+            return false;
+        }
+        
+        // Check objects that contain meaningful data (but not known metadata objects)
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            // Skip known metadata objects that don't represent results
+            if (key === 'stats' || key === 'filtersApplied' || key === 'context') continue;
+            
+            // Check all nested values for any meaningful content
+            for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                // Skip nested metadata
+                if (metadataFields.has(nestedKey)) continue;
+                
+                // Arrays with content
+                if (Array.isArray(nestedValue) && nestedValue.length > 0) {
+                    return false;
+                }
+                // Meaningful strings (narratives, descriptions, etc.)
+                if (typeof nestedValue === 'string' && nestedValue.length > 20) {
+                    return false;
+                }
+                // Numbers that indicate content
+                if (typeof nestedValue === 'number' && nestedValue > 0) {
+                    return false;
+                }
+                // Nested objects - use recursive check
+                if (nestedValue && typeof nestedValue === 'object' && !Array.isArray(nestedValue)) {
+                    if (hasNonEmptyData(nestedValue)) return false;
+                }
             }
         }
-        // Check summary.counts or similar numeric aggregations
-        if (data.summary.counts && hasNonEmptyData(data.summary.counts)) return false;
-        if (typeof data.summary.total === 'number' && data.summary.total > 0) return false;
     }
     
-    // Check explicit count fields
-    if (typeof data.totalGapKeywords === 'number' && data.totalGapKeywords > 0) return false;
-    if (typeof data.total === 'number' && data.total > 0) return false;
-    
-    // Check grouped data structures
-    const groupedFields = ['grouped', 'byCategory', 'byTheme'];
-    for (const field of groupedFields) {
-        if (data[field] && typeof data[field] === 'object') {
-            if (hasNonEmptyData(data[field])) return false;
+    // Check summary object for all types of nested content
+    if (data.summary && typeof data.summary === 'object') {
+        for (const [key, value] of Object.entries(data.summary)) {
+            if (metadataFields.has(key)) continue;
+            
+            if (Array.isArray(value) && value.length > 0) return false;
+            if (typeof value === 'string' && value.length > 20) return false;
+            if (typeof value === 'number' && value > 0) return false;
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                if (hasNonEmptyData(value)) return false;
+            }
         }
-    }
-    
-    // Heatmap with values > 0
-    if (data.heatmap && typeof data.heatmap === 'object') {
-        if (hasNonEmptyData(data.heatmap)) return false;
     }
     
     return true;
