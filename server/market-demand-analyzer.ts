@@ -1317,6 +1317,42 @@ export class MarketDemandAnalyzer {
         return `"${categoryName}" has no data available - try a different search term`;
     }
   }
+
+  /**
+   * Returns analysis in the new ModuleRunResult format with ClusterItemResult[]
+   * This is the v2 contract-compliant output format
+   */
+  async analyzeAsModuleRunResult(
+    config: Configuration,
+    params: Partial<MarketDemandAnalysisParams> = {}
+  ): Promise<import("@shared/module.contract").ModuleRunResult> {
+    const { wrapCategoryResultAsModuleRunResult } = await import("./module-result-adapters");
+    
+    const countryCode = params.countryCode || this.extractCountryCode(config);
+    const timeRange = params.timeRange || "today 5-y";
+    
+    const result = await this.analyzeByCategory(config, params);
+    
+    return wrapCategoryResultAsModuleRunResult(
+      "market.demand_seasonality.v1",
+      config,
+      result.byCategory,
+      result.overall ? {
+        peakMonth: result.overall.peakMonth,
+        lowMonth: result.overall.lowMonth,
+        avgStability: result.overall.avgStability,
+        heatmap: result.overall.heatmap,
+      } : null,
+      {
+        timeRange,
+        countryCode,
+        granularity: result.granularity,
+        provider: result.provider,
+      },
+      countryCode,
+      timeRange
+    );
+  }
 }
 
 export const marketDemandAnalyzer = new MarketDemandAnalyzer();

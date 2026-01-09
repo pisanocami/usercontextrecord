@@ -1,0 +1,264 @@
+Perfecto — con este **Developer Guide** ya sabemos el “shape” real del sistema: hoy el `ModuleContract.execute()` devuelve `ModuleResult[]` pensado para **keywords**. Eso choca con **Market Demand**, que naturalmente devuelve **resultados por cluster/categoría + series temporales**, no “un keyword → PASS/REVIEW/OUT”.
+
+Entonces, para adaptar Market Demand a tu plataforma **sin romper la arquitectura Context-First**, tenés 2 caminos válidos. Te doy el recomendado (mínimo cambio, future-proof) y el alternativo (hack rápido, no recomendado).
+
+---
+
+## Opción recomendada: “ModuleResult v2” con `ModuleRunResult` (run-level) + `items[]` (item-level)
+
+### Problema actual
+
+Tu contrato hoy asume que *todo* módulo produce `ModuleResult[]` donde cada item tiene:
+
+* `keyword`
+* `status` (Disposition)
+* `capabilityScore`
+* `trace[]`
+
+Market Demand **no tiene keyword**, no tiene “capabilityScore”, y su “status” no es PASS/REVIEW/OUT. Tiene:
+
+* clusters/themes
+* series (weekly/monthly)
+* peak/low, stability, timing classification
+* risks/recommendations
+* trace **por cluster** (y a veces por keyword si “Timing + Keywords”)
+
+### Solución (mínimo cambio de API, máximo reuso)
+
+Introducir un *run envelope* estándar y permitir múltiples “item types” con `itemId` + `itemType`.
+
+#### ✅ Nuevos tipos (shared/module.contract.ts)
+
+```ts
+export type ModuleItemType = 'keyword' | 'cluster' | 'serp' | 'url' | 'entity';
+
+export interface BaseItemResult {
+  itemType: ModuleItemType;
+  itemId: string;          // e.g. keyword string, themeName, url, etc.
+  title?: string;          // human label
+  flags?: string[];
+  confidence?: 'low' | 'medium' | 'high';
+  trace: ItemTrace[];
+}
+
+export interface KeywordItemResult extends BaseItemResult {
+  itemType: 'keyword';
+  keyword: string;
+  status: Disposition;
+  capabilityScore: number;
+  theme?: string;
+  reason?: string;
+}
+
+export interface ClusterItemResult extends BaseItemResult {
+  itemType: 'cluster';
+  themeName: string;
+
+  // Seasonality core
+  geo: string;
+  timeRange: string;     // e.g. "today 5-y"
+  interval: 'weekly' | 'daily' | 'monthly';
+
+  peakMonth?: string;    // "Jan"
+  lowMonth?: string;     // "May"
+  stabilityScore?: number; // 0-100
+  yoyConsistency?: 'stable' | 'shifting' | 'erratic';
+
+  timingClassification:
+    | 'early_ramp_dominant'
+    | 'peak_driven'
+    | 'flat_timing_neutral'
+    | 'erratic_unreliable';
+
+  // Optional: series (keep compact)
+  monthlyPattern?: number[]; // length 12 normalized index, exec-friendly
+  // weeklySeriesRef?: string; // if you store series externally
+}
+
+export type ModuleItemResult = KeywordItemResult | ClusterItemResult;
+
+export interface ModuleRunEnvelope {
+  moduleId: string;
+  runId: string;
+  generatedAt: string;
+
+  contextVersion: number;
+  contextStatus: string;
+  ucrSectionsUsed: UCRSectionID[];
+  filtersApplied: Array<{ ruleId: string; ucrSection: UCRSectionID; details?: string }>;
+  warnings: Array<{ code: string; message: string }>;
+}
+
+export interface ModuleRunResult {
+  envelope: ModuleRunEnvelope;
+  items: ModuleItemResult[];
+  // Optional run-level blobs
+  summary?: Record<string, any>;
+}
+
+export interface ModuleContract {
+  execute(config: Configuration): Promise<ModuleRunResult>;
+}
+```
+
+**Qué ganás:**
+
+* Market Demand encaja naturalmente como `ClusterItemResult[]`
+* Keyword Gap sigue igual como `KeywordItemResult[]`
+* UI puede renderizar por `itemType` (tabs/sections) sin inventar “keywords” falsos
+* Trace sigue consistente (audit-first)
+
+---
+
+## Cómo se vería Market Demand en este contrato
+
+### Resultado por categoría (lo que tu UI ya muestra)
+
+Cada categoría → `ClusterItemResult`:
+
+* `themeName: "Fitness apps"`
+* `peakMonth: "Jan"`
+* `lowMonth: "May"`
+* `stabilityScore: 55`
+* `timingClassification: "peak_driven"`
+* `trace[]` incluye gates usados (B/E/G/H) como ruleIds
+
+Y el aggregate (Overall Aggregate) va en `summary` (run-level), no como item.
+
+---
+
+## Cómo mapear tu UI actual a este contrato (directo)
+
+Tu UI ya tiene:
+
+* Saved Analyses
+* 3 categories con peak/low/stability
+* “Action Plan” (pre-peak window)
+* “Risks”
+* “Analysis Trace” (Section B, Section E, negative_scope…)
+
+✅ Con el nuevo contrato:
+
+* “Analysis Trace” vive en `items[].trace` + `envelope.filtersApplied`
+* “Not Validated” / status arriba vive en `envelope.contextStatus`
+* “Time Range / Validate Categories / Timing Only / Timing + Keywords” vive en `summary.settings`
+
+Ejemplo de `summary.settings`:
+
+```ts
+summary: {
+  settings: {
+    timeRange: "today 5-y",
+    validateCategories: true,
+    mode: "timing_only" | "timing_plus_keywords"
+  },
+  aggregate: {
+    peakMonth: "Nov",
+    lowMonth: "Mar",
+    stabilityScore: 23,
+    launchBy: null,
+    monthlyPattern: [17,15,13,17,15,16,18,20,22,19,24,20]
+  }
+}
+```
+
+---
+
+## Skeleton de módulo (server/modules/market-demand.ts)
+
+```ts
+import type {
+  ModuleContract,
+  ModuleRunResult,
+  ClusterItemResult,
+  ItemTrace
+} from '@shared/module.contract';
+
+export const marketDemand: ModuleContract = {
+  async execute(config): Promise<ModuleRunResult> {
+    // 1) Validate required UCR (D + H) (throw on fail)
+    // 2) Apply Gate G (negative scope) -> filtersApplied
+    // 3) Build clusters from D.demand_themes
+    // 4) Fetch trends (DataForSEO / SER API) compare mode
+    // 5) Compute peak/low, stability, timingClassification
+    // 6) Emit trace[] per cluster
+
+    const items: ClusterItemResult[] = [];
+
+    // ... fill items
+
+    return {
+      envelope: {
+        moduleId: 'market_demand_seasonality',
+        runId: crypto.randomUUID(),
+        generatedAt: new Date().toISOString(),
+        contextVersion: config.version ?? 1,
+        contextStatus: config.status,
+        ucrSectionsUsed: ['B','D','E','G','H'],
+        filtersApplied: [],
+        warnings: [],
+      },
+      items,
+      summary: {
+        settings: {/* ui settings */},
+        aggregate: {/* overall */},
+      }
+    };
+  }
+};
+```
+
+---
+
+## Cambios necesarios en `module-runner.ts` y routes
+
+* `module-runner` ya no puede asumir `ModuleResult[]`
+* ahora asume `ModuleRunResult`
+
+En routes:
+
+* `POST /api/market-demand/run` devuelve el `ModuleRunResult` tal cual
+* Keyword Gap Lite también devuelve `ModuleRunResult` con `items` tipo `keyword`
+
+---
+
+## Testing (cómo se testea ahora)
+
+Unit tests:
+
+* assert `envelope.contextVersion/status`
+* assert `items.every(i => i.trace.length > 0)`
+* assert `itemType === 'cluster'`
+* assert “Timing neutral” cuando `stabilityScore` bajo / `yoyConsistency=erratic`
+
+Integration:
+
+* run endpoint y snapshot del JSON
+
+---
+
+## Opción alternativa (no recomendada): “fingir keywords”
+
+Podrías serializar cada cluster como un “keyword” tipo `"__CLUSTER__: Fitness apps"` y reutilizar `ModuleResult`.
+Funciona rápido, pero:
+
+* ensucia UX (“keyword” no es keyword)
+* rompe semántica de PASS/REVIEW/OUT
+* hace difícil sumar SERP/Content Gap luego
+
+---
+
+## Recomendación final (pragmática)
+
+Implementá **ModuleRunResult + ModuleItemResult** ahora. Es un cambio único que:
+
+* arregla Market Demand
+* prepara Content Gap / SERP Analysis / Growth Signals
+* mantiene Context-First, Gate order y Trace auditables
+
+Si me pegás tu `shared/module.contract.ts` real (el archivo completo), te devuelvo un **patch exacto** (diff) con:
+
+* nuevos tipos
+* migración de Keyword Gap Lite
+* contrato final de Market Demand
+* mínimos cambios en `module-runner.ts` y `routes.ts` para compilar sin dolores.

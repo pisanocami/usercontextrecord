@@ -75,6 +75,170 @@ export interface DispositionedItem<T = unknown> {
 }
 
 /* ---------------------------------- */
+/* Module Result Types (v2)           */
+/* ---------------------------------- */
+
+/**
+ * Discriminator for polymorphic module item results
+ * Allows different modules to return different entity types
+ */
+export type ModuleItemType = "keyword" | "cluster" | "serp" | "url" | "entity";
+
+/**
+ * Timing classification for seasonality modules
+ */
+export type TimingClassification =
+  | "early_ramp_dominant"
+  | "peak_driven"
+  | "flat_timing_neutral"
+  | "erratic_unreliable";
+
+/**
+ * Year-over-year consistency for trend analysis
+ */
+export type YoYConsistency = "stable" | "shifting" | "erratic";
+
+/**
+ * Base interface for all module item results
+ * All specific item types extend this
+ */
+export interface BaseItemResult {
+  itemType: ModuleItemType;
+  itemId: string;
+  title?: string;
+  flags?: string[];
+  confidence?: "low" | "medium" | "high";
+  trace: ItemTrace[];
+}
+
+/**
+ * Keyword-based item result (used by Keyword Gap, etc.)
+ */
+export interface KeywordItemResult extends BaseItemResult {
+  itemType: "keyword";
+  keyword: string;
+  status: Disposition;
+  capabilityScore: number;
+  theme?: string;
+  reason?: string;
+  searchVolume?: number;
+  competitorCount?: number;
+  serpFeatures?: string[];
+}
+
+/**
+ * Cluster/Category-based item result (used by Market Demand Seasonality, etc.)
+ */
+export interface ClusterItemResult extends BaseItemResult {
+  itemType: "cluster";
+  themeName: string;
+  geo: string;
+  timeRange: string;
+  interval: "weekly" | "daily" | "monthly";
+  peakMonth?: string;
+  lowMonth?: string;
+  stabilityScore?: number;
+  yoyConsistency?: YoYConsistency;
+  timingClassification: TimingClassification;
+  monthlyPattern?: number[];
+  weeklySeriesRef?: string;
+  
+  queries?: string[];
+  inflectionMonth?: string;
+  peakWindow?: string[];
+  recommendedLaunchByISO?: string | null;
+  recommendationRationale?: string;
+  variance?: number;
+  
+  seriesDataRef?: string;
+  heatmap?: Record<string, number>;
+  
+  providerMetadata?: {
+    provider: string;
+    cached: boolean;
+    cacheKey?: string;
+    ttlSeconds?: number;
+  };
+}
+
+/**
+ * SERP-based item result (used by SERP Analysis, etc.)
+ */
+export interface SerpItemResult extends BaseItemResult {
+  itemType: "serp";
+  query: string;
+  serpFeatures: string[];
+  organicCount: number;
+  paidCount: number;
+  featuredSnippet?: boolean;
+  localPack?: boolean;
+}
+
+/**
+ * URL-based item result (used by Content Gap, etc.)
+ */
+export interface UrlItemResult extends BaseItemResult {
+  itemType: "url";
+  url: string;
+  domain: string;
+  pageType?: string;
+  trafficEstimate?: number;
+  keywordCount?: number;
+}
+
+/**
+ * Entity-based item result (used by Entity Analysis, etc.)
+ */
+export interface EntityItemResult extends BaseItemResult {
+  itemType: "entity";
+  entityName: string;
+  entityType: string;
+  mentions?: number;
+  sentiment?: "positive" | "neutral" | "negative";
+}
+
+/**
+ * Union type for all possible module item results
+ */
+export type ModuleItemResult =
+  | KeywordItemResult
+  | ClusterItemResult
+  | SerpItemResult
+  | UrlItemResult
+  | EntityItemResult;
+
+/**
+ * Envelope containing run-level metadata
+ */
+export interface ModuleRunEnvelope {
+  moduleId: string;
+  runId: string;
+  generatedAt: string;
+  contextVersion: number;
+  contextStatus: string;
+  ucrSectionsUsed: UCRSectionID[];
+  filtersApplied: Array<{
+    ruleId: string;
+    ucrSection: UCRSectionID;
+    details?: string;
+  }>;
+  warnings: Array<{
+    code: string;
+    message: string;
+  }>;
+}
+
+/**
+ * Complete module execution result (v2)
+ * Replaces the old ModuleResult[] pattern
+ */
+export interface ModuleRunResult {
+  envelope: ModuleRunEnvelope;
+  items: ModuleItemResult[];
+  summary?: Record<string, unknown>;
+}
+
+/* ---------------------------------- */
 /* Policy Interfaces                   */
 /* ---------------------------------- */
 
@@ -1426,8 +1590,52 @@ export const MODULE_REGISTRY: Record<string, ModuleDefinition> = {
   'market_demand_seasonality': MARKET_DEMAND_SEASONALITY
 };
 
+/**
+ * Look up a module by ID, checking CONTRACT_REGISTRY first, then MODULE_REGISTRY
+ * This provides backward compatibility while transitioning to the new contract system
+ */
 export function getModuleDefinition(moduleId: string): ModuleDefinition | undefined {
+  // First check the new CONTRACT_REGISTRY (uses versioned IDs like "seo.keyword_gap_visibility.v1")
+  const contract = CONTRACT_REGISTRY[moduleId];
+  if (contract) {
+    return contractToModuleDefinition(contract);
+  }
+  
+  // Fall back to legacy MODULE_REGISTRY (uses old IDs like "seo_visibility_gap")
   return MODULE_REGISTRY[moduleId];
+}
+
+/**
+ * Adapts a ModuleContract to the legacy ModuleDefinition shape
+ * This allows execution-gateway to work with both old and new module formats
+ */
+function contractToModuleDefinition(contract: ModuleContract): ModuleDefinition {
+  const outputTypeMap: Record<string, ModuleDefinition['outputType']> = {
+    'keyword': 'keywords',
+    'keyword_opportunity': 'keywords',
+    'cluster': 'signal',
+    'trend': 'signal',
+    'serp': 'keywords',
+    'share': 'share',
+    'share_percentage': 'share',
+    'action': 'levers',
+    'action_card': 'levers',
+    'summary_text': 'levers',
+    'score': 'signal',
+    'url': 'keywords',
+    'entity': 'signal'
+  };
+  
+  return {
+    id: contract.moduleId,
+    name: contract.name,
+    description: contract.description,
+    question: contract.strategicQuestion,
+    requiredSections: contract.contextInjection.requiredSections,
+    optionalSections: contract.contextInjection.optionalSections || [],
+    outputType: outputTypeMap[contract.output.entityType] || 'signal',
+    status: 'active'
+  };
 }
 
 export function getActiveModules(): ModuleDefinition[] {
@@ -1442,6 +1650,42 @@ export function canModuleExecute(
   moduleId: string,
   availableSections: UCRSectionID[]
 ): { canExecute: boolean; missingSections: UCRSectionID[]; warnings: string[] } {
+  // Check CONTRACT_REGISTRY first for richer execution gate policies
+  const contract = CONTRACT_REGISTRY[moduleId];
+  if (contract) {
+    const requiredSections = contract.contextInjection.requiredSections;
+    const optionalSections = contract.contextInjection.optionalSections || [];
+    
+    const missingSections = requiredSections.filter(
+      section => !availableSections.includes(section)
+    );
+    
+    const missingOptional = optionalSections.filter(
+      section => !availableSections.includes(section)
+    );
+    
+    const warnings: string[] = [];
+    if (missingOptional.length > 0) {
+      warnings.push(
+        `Missing optional sections: ${missingOptional.map(s => `${s} (${UCR_SECTION_NAMES[s]})`).join(', ')}. Results may be less accurate.`
+      );
+    }
+    
+    // Apply execution gate policy from contract
+    const gate = contract.executionGate;
+    const blockedByOptional = gate.allowMissingOptionalSections === false && missingOptional.length > 0;
+    if (blockedByOptional) {
+      warnings.push('Module requires all optional sections to be present.');
+    }
+    
+    return {
+      canExecute: missingSections.length === 0 && !blockedByOptional,
+      missingSections,
+      warnings
+    };
+  }
+  
+  // Fall back to legacy MODULE_REGISTRY
   const module = getModuleDefinition(moduleId);
   if (!module) {
     return { canExecute: false, missingSections: [], warnings: ['Module not found'] };
