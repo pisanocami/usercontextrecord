@@ -141,6 +141,87 @@ export interface ModuleRun {
 
 export type InsertModuleRun = Omit<ModuleRun, "id" | "created_at">;
 
+// Alerts table - stores generated alerts
+export const alerts = pgTable("alerts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  configurationId: integer("configuration_id"),
+  type: varchar("type").notNull(),
+  severity: varchar("severity").notNull().default("info"),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  metadata: jsonb("metadata").default({}),
+  read: boolean("read").notNull().default(false),
+  dismissed: boolean("dismissed").notNull().default(false),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Alert preferences table - user notification settings
+export const alertPreferences = pgTable("alert_preferences", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  qualityDropEnabled: boolean("quality_drop_enabled").notNull().default(true),
+  competitorChangeEnabled: boolean("competitor_change_enabled").notNull().default(true),
+  guardrailViolationEnabled: boolean("guardrail_violation_enabled").notNull().default(true),
+  expirationWarningEnabled: boolean("expiration_warning_enabled").notNull().default(true),
+  analysisCompleteEnabled: boolean("analysis_complete_enabled").notNull().default(true),
+  emailNotifications: boolean("email_notifications").notNull().default(false),
+  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Alert types
+export type AlertType = "quality_drop" | "competitor_change" | "guardrail_violation" | "expiration_warning" | "analysis_complete";
+export type AlertSeverity = "info" | "warning" | "critical";
+
+export interface Alert {
+  id: number;
+  userId: string;
+  configurationId: number | null;
+  type: AlertType;
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  metadata: Record<string, any>;
+  read: boolean;
+  dismissed: boolean;
+  created_at: Date;
+}
+
+export type InsertAlert = Omit<Alert, "id" | "created_at" | "read" | "dismissed">;
+
+export interface AlertPreference {
+  id: number;
+  userId: string;
+  qualityDropEnabled: boolean;
+  competitorChangeEnabled: boolean;
+  guardrailViolationEnabled: boolean;
+  expirationWarningEnabled: boolean;
+  analysisCompleteEnabled: boolean;
+  emailNotifications: boolean;
+  updated_at: Date;
+}
+
+export type InsertAlertPreference = Omit<AlertPreference, "id" | "updated_at">;
+
+export const insertAlertSchema = z.object({
+  userId: z.string(),
+  configurationId: z.number().nullable().optional(),
+  type: z.enum(["quality_drop", "competitor_change", "guardrail_violation", "expiration_warning", "analysis_complete"]),
+  severity: z.enum(["info", "warning", "critical"]).default("info"),
+  title: z.string(),
+  message: z.string(),
+  metadata: z.record(z.any()).default({}),
+});
+
+export const updateAlertPreferencesSchema = z.object({
+  qualityDropEnabled: z.boolean().optional(),
+  competitorChangeEnabled: z.boolean().optional(),
+  guardrailViolationEnabled: z.boolean().optional(),
+  expirationWarningEnabled: z.boolean().optional(),
+  analysisCompleteEnabled: z.boolean().optional(),
+  emailNotifications: z.boolean().optional(),
+});
+
 // Bulk brand input schema
 export const bulkBrandInputSchema = z.object({
   domain: z.string().min(1),

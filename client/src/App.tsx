@@ -39,6 +39,8 @@ import GapComplianceReport from "./pages/gap-compliance-report.md?raw";
 import ReactMarkdown from "react-markdown";
 import { MainLayout } from "@/components/layouts/main-layout";
 import SectionListPage from "@/pages/section-list";
+import { AlertsPanel } from "@/components/alerts-panel";
+import AlertPreferencesPage from "@/pages/alert-preferences";
 
 function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
@@ -103,6 +105,7 @@ function ConfigurationLayout() {
           <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
+              <AlertsPanel />
               <ThemeToggle />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -227,6 +230,7 @@ function ConfigurationsListLayout() {
           <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
+              <AlertsPanel />
               <ThemeToggle />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -715,6 +719,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={ConfigurationsListLayout} />
+      <Route path="/alert-preferences" component={AlertPreferencesPage} />
       <Route path="/report/gap" component={GapReportPage} />
       <Route path="/new" component={ConfigurationLayout} />
       <Route path="/context" component={BrandContextLayout} />

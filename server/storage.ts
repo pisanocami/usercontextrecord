@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses, moduleRuns } from "@shared/schema";
-import { eq, and, desc, max } from "drizzle-orm";
+import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses, moduleRuns, alerts, alertPreferences } from "@shared/schema";
+import { eq, and, desc, max, sql } from "drizzle-orm";
 import type {
   Brand,
   CategoryDefinition,
@@ -24,6 +24,11 @@ import type {
   InsertMarketDemandAnalysis,
   ModuleRun,
   InsertModuleRun,
+  Alert,
+  InsertAlert,
+  AlertPreference,
+  AlertType,
+  AlertSeverity,
 } from "@shared/schema";
 
 // Database brand type (global brand entity)
@@ -100,6 +105,17 @@ export interface IStorage {
   getModuleRuns(userId: string, configId?: number, moduleId?: string): Promise<ModuleRun[]>;
   getModuleRunById(id: number, userId: string): Promise<ModuleRun | undefined>;
   getModuleRunsByConfig(configId: number, userId: string): Promise<ModuleRun[]>;
+  // Alert operations
+  createAlert(alert: InsertAlert): Promise<Alert>;
+  getAlerts(userId: string, options?: { unreadOnly?: boolean; limit?: number }): Promise<Alert[]>;
+  getAlertById(id: number, userId: string): Promise<Alert | undefined>;
+  markAlertAsRead(id: number, userId: string): Promise<Alert | undefined>;
+  markAllAlertsAsRead(userId: string): Promise<void>;
+  dismissAlert(id: number, userId: string): Promise<void>;
+  getUnreadAlertCount(userId: string): Promise<number>;
+  // Alert preferences operations
+  getAlertPreferences(userId: string): Promise<AlertPreference>;
+  updateAlertPreferences(userId: string, prefs: Partial<Omit<AlertPreference, "id" | "userId" | "updated_at">>): Promise<AlertPreference>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1150,6 +1166,216 @@ export class DatabaseStorage implements IStorage {
       rulesTriggered: (r.rulesTriggered as any[]) || [],
       created_at: r.created_at,
     }));
+  }
+
+  // ============ ALERT OPERATIONS ============
+
+  async createAlert(alert: InsertAlert): Promise<Alert> {
+    const [result] = await db
+      .insert(alerts)
+      .values({
+        userId: alert.userId,
+        configurationId: alert.configurationId,
+        type: alert.type,
+        severity: alert.severity,
+        title: alert.title,
+        message: alert.message,
+        metadata: alert.metadata || {},
+      })
+      .returning();
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      type: result.type as AlertType,
+      severity: result.severity as AlertSeverity,
+      title: result.title,
+      message: result.message,
+      metadata: (result.metadata as Record<string, any>) || {},
+      read: result.read,
+      dismissed: result.dismissed,
+      created_at: result.created_at,
+    };
+  }
+
+  async getAlerts(userId: string, options?: { unreadOnly?: boolean; limit?: number }): Promise<Alert[]> {
+    const conditions = [eq(alerts.userId, userId), eq(alerts.dismissed, false)];
+    
+    if (options?.unreadOnly) {
+      conditions.push(eq(alerts.read, false));
+    }
+
+    let query = db
+      .select()
+      .from(alerts)
+      .where(and(...conditions))
+      .orderBy(desc(alerts.created_at));
+
+    if (options?.limit) {
+      query = query.limit(options.limit) as typeof query;
+    }
+
+    const results = await query;
+
+    return results.map(r => ({
+      id: r.id,
+      userId: r.userId,
+      configurationId: r.configurationId,
+      type: r.type as AlertType,
+      severity: r.severity as AlertSeverity,
+      title: r.title,
+      message: r.message,
+      metadata: (r.metadata as Record<string, any>) || {},
+      read: r.read,
+      dismissed: r.dismissed,
+      created_at: r.created_at,
+    }));
+  }
+
+  async getAlertById(id: number, userId: string): Promise<Alert | undefined> {
+    const [result] = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.id, id), eq(alerts.userId, userId)))
+      .limit(1);
+
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      type: result.type as AlertType,
+      severity: result.severity as AlertSeverity,
+      title: result.title,
+      message: result.message,
+      metadata: (result.metadata as Record<string, any>) || {},
+      read: result.read,
+      dismissed: result.dismissed,
+      created_at: result.created_at,
+    };
+  }
+
+  async markAlertAsRead(id: number, userId: string): Promise<Alert | undefined> {
+    const [result] = await db
+      .update(alerts)
+      .set({ read: true })
+      .where(and(eq(alerts.id, id), eq(alerts.userId, userId)))
+      .returning();
+
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      type: result.type as AlertType,
+      severity: result.severity as AlertSeverity,
+      title: result.title,
+      message: result.message,
+      metadata: (result.metadata as Record<string, any>) || {},
+      read: result.read,
+      dismissed: result.dismissed,
+      created_at: result.created_at,
+    };
+  }
+
+  async markAllAlertsAsRead(userId: string): Promise<void> {
+    await db
+      .update(alerts)
+      .set({ read: true })
+      .where(and(eq(alerts.userId, userId), eq(alerts.read, false)));
+  }
+
+  async dismissAlert(id: number, userId: string): Promise<void> {
+    await db
+      .update(alerts)
+      .set({ dismissed: true })
+      .where(and(eq(alerts.id, id), eq(alerts.userId, userId)));
+  }
+
+  async getUnreadAlertCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(alerts)
+      .where(and(eq(alerts.userId, userId), eq(alerts.read, false), eq(alerts.dismissed, false)));
+
+    return Number(result[0]?.count) || 0;
+  }
+
+  // ============ ALERT PREFERENCES OPERATIONS ============
+
+  async getAlertPreferences(userId: string): Promise<AlertPreference> {
+    const [existing] = await db
+      .select()
+      .from(alertPreferences)
+      .where(eq(alertPreferences.userId, userId))
+      .limit(1);
+
+    if (existing) {
+      return {
+        id: existing.id,
+        userId: existing.userId,
+        qualityDropEnabled: existing.qualityDropEnabled,
+        competitorChangeEnabled: existing.competitorChangeEnabled,
+        guardrailViolationEnabled: existing.guardrailViolationEnabled,
+        expirationWarningEnabled: existing.expirationWarningEnabled,
+        analysisCompleteEnabled: existing.analysisCompleteEnabled,
+        emailNotifications: existing.emailNotifications,
+        updated_at: existing.updated_at,
+      };
+    }
+
+    const [created] = await db
+      .insert(alertPreferences)
+      .values({
+        userId,
+        qualityDropEnabled: true,
+        competitorChangeEnabled: true,
+        guardrailViolationEnabled: true,
+        expirationWarningEnabled: true,
+        analysisCompleteEnabled: true,
+        emailNotifications: false,
+      })
+      .returning();
+
+    return {
+      id: created.id,
+      userId: created.userId,
+      qualityDropEnabled: created.qualityDropEnabled,
+      competitorChangeEnabled: created.competitorChangeEnabled,
+      guardrailViolationEnabled: created.guardrailViolationEnabled,
+      expirationWarningEnabled: created.expirationWarningEnabled,
+      analysisCompleteEnabled: created.analysisCompleteEnabled,
+      emailNotifications: created.emailNotifications,
+      updated_at: created.updated_at,
+    };
+  }
+
+  async updateAlertPreferences(userId: string, prefs: Partial<Omit<AlertPreference, "id" | "userId" | "updated_at">>): Promise<AlertPreference> {
+    await this.getAlertPreferences(userId);
+
+    const [updated] = await db
+      .update(alertPreferences)
+      .set({
+        ...prefs,
+        updated_at: new Date(),
+      })
+      .where(eq(alertPreferences.userId, userId))
+      .returning();
+
+    return {
+      id: updated.id,
+      userId: updated.userId,
+      qualityDropEnabled: updated.qualityDropEnabled,
+      competitorChangeEnabled: updated.competitorChangeEnabled,
+      guardrailViolationEnabled: updated.guardrailViolationEnabled,
+      expirationWarningEnabled: updated.expirationWarningEnabled,
+      analysisCompleteEnabled: updated.analysisCompleteEnabled,
+      emailNotifications: updated.emailNotifications,
+      updated_at: updated.updated_at,
+    };
   }
 }
 

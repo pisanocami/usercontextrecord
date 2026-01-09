@@ -2818,6 +2818,104 @@ IMPORTANT:
     }
   });
 
+  // ==================== ALERTS API ====================
+
+  app.get("/api/alerts", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const unreadOnly = req.query.unreadOnly === "true";
+      const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
+
+      const alerts = await storage.getAlerts(userId, { unreadOnly, limit });
+      res.json(alerts);
+    } catch (error: any) {
+      console.error("Error fetching alerts:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch alerts" });
+    }
+  });
+
+  app.get("/api/alerts/count", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const count = await storage.getUnreadAlertCount(userId);
+      res.json({ count });
+    } catch (error: any) {
+      console.error("Error fetching alert count:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch alert count" });
+    }
+  });
+
+  app.patch("/api/alerts/:id/read", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const id = parseInt(req.params.id, 10);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid alert ID" });
+      }
+
+      const alert = await storage.markAlertAsRead(id, userId);
+      if (!alert) {
+        return res.status(404).json({ error: "Alert not found" });
+      }
+
+      res.json(alert);
+    } catch (error: any) {
+      console.error("Error marking alert as read:", error);
+      res.status(500).json({ error: error.message || "Failed to mark alert as read" });
+    }
+  });
+
+  app.post("/api/alerts/read-all", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      await storage.markAllAlertsAsRead(userId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error marking all alerts as read:", error);
+      res.status(500).json({ error: error.message || "Failed to mark all alerts as read" });
+    }
+  });
+
+  app.delete("/api/alerts/:id", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const id = parseInt(req.params.id, 10);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid alert ID" });
+      }
+
+      await storage.dismissAlert(id, userId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error dismissing alert:", error);
+      res.status(500).json({ error: error.message || "Failed to dismiss alert" });
+    }
+  });
+
+  app.get("/api/alerts/preferences", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const prefs = await storage.getAlertPreferences(userId);
+      res.json(prefs);
+    } catch (error: any) {
+      console.error("Error fetching alert preferences:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch alert preferences" });
+    }
+  });
+
+  app.put("/api/alerts/preferences", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const prefs = await storage.updateAlertPreferences(userId, req.body);
+      res.json(prefs);
+    } catch (error: any) {
+      console.error("Error updating alert preferences:", error);
+      res.status(500).json({ error: error.message || "Failed to update alert preferences" });
+    }
+  });
+
   // ==================== GENERIC MODULE RUNNER ====================
 
   app.post("/api/modules/:moduleId/run", async (req: any, res) => {
