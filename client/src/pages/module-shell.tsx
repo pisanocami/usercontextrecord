@@ -82,7 +82,7 @@ function isEmptyResult(data: any): boolean {
     }
     
     // Primary data arrays at root level
-    const primaryArrays = ['items', 'topOpportunities', 'results', 'keywords', 'clusters', 'rows', 'opportunities', 'needsReview', 'outOfPlay'];
+    const primaryArrays = ['items', 'topOpportunities', 'results', 'keywords', 'clusters', 'rows', 'opportunities', 'needsReview', 'outOfPlay', 'composite_trend'];
     for (const field of primaryArrays) {
         if (Array.isArray(data[field]) && data[field].length > 0) {
             return false;
