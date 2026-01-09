@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses } from "@shared/schema";
+import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses, moduleRuns } from "@shared/schema";
 import { eq, and, desc, max } from "drizzle-orm";
 import type {
   Brand,
@@ -22,6 +22,8 @@ import type {
   KeywordGapAnalysisParameters,
   MarketDemandAnalysis,
   InsertMarketDemandAnalysis,
+  ModuleRun,
+  InsertModuleRun,
 } from "@shared/schema";
 
 // Database brand type (global brand entity)
@@ -93,6 +95,11 @@ export interface IStorage {
   getMarketDemandAnalyses(userId: string): Promise<MarketDemandAnalysis[]>;
   getMarketDemandAnalysisById(id: number, userId: string): Promise<MarketDemandAnalysis | undefined>;
   deleteMarketDemandAnalysis(id: number, userId: string): Promise<void>;
+  // Module Run operations
+  createModuleRun(run: InsertModuleRun): Promise<ModuleRun>;
+  getModuleRuns(userId: string, configId?: number, moduleId?: string): Promise<ModuleRun[]>;
+  getModuleRunById(id: number, userId: string): Promise<ModuleRun | undefined>;
+  getModuleRunsByConfig(configId: number, userId: string): Promise<ModuleRun[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1018,6 +1025,131 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(marketDemandAnalyses)
       .where(and(eq(marketDemandAnalyses.id, id), eq(marketDemandAnalyses.userId, userId)));
+  }
+
+  // ============ MODULE RUN OPERATIONS ============
+
+  async createModuleRun(run: InsertModuleRun): Promise<ModuleRun> {
+    const [result] = await db
+      .insert(moduleRuns)
+      .values({
+        userId: run.userId,
+        configurationId: run.configurationId,
+        moduleId: run.moduleId,
+        moduleName: run.moduleName,
+        status: run.status,
+        ucrVersion: run.ucrVersion,
+        sectionsUsed: run.sectionsUsed,
+        inputs: run.inputs,
+        results: run.results,
+        error: run.error,
+        executionTimeMs: run.executionTimeMs,
+        rulesTriggered: run.rulesTriggered,
+      })
+      .returning();
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      moduleId: result.moduleId,
+      moduleName: result.moduleName,
+      status: result.status as "running" | "completed" | "failed",
+      ucrVersion: result.ucrVersion,
+      sectionsUsed: (result.sectionsUsed as string[]) || [],
+      inputs: (result.inputs as Record<string, any>) || {},
+      results: result.results as Record<string, any> | null,
+      error: result.error,
+      executionTimeMs: result.executionTimeMs,
+      rulesTriggered: (result.rulesTriggered as any[]) || [],
+      created_at: result.created_at,
+    };
+  }
+
+  async getModuleRuns(userId: string, configId?: number, moduleId?: string): Promise<ModuleRun[]> {
+    let query = db.select().from(moduleRuns).where(eq(moduleRuns.userId, userId));
+    
+    const results = await db
+      .select()
+      .from(moduleRuns)
+      .where(eq(moduleRuns.userId, userId))
+      .orderBy(desc(moduleRuns.created_at))
+      .limit(100);
+
+    return results
+      .filter(r => {
+        if (configId && r.configurationId !== configId) return false;
+        if (moduleId && r.moduleId !== moduleId) return false;
+        return true;
+      })
+      .map(r => ({
+        id: r.id,
+        userId: r.userId,
+        configurationId: r.configurationId,
+        moduleId: r.moduleId,
+        moduleName: r.moduleName,
+        status: r.status as "running" | "completed" | "failed",
+        ucrVersion: r.ucrVersion,
+        sectionsUsed: (r.sectionsUsed as string[]) || [],
+        inputs: (r.inputs as Record<string, any>) || {},
+        results: r.results as Record<string, any> | null,
+        error: r.error,
+        executionTimeMs: r.executionTimeMs,
+        rulesTriggered: (r.rulesTriggered as any[]) || [],
+        created_at: r.created_at,
+      }));
+  }
+
+  async getModuleRunById(id: number, userId: string): Promise<ModuleRun | undefined> {
+    const [result] = await db
+      .select()
+      .from(moduleRuns)
+      .where(and(eq(moduleRuns.id, id), eq(moduleRuns.userId, userId)))
+      .limit(1);
+
+    if (!result) return undefined;
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      configurationId: result.configurationId,
+      moduleId: result.moduleId,
+      moduleName: result.moduleName,
+      status: result.status as "running" | "completed" | "failed",
+      ucrVersion: result.ucrVersion,
+      sectionsUsed: (result.sectionsUsed as string[]) || [],
+      inputs: (result.inputs as Record<string, any>) || {},
+      results: result.results as Record<string, any> | null,
+      error: result.error,
+      executionTimeMs: result.executionTimeMs,
+      rulesTriggered: (result.rulesTriggered as any[]) || [],
+      created_at: result.created_at,
+    };
+  }
+
+  async getModuleRunsByConfig(configId: number, userId: string): Promise<ModuleRun[]> {
+    const results = await db
+      .select()
+      .from(moduleRuns)
+      .where(and(eq(moduleRuns.configurationId, configId), eq(moduleRuns.userId, userId)))
+      .orderBy(desc(moduleRuns.created_at));
+
+    return results.map(r => ({
+      id: r.id,
+      userId: r.userId,
+      configurationId: r.configurationId,
+      moduleId: r.moduleId,
+      moduleName: r.moduleName,
+      status: r.status as "running" | "completed" | "failed",
+      ucrVersion: r.ucrVersion,
+      sectionsUsed: (r.sectionsUsed as string[]) || [],
+      inputs: (r.inputs as Record<string, any>) || {},
+      results: r.results as Record<string, any> | null,
+      error: r.error,
+      executionTimeMs: r.executionTimeMs,
+      rulesTriggered: (r.rulesTriggered as any[]) || [],
+      created_at: r.created_at,
+    }));
   }
 }
 
