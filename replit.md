@@ -39,6 +39,8 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
 - **CMO-Safe Gate Order**: Keyword evaluation follows strict gate order - G (Negative Scope) hard gate first, then B (Category Fence) soft gate, then H (Scoring), finally E/F (Strategic/Channel) with proper early returns.
 - **Context Workflow**: State machine for managing context lifecycle (DRAFT_AI to LOCKED) with validation gates and approval workflows.
 - **Module Contract System**: Consolidated module definitions in `shared/module.contract.ts` - single source of truth for UCR sections, module contracts, dispositions, severity levels, and traces.
+- **Category Demand Trend Module** (`market.category_demand_trend.v1`): Analyzes 5-year demand trends by category. Features CAGR calculation (only with ≥4.5 years data), linear regression slope analysis, trend classification (growing/stagnating/declining), seasonality peak detection, and timing recommendations. Implementation file: `server/modules/category-demand-trend.ts`.
+  - **Known Limitation**: `supporting_queries` provides category-level slopes rather than per-query differentiation due to the MarketDemandAnalyzer's aggregation architecture. Future enhancement would require exposing per-query trend series from the analyzer.
 
 ### System Design Choices
 The architecture emphasizes modularity with clear separation of concerns (frontend/backend, data providers). It leverages modern web development best practices including type safety (TypeScript, Zod, Drizzle ORM) and component-based UI development. The multi-provider keyword gap architecture allows for flexible integration of various SEO data sources, and the configurable scoring system provides adaptability for different industry verticals.
