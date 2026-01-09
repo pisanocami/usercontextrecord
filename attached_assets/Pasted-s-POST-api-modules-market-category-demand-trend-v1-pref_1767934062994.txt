@@ -1,0 +1,51 @@
+s] POST /api/modules/market.category_demand_trend.v1/preflight 200 in 18ms :: {"success":true,"data":{"moduleId":"market.category_demand_trend.v1","status":"ready","sectionChecks":[{"section":"A","name":"Brand Context","required":true,"available":true},{"section":"B","name":"Category Definition","required":true,"available":true},{"section":"C","name":"Competitive Set","required":false,"available":true},{"section":"D","name":"Demand Definition","required":false,"available":true},{"section":"E","name":"Strategic Intent","required":false,"available":true},{"section":"F","name":"Channel Context","required":false,"available":true},{"section":"G","name":"Negative Scope","required":false,"available":true},{"section":"H","name":"Governance","required":false,"available":true}],"entityChecks":[],"missingRequired":[],"allRequirementsMet":true,"summary":"All requirements met. Ready to run."}}
+[MarketDemandAnalyzer] Analyzing 6 category groups for US
+[MarketDemandAnalyzer] Cache miss for Construction & Mining Equipment, fetching data...
+[DataForSEO Trends] Fetching batch of 1 queries
+[DataForSEO Trends] Time range: past_5_years
+[DataForSEO Trends] Item type: google_trends_graph
+[DataForSEO Trends] Data points: 262
+[DataForSEO Trends] Keywords in item: Construction & Mining Equipment
+[DataForSEO Trends] Extracted 262 data points for "Construction & Mining Equipment" (index 0)
+[MarketDemandAnalyzer] Fetched 262 data points for Construction & Mining Equipment
+[MarketDemandAnalyzer] Cache miss for Heavy Machinery, fetching data...
+[DataForSEO Trends] Fetching batch of 1 queries
+[DataForSEO Trends] Time range: past_5_years
+[DataForSEO Trends] Item type: google_trends_graph
+[DataForSEO Trends] Data points: 262
+[DataForSEO Trends] Keywords in item: Heavy Machinery
+[DataForSEO Trends] Extracted 262 data points for "Heavy Machinery" (index 0)
+[MarketDemandAnalyzer] Fetched 262 data points for Heavy Machinery
+[MarketDemandAnalyzer] Cache miss for Mining Equipment, fetching data...
+[DataForSEO Trends] Fetching batch of 1 queries
+[DataForSEO Trends] Time range: past_5_years
+[DataForSEO Trends] Item type: google_trends_graph
+[DataForSEO Trends] Data points: 262
+[DataForSEO Trends] Keywords in item: Mining Equipment
+[DataForSEO Trends] Extracted 262 data points for "Mining Equipment" (index 0)
+[MarketDemandAnalyzer] Fetched 262 data points for Mining Equipment
+[MarketDemandAnalyzer] Cache miss for Earthmoving Machinery, fetching data...
+[DataForSEO Trends] Fetching batch of 1 queries
+[DataForSEO Trends] Time range: past_5_years
+[DataForSEO Trends] Item type: google_trends_graph
+[DataForSEO Trends] Data points: 262
+[DataForSEO Trends] Keywords in item: Earthmoving Machinery
+[DataForSEO Trends] Extracted 262 data points for "Earthmoving Machinery" (index 0)
+[MarketDemandAnalyzer] Fetched 262 data points for Earthmoving Machinery
+[MarketDemandAnalyzer] Cache miss for Construction Equipment, fetching data...
+[DataForSEO Trends] Fetching batch of 1 queries
+[DataForSEO Trends] Time range: past_5_years
+[DataForSEO Trends] Item type: google_trends_graph
+[DataForSEO Trends] Data points: 262
+[DataForSEO Trends] Keywords in item: Construction Equipment
+[DataForSEO Trends] Extracted 262 data points for "Construction Equipment" (index 0)
+[MarketDemandAnalyzer] Fetched 262 data points for Construction Equipment
+[MarketDemandAnalyzer] Cache miss for Industrial Vehicles, fetching data...
+[DataForSEO Trends] Fetching batch of 1 queries
+[DataForSEO Trends] Time range: past_5_years
+[DataForSEO Trends] Item type: google_trends_graph
+[DataForSEO Trends] Data points: 262
+[DataForSEO Trends] Keywords in item: Industrial Vehicles
+[DataForSEO Trends] Extracted 262 data points for "Industrial Vehicles" (index 0)
+[MarketDemandAnalyzer] Fetched 262 data points for Industrial Vehicles
+4:46:53 AM [express] POST /api/modules/market.category_demand_trend.v1/run 200 in 66938ms :: {"success":true,"data":{"category":"Construction & Mining Equipment","composite_trend":[{"date":"2021-01-01","value":22},{"date":"2021-02-01","value":24},{"date":"2021-03-01","value":21},{"date":"2021-04-01","value":28},{"date":"2021-05-01","value":27},{"date":"2021-06-01","value":24},{"date":"2021-07-01","value":23},{"date":"2021-08-01","value":26},{"date":"2021-09-01","value":25},{"date":"2021-10-01","value":27},{"date":"2021-11-01","value":25},{"date":"2021-12-01","value":21},{"date":"2022-01-01","value":21},{"date":"2022-02-01","value":30},{"date":"2022-03-01","value":26},{"date":"2022-04-01","value":28},{"date":"2022-05-01","value":22},{"date":"2022-06-01","value":21},{"date":"2022-07-01","value":21},{"date":"2022-08-01","value":24},{"date":"2022-09-01","value":23},{"date":"2022-10-01","value":23},{"date":"2022-11-01","value":22},{"date":"2022-12-01","value":21},{"date":"2023-01-01","value":24},{"date":"2023-02-01","value":24},{"date":"2023-03-01","value":25},{"date":"2023-04-01","value":26},{"date":"2023-05-01","value":24},{"date":"2023-06-01","value":21},{"date":"2023-07-01","value":21},{"date":"2023-08-01","value":23},{"date":"2023-09-01","value":26},{"date":"2023-10-01","value":25},{"date":"2023-11-01","value":24},{"date":"2023-12-01","value":22},{"date":"2024-01-01","value":26},{"date":"2024-02-01","value":28},{"date":"2024-03-01","value":29},{"date":"2024-04-01","value":33},{"date":"2024-05-01","value":25},{"date":"2024-06-01","value":24},{"date":"2024-07-01","value":23},{"date":"2024-08-01","value":25},{"date":"2024-09-01","value":27},{"date":"2024-10-01","value":28},{"date":"2024-11-01","value":26},{"date":"2024-12-01","value":26},{"date":"2025-01-01","value":32},{"date":"2025-02-01","value":35},{"date":"2025-03-01","value":42},{"date":"2025-04-01","value":39},{"date":"2025-05-01","value":33},{"date":"2025-06-01","value":37},{"date":"2025-07-01","value":47},{"date":"2025-08-01","value":44},{"date":"2025-09-01","value":47},{"date":"2025-10-01","value":44},{"date":"2025-11-01","value":55},{"date":"2025-12-01","value":48},{"date":"2026-01-01","value":36}],"cagr_5y":0.116,"trend_direction":"growing","slope":0.31,"supporting_queries":{"Construction & Mining Equipment":-0.01,"Heavy Machinery":0.62,"Mining Equipment":0.17,"Earthmoving Machinery":0.07,"Construction Equipment":0.47,"Industrial Vehicles":0.55},"peak_months":["Apr","Nov","Sep"],"timing_recommendation":"Optimal timing for campaigns: 2-4 weeks before Apr","executive_summary":"The Construction & Mining Equipment category shows strong growth signals with 11.6% CAGR over 5.0 years. Peak interest typically occurs in Apr, Nov, Sep. This indicates a healthy category worth continued investment.","data_coverage":{"months_available":61,"years_covered":5,"is_full_5y":true}},"error":null,"context":{"ucr_version":"v23-mk2afdzr","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-09T04:46:53.470Z","module_id":"market.category_demand_trend.v1"}}
