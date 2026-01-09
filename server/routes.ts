@@ -12,7 +12,7 @@ import { computeKeywordGap, clearCache, getCacheStats, type KeywordGapResult as 
 import { getProvider, getAllProviderStatuses, type ProviderType } from "./providers";
 import { validateContext, type ContextValidationResult } from "./context-validator";
 import { validateConfiguration as validateConfigurationFull, type FullValidationResult } from "@shared/validation";
-import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES } from "@shared/module.contract";
+import { getAllModules, getActiveModules, getModuleDefinition, canModuleExecute, UCR_SECTION_NAMES, CONTRACT_REGISTRY } from "@shared/module.contract";
 import { validateModuleExecution } from "./execution-gateway";
 import { marketDemandAnalyzer } from "./market-demand-analyzer";
 import { runModule } from "./module-runner";
@@ -2673,9 +2673,67 @@ IMPORTANT:
     }
   });
 
+  // ==================== MODULE RUN HISTORY ====================
+
+  // Get module run history for a user
+  app.get("/api/module-runs", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const configId = req.query.configId ? parseInt(req.query.configId, 10) : undefined;
+      const moduleId = req.query.moduleId as string | undefined;
+
+      const runs = await storage.getModuleRuns(userId, configId, moduleId);
+      res.json(runs);
+    } catch (error: any) {
+      console.error("Error fetching module runs:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch module runs" });
+    }
+  });
+
+  // Get a specific module run by ID
+  app.get("/api/module-runs/:id", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const id = parseInt(req.params.id, 10);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid run ID" });
+      }
+
+      const run = await storage.getModuleRunById(id, userId);
+      if (!run) {
+        return res.status(404).json({ error: "Module run not found" });
+      }
+
+      res.json(run);
+    } catch (error: any) {
+      console.error("Error fetching module run:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch module run" });
+    }
+  });
+
+  // Get module runs for a specific configuration
+  app.get("/api/configurations/:configId/module-runs", async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const configId = parseInt(req.params.configId, 10);
+
+      if (isNaN(configId)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+
+      const runs = await storage.getModuleRunsByConfig(configId, userId);
+      res.json(runs);
+    } catch (error: any) {
+      console.error("Error fetching module runs for config:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch module runs" });
+    }
+  });
+
   // ==================== GENERIC MODULE RUNNER ====================
 
   app.post("/api/modules/:moduleId/run", async (req: any, res) => {
+    const startTime = Date.now();
     try {
       const moduleId = req.params.moduleId;
       const { configId, inputs } = req.body;
@@ -2685,18 +2743,41 @@ IMPORTANT:
         return res.status(400).json({ error: "configId is required" });
       }
 
-      // 1. Ownership Check (Implicit in storage.getConfiguration via wrapper, but explicit usage here)
-      // Note: runModule fetches config. We might want to pass userId down to ensure ownership.
-      // For now, we assume if you have the ID you can run it (MVP).
+      // Get module name from contract registry
+      const contract = CONTRACT_REGISTRY[moduleId];
+      const moduleName = contract?.name || moduleId;
 
       const result = await runModule(moduleId, configId, inputs || {});
+      const executionTimeMs = Date.now() - startTime;
 
-      if (!result.success) {
-        // Gates failed or logic errored
-        return res.status(400).json(result);
+      // Persist module run to database
+      let persistenceWarning: string | null = null;
+      try {
+        await storage.createModuleRun({
+          userId,
+          configurationId: configId,
+          moduleId,
+          moduleName,
+          status: result.success ? "completed" : "failed",
+          ucrVersion: result.context?.ucr_version || null,
+          sectionsUsed: result.context?.sections_used || [],
+          inputs: inputs || {},
+          results: result.success ? result.data : null,
+          error: result.success ? null : (result.error || "Unknown error"),
+          executionTimeMs,
+          rulesTriggered: result.context?.rules_triggered || [],
+        });
+        console.log(`[ModuleRun] Persisted ${moduleId} run for config ${configId} (${executionTimeMs}ms)`);
+      } catch (dbError: any) {
+        persistenceWarning = "Results not saved to history";
+        console.error(`[ModuleRun] FAILED to persist ${moduleId} run:`, dbError.message);
       }
 
-      res.json(result);
+      if (!result.success) {
+        return res.status(400).json({ ...result, persistenceWarning });
+      }
+
+      res.json({ ...result, persistenceWarning });
     } catch (error: any) {
       console.error(`Error executing module ${req.params.moduleId}:`, error);
       res.status(500).json({
