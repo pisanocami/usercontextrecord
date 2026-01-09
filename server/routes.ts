@@ -1925,6 +1925,7 @@ IMPORTANT:
         maxCompetitors = 5,
         provider = "dataforseo" as ProviderType,
         forceRefresh = false,
+        specificCompetitors,
       } = req.body;
 
       const selectedProvider = getProvider(provider);
@@ -1973,6 +1974,7 @@ IMPORTANT:
         maxCompetitors,
         provider,
         forceRefresh,
+        specificCompetitors,
       });
 
       // Persist the analysis results to database

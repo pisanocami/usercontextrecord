@@ -488,6 +488,8 @@ interface SavedAnalysis {
   created_at: string;
 }
 
+const MAX_SELECTED_COMPETITORS = 2;
+
 export default function KeywordGap() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -496,6 +498,7 @@ export default function KeywordGap() {
   const [competitorDomain, setCompetitorDomain] = useState("");
   const [activeTab, setActiveTab] = useState("gap");
   const [selectedProvider, setSelectedProvider] = useState<ProviderType>("dataforseo");
+  const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>([]);
 
   const configId = id ? parseInt(id, 10) : null;
   
@@ -576,6 +579,7 @@ export default function KeywordGap() {
       maxCompetitors?: number;
       provider: ProviderType;
       forceRefresh?: boolean;
+      specificCompetitors?: string[];
     }) => {
       const response = await apiRequest("POST", "/api/keyword-gap-lite/run", {
         configurationId: params.configurationId,
@@ -585,6 +589,7 @@ export default function KeywordGap() {
         maxCompetitors: params.maxCompetitors ?? 5,
         provider: params.provider,
         forceRefresh: params.forceRefresh ?? false,
+        specificCompetitors: params.specificCompetitors,
       });
       return response.json() as Promise<KeywordGapLiteResult>;
     },
@@ -875,6 +880,49 @@ export default function KeywordGap() {
                 </div>
               )}
 
+              {/* Competitor selector */}
+              {allCompetitors.length > 0 && (
+                <div className="border rounded-md p-3 bg-muted/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">Competidores a analizar</p>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedCompetitors.length}/{MAX_SELECTED_COMPETITORS} max
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {allCompetitors.map((comp) => {
+                      const isSelected = selectedCompetitors.includes(comp);
+                      const canSelect = selectedCompetitors.length < MAX_SELECTED_COMPETITORS;
+                      return (
+                        <Button
+                          key={comp}
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedCompetitors(prev => prev.filter(c => c !== comp));
+                            } else if (canSelect) {
+                              setSelectedCompetitors(prev => [...prev, comp]);
+                            } else {
+                              toast({
+                                title: "Límite alcanzado",
+                                description: `Máximo ${MAX_SELECTED_COMPETITORS} competidores. Quita uno para agregar otro.`,
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          className={isSelected ? "" : (canSelect ? "" : "opacity-50")}
+                          data-testid={`btn-select-competitor-${comp}`}
+                        >
+                          {isSelected && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {comp}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Select 
@@ -905,11 +953,22 @@ export default function KeywordGap() {
                   </Select>
                   <Button
                     className="flex-1"
-                    onClick={() => liteMutation.mutate({
-                      configurationId: Number(id),
-                      provider: selectedProvider,
-                    })}
-                    disabled={liteMutation.isPending || !canRunAnalysis}
+                    onClick={() => {
+                      if (selectedCompetitors.length === 0) {
+                        toast({
+                          title: "Selecciona competidores",
+                          description: "Debes seleccionar al menos un competidor para analizar.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      liteMutation.mutate({
+                        configurationId: Number(id),
+                        provider: selectedProvider,
+                        specificCompetitors: selectedCompetitors,
+                      });
+                    }}
+                    disabled={liteMutation.isPending || !canRunAnalysis || selectedCompetitors.length === 0}
                     data-testid="button-gap-lite"
                   >
                     {liteMutation.isPending ? (
@@ -917,11 +976,16 @@ export default function KeywordGap() {
                     ) : (
                       <Zap className="h-4 w-4 mr-2" />
                     )}
-                    {isProvisional ? "Run Keyword Gap (AI-Generated)" : "Run Keyword Gap Lite"}
+                    {isProvisional ? "Run Keyword Gap" : "Run Keyword Gap"}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground text-center">
-                  {isProvisional && "Results are provisional until human validation"}
+                  {selectedCompetitors.length === 0 
+                    ? "Selecciona 1 o 2 competidores arriba"
+                    : isProvisional 
+                      ? "Results are provisional until human validation"
+                      : `Analizando ${selectedCompetitors.length} competidor${selectedCompetitors.length > 1 ? "es" : ""}`
+                  }
                 </p>
               </div>
               <Button
