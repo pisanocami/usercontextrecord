@@ -17,6 +17,7 @@ import { validateModuleExecution } from "./execution-gateway";
 import { marketDemandAnalyzer } from "./market-demand-analyzer";
 import { runModule } from "./module-runner";
 import { getAllTrendsProviderStatuses } from "./providers/trends-index";
+import { runPreflight } from "./preflight-validator";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -1740,6 +1741,32 @@ IMPORTANT:
       res.json(validation);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to validate module" });
+    }
+  });
+
+  app.post("/api/modules/:moduleId/preflight", async (req: any, res) => {
+    try {
+      const { moduleId } = req.params;
+      const { configId } = req.body;
+      const userId = (req.user as any)?.id || null;
+
+      if (!configId) {
+        return res.status(400).json({ error: "configId is required" });
+      }
+
+      const config = await storage.getConfigurationById(parseInt(configId, 10), userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const preflightResult = runPreflight(moduleId, config);
+      res.json({
+        success: true,
+        data: preflightResult
+      });
+    } catch (error: any) {
+      console.error("Preflight check error:", error);
+      res.status(500).json({ error: error.message || "Failed to run preflight check" });
     }
   });
 

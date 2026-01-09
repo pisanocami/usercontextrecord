@@ -33,6 +33,9 @@ import {
     Plus,
     SearchX,
     Lightbulb,
+    CheckCircle2,
+    XCircle,
+    ExternalLink,
 } from "lucide-react";
 import { CONTRACT_REGISTRY } from "@shared/module.contract";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
@@ -201,6 +204,32 @@ function EmptyModuleResult({ moduleId, moduleName, category, data }: EmptyModule
     );
 }
 
+interface PreflightCheckResult {
+    checkType: string;
+    passed: boolean;
+    currentValue: number | boolean | string;
+    requiredValue?: number | boolean | string;
+    description: string;
+    actionLabel: string;
+    actionPath?: string;
+    ucrSection: string;
+}
+
+interface PreflightResult {
+    moduleId: string;
+    status: "ready" | "missing_requirements" | "error";
+    sectionChecks: {
+        section: string;
+        name: string;
+        required: boolean;
+        available: boolean;
+    }[];
+    entityChecks: PreflightCheckResult[];
+    missingRequired: string[];
+    allRequirementsMet: boolean;
+    summary: string;
+}
+
 export function ModuleShell() {
     const [match, params] = useRoute("/modules/:moduleId");
     const moduleId = params?.moduleId;
@@ -217,7 +246,22 @@ export function ModuleShell() {
         queryFn: getQueryFn({ on401: "throw" }),
     });
 
-    // 3. Execution Mutation
+    // 3. Preflight check when config is selected
+    const { data: preflightData, isLoading: isLoadingPreflight, refetch: refetchPreflight } = useQuery<{ success: boolean; data: PreflightResult }>({
+        queryKey: ["/api/modules", moduleId, "preflight", selectedConfigId],
+        queryFn: async () => {
+            if (!selectedConfigId || !moduleId) return null;
+            const res = await apiRequest("POST", `/api/modules/${moduleId}/preflight`, { configId: parseInt(selectedConfigId) });
+            return res.json();
+        },
+        enabled: !!selectedConfigId && !!moduleId,
+    });
+
+    const preflight = preflightData?.data;
+    const preflightReady = preflight?.allRequirementsMet ?? false;
+    const preflightError = preflightData === undefined && !isLoadingPreflight && selectedConfigId;
+
+    // 4. Execution Mutation
     const runMutation = useMutation({
         mutationFn: async () => {
             if (!selectedConfigId) {
@@ -241,7 +285,7 @@ export function ModuleShell() {
     });
 
     const selectedConfig = configurations?.find(c => c.id.toString() === selectedConfigId);
-    const canRun = !!selectedConfigId && !runMutation.isPending;
+    const canRun = !!selectedConfigId && !runMutation.isPending && preflightReady;
 
     if (!moduleId || !contract) {
         return (
@@ -353,6 +397,97 @@ export function ModuleShell() {
 
                     {/* Left Column: Inputs & Context (1/3) */}
                     <div className="space-y-6">
+                        {/* Preflight Loading */}
+                        {selectedConfigId && isLoadingPreflight && (
+                            <Card className="border-muted">
+                                <CardContent className="flex items-center gap-3 py-4">
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                    <div>
+                                        <p className="text-sm font-medium">Checking requirements...</p>
+                                        <p className="text-xs text-muted-foreground">Validating configuration</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Preflight Error */}
+                        {preflightError && (
+                            <Card className="border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/20">
+                                <CardContent className="flex items-center gap-3 py-4">
+                                    <XCircle className="h-5 w-5 text-rose-600" />
+                                    <div>
+                                        <p className="text-sm font-medium text-rose-700 dark:text-rose-400">Failed to check requirements</p>
+                                        <p className="text-xs text-muted-foreground">Please try selecting the context again</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Preflight Requirements Panel */}
+                        {selectedConfigId && preflight && !preflight.allRequirementsMet && !isLoadingPreflight && (
+                            <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                        Requirements Missing
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Complete these items to run the module
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    {preflight.entityChecks.filter(c => !c.passed).map((check, idx) => (
+                                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-background border">
+                                            <XCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+                                            <div className="flex-1 space-y-2">
+                                                <p className="text-sm font-medium">{check.description}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline" className="text-xs">
+                                                        Section {check.ucrSection}
+                                                    </Badge>
+                                                    {check.actionPath && (
+                                                        <Link href={check.actionPath.replace(":id", selectedConfigId)}>
+                                                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                                                                {check.actionLabel}
+                                                                <ExternalLink className="h-3 w-3" />
+                                                            </Button>
+                                                        </Link>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {preflight.missingRequired.length > 0 && (
+                                        <div className="flex items-start gap-3 p-3 rounded-lg bg-background border">
+                                            <XCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium">Missing required sections</p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {preflight.sectionChecks
+                                                        .filter(s => s.required && !s.available)
+                                                        .map(s => s.name)
+                                                        .join(", ")}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Ready to Run indicator */}
+                        {selectedConfigId && preflight?.allRequirementsMet && !isLoadingPreflight && (
+                            <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+                                <CardContent className="flex items-center gap-3 py-4">
+                                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                    <div>
+                                        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Ready to Run</p>
+                                        <p className="text-xs text-muted-foreground">All requirements met</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-base">Required Context</CardTitle>
@@ -361,21 +496,42 @@ export function ModuleShell() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-4">
-                                {contract.contextInjection.requiredSections.map((section) => (
-                                    <div key={section} className="flex items-start gap-3">
-                                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted font-mono text-xs font-medium">
-                                            {section}
+                                {contract.contextInjection.requiredSections.map((section) => {
+                                    const sectionCheck = preflight?.sectionChecks.find(s => s.section === section);
+                                    const isAvailable = sectionCheck?.available ?? false;
+                                    const showStatus = selectedConfigId && preflight && !isLoadingPreflight;
+                                    return (
+                                        <div key={section} className="flex items-start gap-3">
+                                            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded font-mono text-xs font-medium ${
+                                                showStatus
+                                                    ? (isAvailable 
+                                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" 
+                                                        : "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300")
+                                                    : "bg-muted"
+                                            }`}>
+                                                {section}
+                                            </div>
+                                            <div className="text-sm flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-medium leading-none mb-1">
+                                                        Section {section}
+                                                    </p>
+                                                    {showStatus && (
+                                                        isAvailable 
+                                                            ? <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                                            : <XCircle className="h-3 w-3 text-rose-500" />
+                                                    )}
+                                                    {selectedConfigId && isLoadingPreflight && (
+                                                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {contract.contextInjection.sectionUsage[section]}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="text-sm">
-                                            <p className="font-medium leading-none mb-1">
-                                                Section {section}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {contract.contextInjection.sectionUsage[section]}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </CardContent>
                         </Card>
 

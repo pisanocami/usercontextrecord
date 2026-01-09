@@ -329,6 +329,58 @@ export interface CouncilRuleBinding {
 }
 
 /* ---------------------------------- */
+/* Preflight Requirements               */
+/* ---------------------------------- */
+
+export type PreflightCheckType = 
+  | "min_approved_competitors"
+  | "min_categories"
+  | "min_brand_keywords"
+  | "min_category_terms"
+  | "has_domain"
+  | "has_primary_category";
+
+export interface PreflightEntityCheck {
+  checkType: PreflightCheckType;
+  minCount?: number;
+  ucrSection: UCRSectionID;
+  fieldPath: string;
+  description: string;
+  actionLabel: string;
+  actionPath?: string;
+}
+
+export interface PreflightSpec {
+  entityChecks: PreflightEntityCheck[];
+}
+
+export interface PreflightCheckResult {
+  checkType: PreflightCheckType;
+  passed: boolean;
+  currentValue: number | boolean | string;
+  requiredValue?: number | boolean | string;
+  description: string;
+  actionLabel: string;
+  actionPath?: string;
+  ucrSection: UCRSectionID;
+}
+
+export interface ModulePreflightResult {
+  moduleId: string;
+  status: "ready" | "missing_requirements" | "error";
+  sectionChecks: {
+    section: UCRSectionID;
+    name: string;
+    required: boolean;
+    available: boolean;
+  }[];
+  entityChecks: PreflightCheckResult[];
+  missingRequired: UCRSectionID[];
+  allRequirementsMet: boolean;
+  summary: string;
+}
+
+/* ---------------------------------- */
 /* Module Contract Definition          */
 /* ---------------------------------- */
 
@@ -358,6 +410,8 @@ export interface ModuleContract {
   output: ModuleOutputSpec;
 
   councilRules?: CouncilRuleBinding;
+
+  preflight?: PreflightSpec;
 
   guardrails?: {
     neverPromiseRevenue?: boolean;
@@ -627,6 +681,36 @@ export const KeywordGapVisibilityContract: ModuleContract = {
     ]
   },
 
+  preflight: {
+    entityChecks: [
+      {
+        checkType: "min_approved_competitors",
+        minCount: 1,
+        ucrSection: "C",
+        fieldPath: "competitors.competitors",
+        description: "At least 1 approved competitor is required for gap analysis",
+        actionLabel: "Add Competitors",
+        actionPath: "/configuration/:id/competitive-set"
+      },
+      {
+        checkType: "has_domain",
+        ucrSection: "A",
+        fieldPath: "brand.domain",
+        description: "Brand domain is required for visibility comparison",
+        actionLabel: "Set Brand Domain",
+        actionPath: "/configuration/:id/brand-context"
+      },
+      {
+        checkType: "has_primary_category",
+        ucrSection: "B",
+        fieldPath: "category_definition.primary_category",
+        description: "Primary category is required for keyword relevance filtering",
+        actionLabel: "Set Category",
+        actionPath: "/configuration/:id/category-definition"
+      }
+    ]
+  },
+
   guardrails: {
     neverPromiseRevenue: true,
     neverDumpRawEntitiesWithoutFraming: true,
@@ -798,6 +882,28 @@ export const BrandAttentionContract: ModuleContract = {
   councilRules: {
     ownerCouncil: "Brand Strategy Council",
     rulePacks: []
+  },
+
+  preflight: {
+    entityChecks: [
+      {
+        checkType: "min_approved_competitors",
+        minCount: 1,
+        ucrSection: "C",
+        fieldPath: "competitors.competitors",
+        description: "At least 1 approved competitor is required for share comparison",
+        actionLabel: "Add Competitors",
+        actionPath: "/configuration/:id/competitive-set"
+      },
+      {
+        checkType: "has_domain",
+        ucrSection: "A",
+        fieldPath: "brand.domain",
+        description: "Brand domain is required for share calculation",
+        actionLabel: "Set Brand Domain",
+        actionPath: "/configuration/:id/brand-context"
+      }
+    ]
   },
 
   guardrails: {
