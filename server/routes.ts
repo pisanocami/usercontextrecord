@@ -1389,6 +1389,51 @@ export async function registerRoutes(
     }
   });
 
+  // Compare two versions
+  app.get("/api/configurations/:configId/versions/compare", async (req: any, res) => {
+    try {
+      const userId = "anonymous-user";
+      const configId = parseInt(req.params.configId);
+      const v1 = parseInt(req.query.v1 as string);
+      const v2 = parseInt(req.query.v2 as string);
+
+      if (isNaN(configId)) {
+        return res.status(400).json({ error: "Invalid configuration ID" });
+      }
+      if (isNaN(v1) || isNaN(v2)) {
+        return res.status(400).json({ error: "Both v1 and v2 query parameters are required and must be valid version IDs" });
+      }
+
+      const [version1, version2] = await Promise.all([
+        storage.getConfigurationVersion(v1, userId),
+        storage.getConfigurationVersion(v2, userId),
+      ]);
+
+      if (!version1) {
+        return res.status(404).json({ error: `Version ${v1} not found` });
+      }
+      if (!version2) {
+        return res.status(404).json({ error: `Version ${v2} not found` });
+      }
+
+      if (version1.configurationId !== configId || version2.configurationId !== configId) {
+        return res.status(400).json({ error: "Both versions must belong to the specified configuration" });
+      }
+
+      const { computeVersionDiff } = await import("@shared/version-diff");
+      const diff = computeVersionDiff(version1, version2);
+
+      res.json({
+        version1,
+        version2,
+        diff,
+      });
+    } catch (error: any) {
+      console.error("Error comparing versions:", error);
+      res.status(500).json({ error: error.message || "Failed to compare versions" });
+    }
+  });
+
   // AI-powered generation endpoint (bypass auth)
   app.post("/api/ai/generate", async (req: any, res: Response) => {
     try {
