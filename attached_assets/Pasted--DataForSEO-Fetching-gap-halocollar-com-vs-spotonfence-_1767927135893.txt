@@ -1,0 +1,21 @@
+
+[DataForSEO] Fetching gap: halocollar.com vs spotonfence.com
+[DataForSEO] Fetching gap: halocollar.com vs tryfi.com
+[DataForSEO] Fetching gap: halocollar.com vs tractive.com
+[DataForSEO] No intersection results for halocollar.com vs tryfi.com
+[DataForSEO] Got 0 gap keywords from tryfi.com
+[DataForSEO] No intersection results for halocollar.com vs tractive.com
+[DataForSEO] Got 0 gap keywords from tractive.com
+[DataForSEO] No intersection results for halocollar.com vs spotonfence.com
+[DataForSEO] Got 0 gap keywords from spotonfence.com
+2:51:34 AM [express] POST /api/modules/seo.keyword_gap_visibility.v1/run 200 in 453ms :: {"success":true,"data":{"brandDomain":"halocollar.com","competitors":["spotonfence.com","tryfi.com","tractive.com"],"totalGapKeywords":0,"topOpportunities":[],"needsReview":[],"outOfPlay":[],"grouped":{},"stats":{"passed":0,"review":0,"outOfPlay":0,"percentPassed":0,"percentReview":0,"percentOutOfPlay":0},"filtersApplied":{"excludedCategories":2,"excludedKeywords":3,"excludedUseCases":2,"competitorBrandTerms":0,"variantTerms":0,"irrelevantEntities":0,"lowCapability":0,"totalFilters":7},"contextVersion":1,"configurationName":"Halocollar Context","fromCache":false,"provider":"dataforseo","ucrContext":{"ucr_version":"v25-mk345cas","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":["negative_scope.match"],"executed_at":"2026-01-09T02:51:34.170Z","module_id":"seo_visibility_gap"}},"error":null,"context":{"ucr_version":"v25-mk345cas","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-09T02:51:34.170Z","module_id":"seo.keyword_gap_visibility.v1"}}
+[DataForSEO] Fetching gap: caterpillar.com vs komatsu.com
+[DataForSEO] Fetching gap: caterpillar.com vs volvoce.com
+[DataForSEO] Fetching gap: caterpillar.com vs deere.com
+[DataForSEO] No intersection results for caterpillar.com vs komatsu.com
+[DataForSEO] Got 0 gap keywords from komatsu.com
+[DataForSEO] No intersection results for caterpillar.com vs deere.com
+[DataForSEO] Got 0 gap keywords from deere.com
+[DataForSEO] No intersection results for caterpillar.com vs volvoce.com
+[DataForSEO] Got 0 gap keywords from volvoce.com
+2:51:45 AM [express] POST /api/modules/seo.keyword_gap_visibility.v1/run 200 in 398ms :: {"success":true,"data":{"brandDomain":"caterpillar.com","competitors":["komatsu.com","volvoce.com","deere.com"],"totalGapKeywords":0,"topOpportunities":[],"needsReview":[],"outOfPlay":[],"grouped":{},"stats":{"passed":0,"review":0,"outOfPlay":0,"percentPassed":0,"percentReview":0,"percentOutOfPlay":0},"filtersApplied":{"excludedCategories":3,"excludedKeywords":3,"excludedUseCases":3,"competitorBrandTerms":0,"variantTerms":0,"irrelevantEntities":0,"lowCapability":0,"totalFilters":9},"contextVersion":1,"configurationName":"Caterpillar Inc.","fromCache":false,"provider":"dataforseo","ucrContext":{"ucr_version":"v24-mk2bbccd","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":["negative_scope.match"],"executed_at":"2026-01-09T02:51:45.263Z","module_id":"seo_visibility_gap"}},"error":null,"context":{"ucr_version":"v24-mk2bbccd","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-09T02:51:45.263Z","module_id":"seo.keyword_gap_visibility.v1"}}
