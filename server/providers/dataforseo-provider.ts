@@ -130,13 +130,8 @@ export class DataForSEOProvider implements KeywordDataProvider {
       const result = response.tasks?.[0]?.result?.[0];
       
       if (!result || !result.items) {
-        console.log(`[DataForSEO] No intersection results for ${cleanBrand} vs ${cleanCompetitor}`);
-        return {
-          brandDomain: cleanBrand,
-          competitorDomain: cleanCompetitor,
-          gapKeywords: [],
-          totalCount: 0,
-        };
+        console.log(`[DataForSEO] No intersection results for ${cleanBrand} vs ${cleanCompetitor}, trying fallback...`);
+        return this.getGapKeywordsFallback(cleanBrand, cleanCompetitor, options);
       }
 
       const gapKeywords: GapKeyword[] = result.items
