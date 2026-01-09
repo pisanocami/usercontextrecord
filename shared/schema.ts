@@ -99,6 +99,48 @@ export const keywordGapAnalyses = pgTable("keyword_gap_analyses", {
   created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Module Runs table - stores complete history of module executions
+export const moduleRuns = pgTable("module_runs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  configurationId: integer("configuration_id").notNull(),
+  moduleId: varchar("module_id").notNull(), // e.g., "market.category_demand_trend.v1"
+  moduleName: text("module_name").notNull(), // Human-readable name
+  status: varchar("status").notNull().default("completed"), // "running" | "completed" | "failed"
+  // Execution context
+  ucrVersion: varchar("ucr_version"), // Version hash of UCR used
+  sectionsUsed: jsonb("sections_used").default([]), // Array of section IDs used
+  // Inputs and outputs
+  inputs: jsonb("inputs").default({}), // Parameters passed to module
+  results: jsonb("results"), // Full module output (null if failed)
+  error: text("error"), // Error message if failed
+  // Execution metadata
+  executionTimeMs: integer("execution_time_ms"), // How long the module took
+  rulesTriggered: jsonb("rules_triggered").default([]), // UCR rules that fired
+  // Timestamps
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Module Run types
+export interface ModuleRun {
+  id: number;
+  userId: string;
+  configurationId: number;
+  moduleId: string;
+  moduleName: string;
+  status: "running" | "completed" | "failed";
+  ucrVersion: string | null;
+  sectionsUsed: string[];
+  inputs: Record<string, any>;
+  results: Record<string, any> | null;
+  error: string | null;
+  executionTimeMs: number | null;
+  rulesTriggered: any[];
+  created_at: Date;
+}
+
+export type InsertModuleRun = Omit<ModuleRun, "id" | "created_at">;
+
 // Bulk brand input schema
 export const bulkBrandInputSchema = z.object({
   domain: z.string().min(1),
