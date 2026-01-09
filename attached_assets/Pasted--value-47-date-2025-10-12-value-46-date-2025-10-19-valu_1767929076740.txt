@@ -1,0 +1,16 @@
+","value":47},{"date":"2025-10-12","value":46},{"date":"2025-10-19","value":0},{"date":"2025-10-26","value":0},{"date":"2025-11-02","value":0},{"date":"2025-11-09","value":83},{"date":"2025-11-16","value":0},{"date":"2025-11-23","value":77},{"date":"2025-11-30","value":51},{"date":"2025-12-07","value":97},{"date":"2025-12-14","value":78},{"date":"2025-12-21","value":59},{"date":"2025-12-28","value":28},{"date":"2026-01-04","value":32}],"heatmap":{"Jan":6,"Feb":0,"Mar":27,"Apr":0,"May":44,"Jun":75,"Jul":78,"Aug":59,"Sep":72,"Oct":23,"Nov":42,"Dec":66}},"executiveSummary":"Analyzed 1 category groups: - Recovery footwear: peaks in Jul (medium consistency)","trace":{"sectionsUsed":["B","E"],"sectionsMissing":[],"filtersApplied":["negative_scope"],"rulesTriggered":["per_category_analysis","timing_consistency_check"]},"metadata":{"fetchedAt":"2026-01-09T03:23:09.557Z","cached":false,"dataSource":"DataForSEO Trends"}}
+Module Execution Error [brand.attention_share.v1]: Error: Module implementation for "brand.attention_share.v1" is not yet connected to the runner.
+    at runModule (/home/runner/workspace/server/module-runner.ts:161:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2665:22)
+3:23:33 AM [express] POST /api/modules/brand.attention_share.v1/run 400 in 23ms :: {"success":false,"data":null,"error":"Module implementation for \"brand.attention_share.v1\" is not yet connected to the runner.","context":{"ucr_version":"v24-mk2bbccd","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-09T03:23:33.030Z","module_id":"brand.attention_share.v1"}}
+Module Execution Error [brand.attention_share.v1]: Error: Module implementation for "brand.attention_share.v1" is not yet connected to the runner.
+    at runModule (/home/runner/workspace/server/module-runner.ts:161:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2665:22)
+3:24:09 AM [express] POST /api/modules/brand.attention_share.v1/run 400 in 14ms :: {"success":false,"data":null,"error":"Module implementation for \"brand.attention_share.v1\" is not yet connected to the runner.","context":{"ucr_version":"v25-mk345cas","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-09T03:24:09.658Z","module_id":"brand.attention_share.v1"}}
+Module Execution Error [brand.attention_share.v1]: Error: Module implementation for "brand.attention_share.v1" is not yet connected to the runner.
+    at runModule (/home/runner/workspace/server/module-runner.ts:161:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2665:22)
+3:24:15 AM [express] POST /api/modules/brand.attention_share.v1/run 400 in 3ms :: {"success":false,"data":null,"error":"Module implementation for \"brand.attention_share.v1\" is not yet connected to the runner.","context":{"ucr_version":"v20-mk28dhnr","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-09T03:24:15.619Z","module_id":"brand.attention_share.v1"}}

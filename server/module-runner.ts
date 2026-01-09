@@ -99,6 +99,7 @@ export async function runModule(
                 break;
 
             case "brand.attention.v1":
+            case "brand.attention_share.v1":
                 // Call Real Brand Attention Logic
                 resultData = await analyzeBrandAttention(config, {
                     limitPerDomain: inputs.limitPerDomain,
