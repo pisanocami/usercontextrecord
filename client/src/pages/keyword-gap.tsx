@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { downloadKeywordGapXLSX } from "@/lib/downloadUtils";
+import { KeywordGapVisualizations } from "@/components/visualizations/keyword-gap-visualizations";
 
 interface RankedKeyword {
   keyword: string;
@@ -1502,6 +1503,51 @@ export default function KeywordGap() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {liteResult && (
+          <div className="mb-6" data-testid="visualizations-section">
+            <KeywordGapVisualizations
+              keywords={[
+                ...liteResult.topOpportunities.map((kw) => ({
+                  keyword: kw.keyword,
+                  searchVolume: kw.searchVolume,
+                  keywordDifficulty: kw.keywordDifficulty,
+                  cpc: kw.cpc,
+                  theme: kw.theme,
+                  status: kw.status as "pass" | "review" | "out_of_play",
+                  capabilityScore: kw.capabilityScore,
+                  opportunityScore: kw.opportunityScore,
+                  competitorRanks: kw.competitorsSeen?.reduce((acc, c) => ({ ...acc, [c]: 1 }), {}),
+                })),
+                ...liteResult.needsReview.map((kw) => ({
+                  keyword: kw.keyword,
+                  searchVolume: kw.searchVolume,
+                  keywordDifficulty: kw.keywordDifficulty,
+                  cpc: kw.cpc,
+                  theme: kw.theme,
+                  status: kw.status as "pass" | "review" | "out_of_play",
+                  capabilityScore: kw.capabilityScore,
+                  opportunityScore: kw.opportunityScore,
+                  competitorRanks: kw.competitorsSeen?.reduce((acc, c) => ({ ...acc, [c]: 1 }), {}),
+                })),
+                ...liteResult.outOfPlay.map((kw) => ({
+                  keyword: kw.keyword,
+                  searchVolume: kw.searchVolume,
+                  keywordDifficulty: kw.keywordDifficulty,
+                  cpc: kw.cpc,
+                  theme: kw.theme,
+                  status: kw.status as "pass" | "review" | "out_of_play",
+                  capabilityScore: kw.capabilityScore,
+                  opportunityScore: kw.opportunityScore,
+                  competitorRanks: kw.competitorsSeen?.reduce((acc, c) => ({ ...acc, [c]: 1 }), {}),
+                })),
+              ]}
+              brandDomain={liteResult.brandDomain}
+              competitors={liteResult.competitors}
+              title="Visualizaciones de Gap Competitivo"
+            />
+          </div>
         )}
 
         {result && (
