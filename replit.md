@@ -111,6 +111,20 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
   - All visualizations use Recharts library with responsive containers
   - Integrated into existing Keyword Gap page with collapsible accordion sections
 
+- **Competitive Intelligence Dashboard** (`/competitive-radar/:id`): Real-time competitive radar detecting competitor movements, ranking shifts, and market changes.
+  - Database table: `competitive_signals` storing detected signals with signal type, severity, impact, and recommendations
+  - Signal types: ranking_shift, new_keyword, demand_inflection, new_content, serp_entrant
+  - Severity levels: critical, high, medium, low (with UCR-based prioritization)
+  - CompetitiveSignalDetector service integrating with Keyword Gap and Market Demand data
+  - AI-generated insights in Spanish for impact and recommendation fields using gpt-4o-mini
+  - Weekly digest showing top 3-5 signals ("Lo que debes saber esta semana")
+  - Filter controls for signal type and severity
+  - Automatic alert integration for high/critical severity signals
+  - Supports "latest" URL parameter to resolve to most recent configuration
+  - API endpoints: POST `/api/configurations/:id/competitive-signals/detect`, GET `/api/configurations/:id/competitive-signals`, POST `/api/competitive-signals/:id/dismiss`, GET `/api/configurations/:id/competitive-signals/digest`
+  - Implementation: `server/competitive-signal-detector.ts`, `client/src/pages/competitive-radar.tsx`
+  - Module contract: `intel.competitive_radar.v1`
+
 ### System Design Choices
 The architecture emphasizes modularity with clear separation of concerns (frontend/backend, data providers). It leverages modern web development best practices including type safety (TypeScript, Zod, Drizzle ORM) and component-based UI development. The multi-provider keyword gap architecture allows for flexible integration of various SEO data sources, and the configurable scoring system provides adaptability for different industry verticals.
 
