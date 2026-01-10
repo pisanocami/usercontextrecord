@@ -156,6 +156,24 @@ export const alerts = pgTable("alerts", {
   created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Competitive Signals table - stores detected competitive intelligence signals
+export const competitiveSignals = pgTable("competitive_signals", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  configurationId: integer("configuration_id").notNull(),
+  signalType: varchar("signal_type").notNull(),
+  severity: varchar("severity").notNull().default("medium"),
+  competitor: varchar("competitor"),
+  keyword: text("keyword"),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  impact: text("impact"),
+  recommendation: text("recommendation"),
+  changeData: jsonb("change_data").default({}),
+  dismissed: boolean("dismissed").notNull().default(false),
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 // Alert preferences table - user notification settings
 export const alertPreferences = pgTable("alert_preferences", {
   id: serial("id").primaryKey(),
@@ -220,6 +238,43 @@ export const updateAlertPreferencesSchema = z.object({
   expirationWarningEnabled: z.boolean().optional(),
   analysisCompleteEnabled: z.boolean().optional(),
   emailNotifications: z.boolean().optional(),
+});
+
+// Competitive Signal types
+export type SignalType = "ranking_shift" | "new_keyword" | "demand_inflection" | "new_content" | "serp_entrant";
+export type SignalSeverity = "low" | "medium" | "high" | "critical";
+
+export interface CompetitiveSignal {
+  id: number;
+  userId: string;
+  configurationId: number;
+  signalType: SignalType;
+  severity: SignalSeverity;
+  competitor: string | null;
+  keyword: string | null;
+  title: string;
+  description: string;
+  impact: string | null;
+  recommendation: string | null;
+  changeData: Record<string, any>;
+  dismissed: boolean;
+  created_at: Date;
+}
+
+export type InsertCompetitiveSignal = Omit<CompetitiveSignal, "id" | "created_at" | "dismissed">;
+
+export const insertCompetitiveSignalSchema = z.object({
+  userId: z.string(),
+  configurationId: z.number(),
+  signalType: z.enum(["ranking_shift", "new_keyword", "demand_inflection", "new_content", "serp_entrant"]),
+  severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  competitor: z.string().nullable().optional(),
+  keyword: z.string().nullable().optional(),
+  title: z.string(),
+  description: z.string(),
+  impact: z.string().nullable().optional(),
+  recommendation: z.string().nullable().optional(),
+  changeData: z.record(z.any()).default({}),
 });
 
 // Bulk brand input schema

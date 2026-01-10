@@ -1608,6 +1608,57 @@ export const SWOTAnalysisContract: ModuleContract = {
   }
 };
 
+export const CompetitiveRadarContract: ModuleContract = {
+  moduleId: "intel.competitive_radar.v1",
+  name: "Competitive Radar",
+  category: "Competitive Intelligence",
+  layer: "Signal",
+  version: "1.0.0",
+  description: "Real-time competitive intelligence dashboard that detects and surfaces competitor movements, ranking shifts, and market changes that impact your brand.",
+  strategicQuestion: "What just changed in my competitive environment that I should care about?",
+  dataSources: ["DataForSEO", "Internal"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "external" },
+  caching: { cadence: "daily", bustOnChanges: ["competitor_set", "category_scope", "market"] },
+  executionGate: { allowedStatuses: ["LOCKED", "HUMAN_CONFIRMED", "AI_READY"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B", "C"],
+    optionalSections: ["D", "E", "F", "G", "H"],
+    sectionUsage: {
+      A: "Defines brand identity for contextual signal filtering.",
+      B: "Defines category scope to focus on relevant market movements.",
+      C: "Defines competitor set to monitor for changes.",
+      D: "Provides demand context for demand inflection detection.",
+      E: "Strategic intent for signal prioritization.",
+      F: "Channel context for channel-specific signals.",
+      G: "Negative scope for filtering irrelevant signals.",
+      H: "Governance for confidence thresholds."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "lookbackDays", type: "number", required: false, description: "Number of days to look back for changes (default: 7)" },
+      { name: "signalTypes", type: "string[]", required: false, description: "Filter by signal types" },
+      { name: "minSeverity", type: "string", required: false, description: "Minimum severity to include" }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence"], runTraceFields: ["sectionsUsed", "filtersApplied"] },
+  output: {
+    entityType: "competitive_signal",
+    visuals: [
+      { kind: "card", title: "Weekly Digest", description: "Top 3-5 signals you should know about" },
+      { kind: "table", title: "All Signals", description: "Full list of detected competitive signals" },
+      { kind: "line", title: "Signal Timeline", description: "Signals over time by type" }
+    ],
+    summaryFields: ["total_signals", "high_priority_count", "competitors_active", "top_signal_type"]
+  },
+  guardrails: {
+    neverPromiseRevenue: true,
+    alwaysProvideNextStep: true
+  }
+};
+
 /* ---------------------------------- */
 /* Default Registry                    */
 /* ---------------------------------- */
@@ -1631,7 +1682,8 @@ export const CONTRACT_REGISTRY = createContractRegistry([
   PaidOrganicOverlapContract,
   ShareOfVoiceContract,
   StrategicSummaryContract,
-  SWOTAnalysisContract
+  SWOTAnalysisContract,
+  CompetitiveRadarContract
 ]);
 
 export function getAllContracts(): ModuleContract[] {
