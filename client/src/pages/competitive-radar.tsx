@@ -325,11 +325,20 @@ function WeeklyDigestSection({ digest }: { digest: WeeklyDigest | null }) {
 
 export default function CompetitiveRadarPage() {
   const { id } = useParams<{ id: string }>();
-  const configId = parseInt(id || "0", 10);
+  const isLatest = id === "latest";
   const { toast } = useToast();
 
   const [signalTypeFilter, setSignalTypeFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+
+  // Fetch all configurations if "latest" is used
+  const { data: allConfigs, isLoading: isLoadingAll } = useQuery<Configuration[]>({
+    queryKey: ["/api/configurations"],
+    enabled: isLatest,
+  });
+
+  // Resolve the actual config ID
+  const configId = isLatest && allConfigs?.length ? allConfigs[0].id : (id && !isLatest ? parseInt(id, 10) : 0);
 
   const { data: config, isLoading: configLoading } = useQuery<Configuration>({
     queryKey: ["/api/configurations", configId],
@@ -388,9 +397,8 @@ export default function CompetitiveRadarPage() {
   const dismissMutation = useMutation({
     mutationFn: async (signalId: number) => {
       return apiRequest(
-        "PATCH",
-        `/api/configurations/${configId}/competitive-signals/${signalId}`,
-        { dismissed: true }
+        "POST",
+        `/api/competitive-signals/${signalId}/dismiss`
       );
     },
     onSuccess: () => {
@@ -423,12 +431,25 @@ export default function CompetitiveRadarPage() {
       return true;
     }) || [];
 
-  const isLoading = configLoading || signalsLoading || digestLoading;
+  const isLoading = configLoading || signalsLoading || digestLoading || (isLatest && isLoadingAll);
+
+  // Wait for configs to load when using "latest"
+  if (isLatest && isLoadingAll) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!configId || configId <= 0) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">ID de configuración inválido</p>
+      <div className="flex items-center justify-center h-full flex-col gap-4">
+        <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+        <p className="text-muted-foreground">No hay configuraciones disponibles</p>
+        <Link href="/new">
+          <Button>Crear nueva configuración</Button>
+        </Link>
       </div>
     );
   }
