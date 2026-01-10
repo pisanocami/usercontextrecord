@@ -59,6 +59,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "SEO Signal": Search,
   "Market Trends": TrendingUp,
   "Brand Signal": Megaphone,
+  "Intelligence": BrainCircuit,
 };
 
 const CONTEXT_NAV_ITEMS: NavItemConfig[] = [

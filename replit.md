@@ -1,147 +1,45 @@
 # Brand Intelligence Configuration Platform
 
 ## Overview
-
-This is a B2B SaaS configuration platform for marketing intelligence with enterprise-grade security. It enables authenticated users to configure brand context, competitive sets, demand definitions, and strategic guardrails using AI-powered suggestions and persistent storage. The platform aims to provide CMO-safe governance with auditability and an executive summary view of configurations, alongside advanced features like competitor keyword gap analysis.
+This B2B SaaS platform provides marketing intelligence configuration with enterprise-grade security. It enables authenticated users to configure brand context, competitive sets, and demand definitions using AI-powered suggestions. The platform ensures CMO-safe governance with auditability, executive summary views, and advanced features like competitor keyword gap analysis. Its vision is to be a comprehensive tool for strategic marketing intelligence, offering detailed insights and actionable recommendations to enhance brand performance and market understanding.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 Language: Spanish preferred for communication.
 
 ## System Architecture
+The platform is built with a clear separation of concerns, using React 18 with TypeScript, Tailwind CSS, and `shadcn/ui` for a responsive frontend, and Express.js with TypeScript for a RESTful JSON API backend.
 
 ### UI/UX Decisions
-The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn/ui` components for a modern, responsive design with light/dark mode support. It features a section-based configuration wizard with persistent navigation, AI generation buttons, and an executive summary visualization.
+The frontend features a modern design with light/dark mode support, section-based configuration wizards, persistent navigation, and an executive summary visualization.
 
 ### Technical Implementations
-- **Frontend**: React 18, Wouter for routing, TanStack React Query for server state, React Hook Form for form management, Vite for building.
+- **Frontend**: React 18, Wouter for routing, TanStack React Query for server state, React Hook Form, Vite.
 - **Backend**: Express.js with TypeScript, RESTful JSON API.
 - **Authentication**: Replit Auth with OIDC, session-based using PostgreSQL.
-- **Data Storage**: PostgreSQL database managed by Drizzle ORM.
-- **AI Integration**: OpenAI via Replit AI Integrations (no API key required), utilizing `gpt-4o` for suggestions.
+- **Data Storage**: PostgreSQL managed by Drizzle ORM.
+- **AI Integration**: OpenAI via Replit AI Integrations (`gpt-4o`) for suggestions and content generation.
 - **Validation**: Zod schemas for shared client/server validation.
-- **Keyword Gap Analysis**: Multi-provider architecture supporting DataForSEO and Ahrefs, with a factory pattern for provider selection. Includes a "Keyword Gap Lite" module for fast, classified analysis with configurable scoring and UCR-based guardrails.
-- **Security**: All sensitive routes are protected with authentication middleware, ensuring user-scoped data access and HTTPS-only cookies in production.
-
-### Feature Specifications
-- **8 Configuration Sections**: Brand Context, Category Definition, Competitive Set, Demand Definition, Strategic Intent, Channel Context, Negative Scope, and Governance.
-- **Configurations List View**: Table-based list of all brand contexts at `/` with:
-  - Sortable columns: Brand, Domain, Industry, Status, Score
-  - Dropdown menu for actions: Quick Actions (One Pager, Keyword Gap, Market Demand), Analysis (Visibility Report, Version History), Manage (Regenerate AI, Edit, Delete)
-  - Quality score calculation based on section field completeness
-  - ValidationStatusBadge component for consistent status display
-  - SPA navigation using wouter's navigate() function
-- **Section Comparison Views**: Comparative list views for each of the 8 sections accessible from sidebar under "Sections" group. Features include:
-  - Generic `SectionListPage` component with reusable table layout for all sections
-  - Section definitions centralized in `shared/section-definitions.ts`
-  - API endpoint `GET /api/sections/:sectionKey` returning all configurations with section-specific data
-  - Search filtering across brand name, domain, and industry
-  - Sorting by any column (brand name, validation status, quality score)
-  - Validation status badges (Validated, Review, Blocked, Incomplete)
-  - Quality score indicators with visual progress bars
-  - Section-specific fields displayed (top 4 fields per section)
-  - Navigation directly to configuration editor
-  - **Layout Components** (`client/src/components/layouts/`):
-    - `MainLayout`: Shared layout for sidebar-enabled pages with AlertsPanel, user menu, and theme toggle
-    - `HeaderOnlyLayout`: Layout for standalone pages without sidebar (ContentBrief, SWOT Analysis)
-  - **Sidebar Architecture** (`client/src/components/app-sidebar.tsx`):
-    - `NavItem`: Reusable navigation item component
-    - `NavGroup`: Reusable navigation group with label and icon support
-    - Configuration arrays: `CONTEXT_NAV_ITEMS`, `SECTION_NAV_ITEMS`, `ANALYSIS_NAV_ITEMS`, `GOVERNANCE_NAV_ITEMS`
-    - Dynamic module navigation via `ModuleNavItems` component
-- **AI-Powered Suggestions**: Integrated "Generate with AI" functionality across configuration sections.
-- **One Pager Visualization**: Executive summary view of User Context Records (UCR).
-- **Keyword Gap Analysis**: Comprehensive competitor keyword analysis with UCR-based filtering and a 3-tier classification system (Pass, Review, Out of Play) based on capability and opportunity scoring. Features include intent classification, configurable scoring models, vertical presets, and detailed result breakdowns with confidence levels.
-- **Market Demand & Seasonality Module**: Timing intelligence using Google Trends data via DataForSEO. Answers "When does our market wake up - and when should we act?" with **per-category analysis** showing individual seasonality patterns for each category (Peak/Low months, stability scores, heatmaps). Features include:
-  - Per-category analysis via `/api/market-demand/analyze-by-category` endpoint
-  - CategoryDemandCard grid showing individual category metrics
-  - In-memory cache with 24h TTL keyed by configId+category+queries+country+timeRange
-  - Backward compatibility for legacy aggregated analyses (shown with "Legacy Analysis" badge)
-  - Types: `CategoryDemandSlice`, `MarketDemandByCategoryResult`, `Month` (heatmap keys)
-- **Item-Level Traces**: Every keyword carries an ItemTrace array with ruleId, ucrSection, reason, severity, and evidence for complete CMO-safe auditability. Traces are displayed in expandable table rows.
-- **CMO-Safe Gate Order**: Keyword evaluation follows strict gate order - G (Negative Scope) hard gate first, then B (Category Fence) soft gate, then H (Scoring), finally E/F (Strategic/Channel) with proper early returns.
-- **Context Workflow**: State machine for managing context lifecycle (DRAFT_AI to LOCKED) with validation gates and approval workflows.
-- **Module Contract System**: Consolidated module definitions in `shared/module.contract.ts` - single source of truth for UCR sections, module contracts, dispositions, severity levels, and traces. Module IDs use domain-specific prefixes (seo.*, market.*, sem.*) for semantic clarity. Legacy aliases (signal.*, action.*, synthesis.*) are maintained in module-runner.ts for backward compatibility.
-- **Category Demand Trend Module** (`market.category_demand_trend.v1`): Analyzes 5-year demand trends by category. Features CAGR calculation (only with ≥4.5 years data), linear regression slope analysis, trend classification (growing/stagnating/declining), seasonality peak detection, and timing recommendations. Implementation file: `server/modules/category-demand-trend.ts`.
-  - **Known Limitation**: `supporting_queries` provides category-level slopes rather than per-query differentiation due to the MarketDemandAnalyzer's aggregation architecture. Future enhancement would require exposing per-query trend series from the analyzer.
-- **Module Run History**: Complete execution history for all modules is persisted to the `module_runs` table. Each run captures:
-  - Module ID, name, and status (running/completed/failed)
-  - UCR version and sections used
-  - Input parameters and full output results
-  - Execution time in milliseconds
-  - Rules triggered during execution
-  - API endpoints: `GET /api/module-runs`, `GET /api/module-runs/:id`, `GET /api/configurations/:configId/module-runs`
-
-### Transformational Features (v2.0)
-
-- **Version Comparison & Diff** (`/version-history/:id`): Complete version history system for UCR configurations.
-  - Side-by-side comparison view with color-coded change highlighting (green=added, red=removed, yellow=modified)
-  - Deep JSON diff algorithm in `shared/version-diff.ts` with path tracking and metadata exclusions
-  - Version restoration capability with confirmation dialog
-  - Database tables: `configuration_versions` storing full snapshots with trigger-based auto-creation
-  - API endpoints: `GET /api/configurations/:id/versions`, `GET /api/configurations/:id/versions/:versionId/diff`, `POST /api/configurations/:id/versions/:versionId/restore`
-
-- **Automated Alert System**: Proactive notification infrastructure for UCR-relevant events.
-  - Database tables: `user_alerts` (notifications), `alert_preferences` (user settings)
-  - Event detection for: low quality scores, competitor changes, version updates, module completions
-  - AlertPanel component with badge count, dismiss functionality, and preference management
-  - Storage layer implements dismissed filter for clean UI state
-  - API endpoints: `GET /api/user/alerts`, `POST /api/user/alerts/:id/dismiss`, `GET/PUT /api/user/alert-preferences`
-
-- **AI Content Brief Generator** (`/content-brief/:id`): UCR-contextualized content planning tool.
-  - 5 brief types: SEO Article, Ad Copy, Landing Page, Email Campaign, Social Media
-  - Prompts built from complete UCR context (brand, category, strategic intent, negative scope)
-  - Guardrail validation checking generated content against negative_scope exclusions
-  - Implementation: `server/content-brief-generator.ts` with OpenAI client injection
-  - Types exported from generator: `BriefType`, `ContentBrief`, `ContentBriefOptions`
-
-- **SWOT Competitive Analyzer** (`/swot-analysis/:id`): Strategic analysis using Keyword Gap data + AI fallback.
-  - Primary: Algorithmic analysis from Keyword Gap results (strengths from high-rank keywords, weaknesses from gaps)
-  - Fallback: AI-powered analysis using complete UCR context when no Keyword Gap data available
-  - 2x2 grid visualization with impact indicators (high/medium/low)
-  - Markdown export functionality for sharing
-  - Persisted to `module_runs` table as `analysis.swot.v1`
-  - Implementation: `server/swot-analyzer.ts` with OpenAI client parameter
-
-- **Interactive Gap Visualizations** (Keyword Gap page enhancements):
-  - PositioningMap: Scatter plot of keywords by search volume vs competitive position
-  - OpportunityQuadrant: 2x2 matrix categorizing keywords by opportunity/effort
-  - CategoryOwnershipHeatmap: Heatmap showing category coverage across competitors
-  - All visualizations use Recharts library with responsive containers
-  - Integrated into existing Keyword Gap page with collapsible accordion sections
-
-- **Competitive Intelligence Dashboard** (`/competitive-radar/:id`): Real-time competitive radar detecting competitor movements, ranking shifts, and market changes.
-  - Database table: `competitive_signals` storing detected signals with signal type, severity, impact, and recommendations
-  - Signal types: ranking_shift, new_keyword, demand_inflection, new_content, serp_entrant
-  - Severity levels: critical, high, medium, low (with UCR-based prioritization)
-  - CompetitiveSignalDetector service integrating with Keyword Gap and Market Demand data
-  - AI-generated insights in Spanish for impact and recommendation fields using gpt-4o-mini
-  - Weekly digest showing top 3-5 signals ("Lo que debes saber esta semana")
-  - Filter controls for signal type and severity
-  - Automatic alert integration for high/critical severity signals
-  - Supports "latest" URL parameter to resolve to most recent configuration
-  - API endpoints: POST `/api/configurations/:id/competitive-signals/detect`, GET `/api/configurations/:id/competitive-signals`, POST `/api/competitive-signals/:id/dismiss`, GET `/api/configurations/:id/competitive-signals/digest`
-  - Implementation: `server/competitive-signal-detector.ts`, `client/src/pages/competitive-radar.tsx`
-  - Module contract: `intel.competitive_radar.v1`
+- **Keyword Gap Analysis**: Multi-provider architecture (DataForSEO, Ahrefs) with a factory pattern, including a "Keyword Gap Lite" module for classified analysis with configurable scoring.
+- **Security**: Authentication middleware protects sensitive routes, ensuring user-scoped data access and HTTPS-only cookies.
+- **Module System**: Consolidates module definitions (`shared/module.contract.ts`) for UCR sections, module contracts, dispositions, severity levels, and traces.
+- **Version Control**: Full version history with side-by-side diffs, path tracking, and restore capabilities for UCR configurations.
+- **Automated Alerts**: Proactive notification infrastructure for UCR-relevant events with user-configurable preferences.
+- **AI Content Brief Generator**: Generates 5 types of content briefs (SEO Article, Ad Copy, Landing Page, Email Campaign, Social Media) contextualized by UCR, including guardrail validation against negative scope.
+- **SWOT Competitive Analyzer**: Provides strategic analysis using Keyword Gap data (algorithmic) or AI fallback (UCR-contextualized) with 2x2 grid visualization.
+- **Competitive Intelligence Dashboard**: Real-time competitive radar detecting competitor movements, ranking shifts, and market changes with AI-generated insights and a weekly digest.
+- **Multi-API Intelligence Modules**: Five advanced modules (Intent Positioning, SERP + Trends + Social, Demand Forecasting, Cross-Channel Messaging, SERP + Attribution) combine multiple external APIs following a 5-phase pipeline (Extract→Transform→Correlate→Score→Disposition) with graceful degradation.
 
 ### System Design Choices
-The architecture emphasizes modularity with clear separation of concerns (frontend/backend, data providers). It leverages modern web development best practices including type safety (TypeScript, Zod, Drizzle ORM) and component-based UI development. The multi-provider keyword gap architecture allows for flexible integration of various SEO data sources, and the configurable scoring system provides adaptability for different industry verticals.
+The architecture emphasizes modularity, type safety (TypeScript, Zod, Drizzle ORM), and component-based UI development. It supports flexible integration of various SEO data sources and adaptable scoring systems for different industry verticals.
 
 ## External Dependencies
-
 - **Database**: PostgreSQL (via Neon)
 - **ORM**: Drizzle ORM
-- **Authentication**: `openid-client`, `passport`, `express-session`, `connect-pg-simple` (for PostgreSQL session storage)
+- **Authentication**: `openid-client`, `passport`, `express-session`, `connect-pg-simple`
 - **AI**: OpenAI SDK (via Replit AI Integrations)
-- **UI Libraries**: Radix UI, shadcn/ui, Lucide React (icons)
-- **Form & Validation**: React Hook Form, Zod, `zod-validation-error`
+- **UI Libraries**: Radix UI, shadcn/ui, Lucide React
+- **Form & Validation**: React Hook Form, Zod
 - **Fonts**: IBM Plex Sans, IBM Plex Mono
-- **Keyword Data Providers**: DataForSEO, Ahrefs (integrated through a factory pattern)
-- **Trends Data Providers**: DataForSEO Google Trends API (for Market Demand module)
-
-## Developer Documentation
-
-- **[ADDING_MODULES.md](ADDING_MODULES.md)**: Step-by-step guide for adding new modules to the platform
-- **[docs/MULTI_API_INTELLIGENCE_MODULES.md](docs/MULTI_API_INTELLIGENCE_MODULES.md)**: Comprehensive guide for implementing multi-API intelligence modules (SERP+Trends+Social, Cross-Channel Messaging, SERP+Attribution, Demand Forecasting, Intent+Positioning)
-- **[CONTEXT_MODULE_ARCHITECTURE.md](CONTEXT_MODULE_ARCHITECTURE.md)**: Context-first architecture patterns
+- **Keyword Data Providers**: DataForSEO, Ahrefs
+- **Trends Data Providers**: DataForSEO Google Trends API

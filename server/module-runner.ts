@@ -34,6 +34,13 @@ import { analyzeActionCard } from "./modules/action-card";
 import { analyzePaidOrganicOverlap } from "./modules/paid-organic-overlap";
 import { analyzeStrategicSummary } from "./modules/strategic-summary";
 
+// Intelligence Modules (Multi-API)
+import { analyzeIntentPositioning } from "./modules/intel/intent-positioning";
+import { analyzeSerpTrendsSocial } from "./modules/intel/serp-trends-social";
+import { analyzeDemandForecasting } from "./modules/intel/demand-forecasting";
+import { analyzeCrossChannelMessaging } from "./modules/intel/cross-channel-messaging";
+import { analyzeSerpAttribution } from "./modules/intel/serp-attribution";
+
 
 /**
  * Orchestrates the execution of a module.
@@ -177,6 +184,23 @@ export async function runModule(
 
             case "synthesis.strategic_summary.v1":
                 resultData = await analyzeStrategicSummary(config, inputs);
+                break;
+
+            // --- Intelligence Modules (Multi-API) ---
+            case "intel.intent_positioning.v1":
+                resultData = await analyzeIntentPositioning(config, inputs);
+                break;
+            case "intel.serp_trends_social.v1":
+                resultData = await analyzeSerpTrendsSocial(config, inputs);
+                break;
+            case "intel.demand_forecasting.v1":
+                resultData = await analyzeDemandForecasting(config, inputs);
+                break;
+            case "intel.cross_channel_messaging.v1":
+                resultData = await analyzeCrossChannelMessaging(config, inputs);
+                break;
+            case "intel.serp_attribution.v1":
+                resultData = await analyzeSerpAttribution(config, inputs);
                 break;
 
             default:

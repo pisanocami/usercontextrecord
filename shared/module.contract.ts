@@ -1660,6 +1660,245 @@ export const CompetitiveRadarContract: ModuleContract = {
 };
 
 /* ---------------------------------- */
+/* Intelligence Modules (Multi-API)    */
+/* ---------------------------------- */
+
+export const IntentPositioningContract: ModuleContract = {
+  moduleId: "intel.intent_positioning.v1",
+  name: "Análisis de Intención y Posicionamiento",
+  category: "Intelligence",
+  layer: "Signal",
+  version: "1.0.0",
+  description: "Analiza la intención de búsqueda detrás de las consultas clave y mapea el posicionamiento competitivo en cada tipo de intención (informacional, transaccional, navegacional).",
+  strategicQuestion: "¿Qué intenciones de búsqueda dominamos y cuáles estamos perdiendo frente a la competencia?",
+  dataSources: ["DataForSEO", "Internal", "Other"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "hybrid" },
+  caching: { cadence: "daily", bustOnChanges: ["competitor_set", "category_scope"] },
+  executionGate: { allowedStatuses: ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B", "C"],
+    optionalSections: ["D", "E", "F", "G", "H"],
+    sectionUsage: {
+      A: "Define la marca y dominio para análisis de posicionamiento.",
+      B: "Define la categoría para filtrar intenciones relevantes.",
+      C: "Define competidores para comparación de posicionamiento por intención.",
+      D: "Mapea consultas a temas de demanda.",
+      E: "Ajusta priorización según postura estratégica.",
+      F: "Pondera recomendaciones por canal.",
+      G: "Excluye intenciones fuera de alcance.",
+      H: "Define umbrales de confianza."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "keywords", type: "string[]", required: false, description: "Lista de keywords a analizar" },
+      { name: "intentTypes", type: "string[]", required: false, description: "Tipos de intención a incluir" }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"], runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"] },
+  output: {
+    entityType: "intent_positioning",
+    visuals: [
+      { kind: "matrix", title: "Mapa de Posicionamiento por Intención" },
+      { kind: "bar", title: "Share por Tipo de Intención" },
+      { kind: "table", title: "Oportunidades de Intención" }
+    ],
+    summaryFields: ["dominant_intent", "intent_gaps", "competitive_position"]
+  },
+  guardrails: { neverPromiseRevenue: true, alwaysProvideNextStep: true }
+};
+
+export const SerpTrendsSocialContract: ModuleContract = {
+  moduleId: "intel.serp_trends_social.v1",
+  name: "Señales de Tendencia (SERP + Social)",
+  category: "Intelligence",
+  layer: "Signal",
+  version: "1.0.0",
+  description: "Combina señales de tendencia de SERPs con indicadores sociales para identificar temas emergentes y cambios de demanda en tiempo real.",
+  strategicQuestion: "¿Qué tendencias están emergiendo en búsqueda y redes sociales que debemos capturar?",
+  dataSources: ["DataForSEO", "Internal", "Other"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "hybrid" },
+  caching: { cadence: "daily", bustOnChanges: ["category_scope", "market"] },
+  executionGate: { allowedStatuses: ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B"],
+    optionalSections: ["C", "D", "E", "F", "G", "H"],
+    sectionUsage: {
+      A: "Define marca y geo para contextualizar tendencias.",
+      B: "Define categoría para filtrar tendencias relevantes.",
+      C: "Compara tendencias con competidores.",
+      D: "Mapea tendencias a temas de demanda.",
+      E: "Prioriza según postura estratégica.",
+      F: "Pondera por canal de activación.",
+      G: "Excluye temas prohibidos.",
+      H: "Define umbrales de señal significativa."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "lookbackDays", type: "number", required: false, default: 30, description: "Días hacia atrás para análisis" },
+      { name: "minTrendScore", type: "number", required: false, description: "Score mínimo de tendencia" }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"], runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"] },
+  output: {
+    entityType: "trend_signal",
+    visuals: [
+      { kind: "line", title: "Evolución de Tendencias" },
+      { kind: "heatmap", title: "Mapa de Calor de Temas Emergentes" },
+      { kind: "card", title: "Alertas de Tendencia" }
+    ],
+    summaryFields: ["emerging_topics", "trend_velocity", "social_amplification"]
+  },
+  guardrails: { neverPromiseRevenue: true, alwaysProvideNextStep: true }
+};
+
+export const DemandForecastingContract: ModuleContract = {
+  moduleId: "intel.demand_forecasting.v1",
+  name: "Pronóstico de Demanda",
+  category: "Intelligence",
+  layer: "Signal",
+  version: "1.0.0",
+  description: "Proyecta demanda futura basándose en patrones históricos, estacionalidad y señales de mercado para optimizar timing de campañas.",
+  strategicQuestion: "¿Cuándo y dónde esperamos picos de demanda que debemos capturar?",
+  dataSources: ["DataForSEO", "Internal", "Other"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "hybrid" },
+  caching: { cadence: "daily", bustOnChanges: ["category_scope", "market"] },
+  executionGate: { allowedStatuses: ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B"],
+    optionalSections: ["C", "D", "E", "F", "G", "H"],
+    sectionUsage: {
+      A: "Define marca y mercado para pronóstico contextualizado.",
+      B: "Define categoría para demanda específica.",
+      C: "Compara pronósticos con competidores.",
+      D: "Mapea pronósticos a temas de demanda.",
+      E: "Ajusta agresividad del pronóstico.",
+      F: "Pondera por canal de activación.",
+      G: "Excluye categorías fuera de alcance.",
+      H: "Define intervalos de confianza."
+    },
+    gates: { fenceMode: "hard", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "forecastHorizon", type: "number", required: false, default: 90, description: "Días de pronóstico hacia adelante" },
+      { name: "confidenceLevel", type: "number", required: false, default: 0.8, description: "Nivel de confianza del pronóstico" }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"], runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"] },
+  output: {
+    entityType: "demand_forecast",
+    visuals: [
+      { kind: "line", title: "Proyección de Demanda" },
+      { kind: "heatmap", title: "Calendario de Picos" },
+      { kind: "card", title: "Recomendaciones de Timing" }
+    ],
+    summaryFields: ["peak_periods", "forecast_confidence", "recommended_launch_windows"]
+  },
+  guardrails: { neverPromiseRevenue: true, alwaysProvideNextStep: true }
+};
+
+export const CrossChannelMessagingContract: ModuleContract = {
+  moduleId: "intel.cross_channel_messaging.v1",
+  name: "Mensajería Cross-Channel",
+  category: "Intelligence",
+  layer: "Synthesis",
+  version: "1.0.0",
+  description: "Analiza y optimiza la coherencia de mensajes a través de canales (SEO, Paid, Social, Email) para maximizar impacto y consistencia de marca.",
+  strategicQuestion: "¿Cómo debemos adaptar nuestro mensaje para cada canal manteniendo coherencia de marca?",
+  dataSources: ["DataForSEO", "Internal", "Other"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "hybrid" },
+  caching: { cadence: "daily", bustOnChanges: ["category_scope", "governance"] },
+  executionGate: { allowedStatuses: ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B", "F"],
+    optionalSections: ["C", "D", "E", "G", "H"],
+    sectionUsage: {
+      A: "Define identidad de marca para consistencia de mensaje.",
+      B: "Define categoría para mensajes relevantes.",
+      C: "Analiza mensajes de competidores.",
+      D: "Alinea mensajes con temas de demanda.",
+      E: "Ajusta tono según postura estratégica.",
+      F: "Define prioridad y mix de canales.",
+      G: "Excluye mensajes fuera de tono.",
+      H: "Define estándares de calidad de mensaje."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "channels", type: "string[]", required: false, description: "Canales a analizar" },
+      { name: "messageThemes", type: "string[]", required: false, description: "Temas de mensaje a optimizar" }
+    ]
+  },
+  disposition: { required: false, allowed: ["PASS", "REVIEW"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"], runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"] },
+  output: {
+    entityType: "channel_messaging",
+    visuals: [
+      { kind: "matrix", title: "Matriz de Mensajes por Canal" },
+      { kind: "table", title: "Recomendaciones de Adaptación" },
+      { kind: "card", title: "Score de Coherencia" }
+    ],
+    summaryFields: ["channel_coverage", "message_consistency_score", "adaptation_opportunities"]
+  },
+  guardrails: { neverPromiseRevenue: true, alwaysProvideNextStep: true }
+};
+
+export const SerpAttributionContract: ModuleContract = {
+  moduleId: "intel.serp_attribution.v1",
+  name: "SERP + Atribución ROI",
+  category: "Intelligence",
+  layer: "Synthesis",
+  version: "1.0.0",
+  description: "Conecta visibilidad SERP con métricas de atribución para cuantificar el valor real de posiciones orgánicas y paid en el journey del cliente.",
+  strategicQuestion: "¿Cuál es el verdadero valor de nuestra visibilidad en búsqueda en términos de conversiones y revenue?",
+  dataSources: ["DataForSEO", "Internal", "Other"],
+  riskProfile: { confidence: "medium", riskIfWrong: "medium", inferenceType: "hybrid" },
+  caching: { cadence: "daily", bustOnChanges: ["competitor_set", "category_scope", "governance"] },
+  executionGate: { allowedStatuses: ["AI_READY", "AI_ANALYSIS_RUN", "HUMAN_CONFIRMED", "LOCKED"], allowMissingOptionalSections: true, requireAuditTrail: true },
+  contextInjection: {
+    requiredSections: ["A", "B", "C"],
+    optionalSections: ["D", "E", "F", "G", "H"],
+    sectionUsage: {
+      A: "Define marca y dominio para atribución.",
+      B: "Define categoría para segmentación de valor.",
+      C: "Compara atribución con competidores.",
+      D: "Mapea valor a temas de demanda.",
+      E: "Ajusta modelos según postura estratégica.",
+      F: "Pondera atribución por canal.",
+      G: "Excluye conversiones fuera de alcance.",
+      H: "Define umbrales de atribución significativa."
+    },
+    gates: { fenceMode: "soft", negativeScopeMode: "hard" }
+  },
+  inputs: {
+    fields: [
+      { name: "attributionModel", type: "string", required: false, default: "last_click", description: "Modelo de atribución a usar" },
+      { name: "lookbackWindow", type: "number", required: false, default: 30, description: "Ventana de atribución en días" }
+    ]
+  },
+  disposition: { required: true, allowed: ["PASS", "REVIEW", "OUT_OF_PLAY"] },
+  explainability: { required: true, itemTraceFields: ["ruleId", "ucrSection", "reason", "evidence", "severity"], runTraceFields: ["sectionsUsed", "sectionsMissing", "filtersApplied", "rulesTriggered"] },
+  output: {
+    entityType: "serp_attribution",
+    visuals: [
+      { kind: "bar", title: "Valor por Posición SERP" },
+      { kind: "table", title: "Atribución por Keyword" },
+      { kind: "line", title: "Evolución de ROI de Visibilidad" }
+    ],
+    summaryFields: ["total_attributed_value", "organic_vs_paid_split", "top_value_keywords"]
+  },
+  guardrails: { neverPromiseRevenue: true, alwaysProvideNextStep: true }
+};
+
+/* ---------------------------------- */
 /* Default Registry                    */
 /* ---------------------------------- */
 
@@ -1683,7 +1922,13 @@ export const CONTRACT_REGISTRY = createContractRegistry([
   ShareOfVoiceContract,
   StrategicSummaryContract,
   SWOTAnalysisContract,
-  CompetitiveRadarContract
+  CompetitiveRadarContract,
+  // Intelligence Modules (Multi-API)
+  IntentPositioningContract,
+  SerpTrendsSocialContract,
+  DemandForecastingContract,
+  CrossChannelMessagingContract,
+  SerpAttributionContract
 ]);
 
 export function getAllContracts(): ModuleContract[] {
@@ -1849,11 +2094,31 @@ function contractToModuleDefinition(contract: ModuleContract): ModuleDefinition 
 }
 
 export function getActiveModules(): ModuleDefinition[] {
-  return Object.values(MODULE_REGISTRY).filter(m => m.status === 'active');
+  const legacyModules = Object.values(MODULE_REGISTRY).filter(m => m.status === 'active');
+  const contractModules = Object.values(CONTRACT_REGISTRY).map(contractToModuleDefinition);
+  
+  const moduleMap = new Map<string, ModuleDefinition>();
+  for (const m of legacyModules) {
+    moduleMap.set(m.id, m);
+  }
+  for (const m of contractModules) {
+    moduleMap.set(m.id, m);
+  }
+  return Array.from(moduleMap.values());
 }
 
 export function getAllModules(): ModuleDefinition[] {
-  return Object.values(MODULE_REGISTRY);
+  const legacyModules = Object.values(MODULE_REGISTRY);
+  const contractModules = Object.values(CONTRACT_REGISTRY).map(contractToModuleDefinition);
+  
+  const moduleMap = new Map<string, ModuleDefinition>();
+  for (const m of legacyModules) {
+    moduleMap.set(m.id, m);
+  }
+  for (const m of contractModules) {
+    moduleMap.set(m.id, m);
+  }
+  return Array.from(moduleMap.values());
 }
 
 export function canModuleExecute(
