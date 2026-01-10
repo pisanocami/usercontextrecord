@@ -19,6 +19,8 @@ import { runModule } from "./module-runner";
 import { getAllTrendsProviderStatuses } from "./providers/trends-index";
 import { runPreflight } from "./preflight-validator";
 import { generateContentBrief, type BriefType } from "./content-brief-generator";
+import { createCompetitiveSignalDetector, type SignalDetectionResult } from "./competitive-signal-detector";
+import { db } from "./db";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -3087,6 +3089,145 @@ IMPORTANT:
       res.status(500).json({ 
         error: error.message || "Error al generar el brief de contenido" 
       });
+    }
+  });
+
+  // ==================== COMPETITIVE INTELLIGENCE RADAR ====================
+
+  // Run competitive signal detection for a configuration
+  app.post("/api/configurations/:id/competitive-signals/detect", isAuthenticated, async (req: any, res) => {
+    try {
+      const configId = parseInt(req.params.id);
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const { lookbackDays, signalTypes, minSeverity } = req.body;
+
+      // Get configuration to verify access
+      const config = await storage.getConfigurationById(configId, userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuracion no encontrada" });
+      }
+
+      const detector = createCompetitiveSignalDetector(db, openai);
+      const result = await detector.detectSignals({
+        configurationId: configId,
+        userId,
+        lookbackDays,
+        signalTypes,
+        minSeverity,
+      });
+
+      // Persist signals to database
+      await detector.persistSignals(result.signals);
+
+      // Create alert for high priority signals
+      const criticalSignals = result.signals.filter(s => s.severity === "critical" || s.severity === "high");
+      if (criticalSignals.length > 0) {
+        await storage.createAlert({
+          userId,
+          configurationId: configId,
+          type: "competitor_change",
+          severity: "warning",
+          title: `${criticalSignals.length} senales competitivas detectadas`,
+          message: `Se han detectado ${criticalSignals.length} movimientos importantes de competidores que requieren tu atencion.`,
+          metadata: { signalCount: criticalSignals.length, topSignal: criticalSignals[0]?.title },
+        });
+      }
+
+      res.json({
+        success: true,
+        result,
+      });
+    } catch (error: any) {
+      console.error("[CompetitiveRadar] Detection error:", error);
+      res.status(500).json({ error: error.message || "Error al detectar senales competitivas" });
+    }
+  });
+
+  // Get all competitive signals for a configuration
+  app.get("/api/configurations/:id/competitive-signals", isAuthenticated, async (req: any, res) => {
+    try {
+      const configId = parseInt(req.params.id);
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const { signalType, minSeverity, includeDismissed } = req.query;
+
+      // Verify access to configuration
+      const config = await storage.getConfigurationById(configId, userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuracion no encontrada" });
+      }
+
+      const signals = await storage.getCompetitiveSignals(configId, userId, {
+        signalType: signalType as string | undefined,
+        minSeverity: minSeverity as string | undefined,
+        includeDismissed: includeDismissed === "true",
+      });
+
+      res.json({ signals });
+    } catch (error: any) {
+      console.error("[CompetitiveRadar] Get signals error:", error);
+      res.status(500).json({ error: error.message || "Error al obtener senales competitivas" });
+    }
+  });
+
+  // Dismiss a competitive signal
+  app.post("/api/competitive-signals/:id/dismiss", isAuthenticated, async (req: any, res) => {
+    try {
+      const signalId = parseInt(req.params.id);
+      const userId = (req.user as any)?.id || "anonymous-user";
+
+      await storage.dismissCompetitiveSignal(signalId, userId);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[CompetitiveRadar] Dismiss error:", error);
+      res.status(500).json({ error: error.message || "Error al descartar senal" });
+    }
+  });
+
+  // Get weekly digest for a configuration
+  app.get("/api/configurations/:id/competitive-signals/digest", isAuthenticated, async (req: any, res) => {
+    try {
+      const configId = parseInt(req.params.id);
+      const userId = (req.user as any)?.id || "anonymous-user";
+
+      // Verify access to configuration
+      const config = await storage.getConfigurationById(configId, userId);
+      if (!config) {
+        return res.status(404).json({ error: "Configuracion no encontrada" });
+      }
+
+      // Get high priority signals from last 7 days
+      const signals = await storage.getCompetitiveSignals(configId, userId, {
+        minSeverity: "medium",
+        includeDismissed: false,
+      });
+
+      // Take top 5 signals by severity
+      const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      const topSignals = signals
+        .sort((a: any, b: any) => severityOrder[a.severity as keyof typeof severityOrder] - severityOrder[b.severity as keyof typeof severityOrder])
+        .slice(0, 5);
+
+      // Generate summary stats
+      const digest = {
+        period: "weekly",
+        totalSignals: signals.length,
+        byType: signals.reduce((acc: any, s: any) => {
+          acc[s.signalType] = (acc[s.signalType] || 0) + 1;
+          return acc;
+        }, {}),
+        bySeverity: signals.reduce((acc: any, s: any) => {
+          acc[s.severity] = (acc[s.severity] || 0) + 1;
+          return acc;
+        }, {}),
+        topSignals,
+        competitorsActive: Array.from(new Set(signals.filter((s: any) => s.competitor).map((s: any) => s.competitor))),
+      };
+
+      res.json({ digest });
+    } catch (error: any) {
+      console.error("[CompetitiveRadar] Digest error:", error);
+      res.status(500).json({ error: error.message || "Error al generar digest" });
     }
   });
 

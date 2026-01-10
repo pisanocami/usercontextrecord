@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses, moduleRuns, alerts, alertPreferences } from "@shared/schema";
+import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses, moduleRuns, alerts, alertPreferences, competitiveSignals } from "@shared/schema";
 import { eq, and, desc, max, sql } from "drizzle-orm";
 import type {
   Brand,
@@ -29,6 +29,10 @@ import type {
   AlertPreference,
   AlertType,
   AlertSeverity,
+  CompetitiveSignal,
+  InsertCompetitiveSignal,
+  SignalType,
+  SignalSeverity,
 } from "@shared/schema";
 
 // Database brand type (global brand entity)
@@ -116,6 +120,12 @@ export interface IStorage {
   // Alert preferences operations
   getAlertPreferences(userId: string): Promise<AlertPreference>;
   updateAlertPreferences(userId: string, prefs: Partial<Omit<AlertPreference, "id" | "userId" | "updated_at">>): Promise<AlertPreference>;
+  // Competitive signals operations
+  createCompetitiveSignal(signal: InsertCompetitiveSignal): Promise<CompetitiveSignal>;
+  getCompetitiveSignals(configId: number, userId: string, options?: { signalType?: string; minSeverity?: string; includeDismissed?: boolean }): Promise<CompetitiveSignal[]>;
+  getCompetitiveSignalById(id: number, userId: string): Promise<CompetitiveSignal | undefined>;
+  dismissCompetitiveSignal(id: number, userId: string): Promise<void>;
+  createCompetitiveSignalsBatch(signals: InsertCompetitiveSignal[]): Promise<CompetitiveSignal[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1375,6 +1385,127 @@ export class DatabaseStorage implements IStorage {
       analysisCompleteEnabled: updated.analysisCompleteEnabled,
       emailNotifications: updated.emailNotifications,
       updated_at: updated.updated_at,
+    };
+  }
+
+  // ============ COMPETITIVE SIGNALS OPERATIONS ============
+
+  async createCompetitiveSignal(signal: InsertCompetitiveSignal): Promise<CompetitiveSignal> {
+    const [result] = await db
+      .insert(competitiveSignals)
+      .values({
+        userId: signal.userId,
+        configurationId: signal.configurationId,
+        signalType: signal.signalType,
+        severity: signal.severity || "medium",
+        competitor: signal.competitor || null,
+        keyword: signal.keyword || null,
+        title: signal.title,
+        description: signal.description,
+        impact: signal.impact || null,
+        recommendation: signal.recommendation || null,
+        changeData: signal.changeData || {},
+      })
+      .returning();
+
+    return this.mapCompetitiveSignal(result);
+  }
+
+  async getCompetitiveSignals(
+    configId: number,
+    userId: string,
+    options?: { signalType?: string; minSeverity?: string; includeDismissed?: boolean }
+  ): Promise<CompetitiveSignal[]> {
+    const severityOrder: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
+    const minSeverityValue = options?.minSeverity ? severityOrder[options.minSeverity] || 0 : 0;
+
+    let query = db
+      .select()
+      .from(competitiveSignals)
+      .where(
+        and(
+          eq(competitiveSignals.configurationId, configId),
+          eq(competitiveSignals.userId, userId),
+          options?.includeDismissed ? undefined : eq(competitiveSignals.dismissed, false)
+        )
+      )
+      .orderBy(desc(competitiveSignals.created_at));
+
+    const results = await query;
+
+    return results
+      .filter((r: any) => !options?.signalType || r.signalType === options.signalType)
+      .filter((r: any) => !minSeverityValue || severityOrder[r.severity] >= minSeverityValue)
+      .map((r: any) => this.mapCompetitiveSignal(r));
+  }
+
+  async getCompetitiveSignalById(id: number, userId: string): Promise<CompetitiveSignal | undefined> {
+    const [result] = await db
+      .select()
+      .from(competitiveSignals)
+      .where(
+        and(
+          eq(competitiveSignals.id, id),
+          eq(competitiveSignals.userId, userId)
+        )
+      );
+
+    return result ? this.mapCompetitiveSignal(result) : undefined;
+  }
+
+  async dismissCompetitiveSignal(id: number, userId: string): Promise<void> {
+    await db
+      .update(competitiveSignals)
+      .set({ dismissed: true })
+      .where(
+        and(
+          eq(competitiveSignals.id, id),
+          eq(competitiveSignals.userId, userId)
+        )
+      );
+  }
+
+  async createCompetitiveSignalsBatch(signals: InsertCompetitiveSignal[]): Promise<CompetitiveSignal[]> {
+    if (signals.length === 0) return [];
+
+    const values = signals.map(signal => ({
+      userId: signal.userId,
+      configurationId: signal.configurationId,
+      signalType: signal.signalType,
+      severity: signal.severity || "medium",
+      competitor: signal.competitor || null,
+      keyword: signal.keyword || null,
+      title: signal.title,
+      description: signal.description,
+      impact: signal.impact || null,
+      recommendation: signal.recommendation || null,
+      changeData: signal.changeData || {},
+    }));
+
+    const results = await db
+      .insert(competitiveSignals)
+      .values(values)
+      .returning();
+
+    return results.map((r: any) => this.mapCompetitiveSignal(r));
+  }
+
+  private mapCompetitiveSignal(row: any): CompetitiveSignal {
+    return {
+      id: row.id,
+      userId: row.userId,
+      configurationId: row.configurationId,
+      signalType: row.signalType as SignalType,
+      severity: row.severity as SignalSeverity,
+      competitor: row.competitor,
+      keyword: row.keyword,
+      title: row.title,
+      description: row.description,
+      impact: row.impact,
+      recommendation: row.recommendation,
+      changeData: row.changeData || {},
+      dismissed: row.dismissed,
+      created_at: row.created_at,
     };
   }
 }
