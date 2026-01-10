@@ -95,12 +95,21 @@ interface NavItemProps {
   label: string;
   isActive: boolean;
   testId: string;
+  sectionKey?: string | string[];
+  onSectionChange?: (section: string) => void;
 }
 
-function NavItem({ href, icon: Icon, label, isActive, testId }: NavItemProps) {
+function NavItem({ href, icon: Icon, label, isActive, testId, sectionKey, onSectionChange }: NavItemProps) {
+  const handleClick = () => {
+    if (onSectionChange && sectionKey) {
+      const section = Array.isArray(sectionKey) ? sectionKey[0] : sectionKey;
+      onSectionChange(section);
+    }
+  };
+
   return (
     <SidebarMenuItem>
-      <Link href={href}>
+      <Link href={href} onClick={handleClick}>
         <SidebarMenuButton
           isActive={isActive}
           className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
@@ -119,9 +128,10 @@ interface NavGroupProps {
   items: NavItemConfig[];
   activeSection: string;
   icon?: LucideIcon;
+  onSectionChange?: (section: string) => void;
 }
 
-function NavGroup({ label, items, activeSection, icon: GroupIcon }: NavGroupProps) {
+function NavGroup({ label, items, activeSection, icon: GroupIcon, onSectionChange }: NavGroupProps) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -142,6 +152,8 @@ function NavGroup({ label, items, activeSection, icon: GroupIcon }: NavGroupProp
                 label={item.label}
                 isActive={isActive}
                 testId={item.testId}
+                sectionKey={item.section}
+                onSectionChange={onSectionChange}
               />
             );
           })}
@@ -151,14 +163,19 @@ function NavGroup({ label, items, activeSection, icon: GroupIcon }: NavGroupProp
   );
 }
 
-function ModuleNavItems({ contracts, activeSection }: { contracts: ModuleContract[]; activeSection: string }) {
+function ModuleNavItems({ contracts, activeSection, onSectionChange }: { contracts: ModuleContract[]; activeSection: string; onSectionChange?: (section: string) => void }) {
   return (
     <>
       {contracts.map((contract) => {
         const Icon = CATEGORY_ICONS[contract.category] || FileText;
+        const handleClick = () => {
+          if (onSectionChange) {
+            onSectionChange(contract.moduleId);
+          }
+        };
         return (
           <SidebarMenuItem key={contract.moduleId}>
-            <Link href={`/modules/${contract.moduleId}`}>
+            <Link href={`/modules/${contract.moduleId}`} onClick={handleClick}>
               <SidebarMenuButton
                 isActive={activeSection === contract.moduleId}
                 className={`group relative ${
@@ -181,7 +198,7 @@ function ModuleNavItems({ contracts, activeSection }: { contracts: ModuleContrac
   );
 }
 
-export function AppSidebar({ activeSection, hasUnsavedChanges = false, cmoSafe = false }: SidebarProps) {
+export function AppSidebar({ activeSection, onSectionChange, hasUnsavedChanges = false, cmoSafe = false }: SidebarProps) {
   const allContracts = Object.values(CONTRACT_REGISTRY);
   const signalModules = allContracts.filter((c) => c.layer === "Signal");
   const synthesisModules = allContracts.filter((c) => c.layer === "Synthesis");
@@ -202,9 +219,9 @@ export function AppSidebar({ activeSection, hasUnsavedChanges = false, cmoSafe =
       </SidebarHeader>
 
       <SidebarContent className="px-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-        <NavGroup label="Contextos" items={CONTEXT_NAV_ITEMS} activeSection={activeSection} />
-        <NavGroup label="Sections" items={SECTION_NAV_ITEMS} activeSection={activeSection} icon={LayoutGrid} />
-        <NavGroup label="Análisis" items={ANALYSIS_NAV_ITEMS} activeSection={activeSection} />
+        <NavGroup label="Contextos" items={CONTEXT_NAV_ITEMS} activeSection={activeSection} onSectionChange={onSectionChange} />
+        <NavGroup label="Sections" items={SECTION_NAV_ITEMS} activeSection={activeSection} icon={LayoutGrid} onSectionChange={onSectionChange} />
+        <NavGroup label="Análisis" items={ANALYSIS_NAV_ITEMS} activeSection={activeSection} onSectionChange={onSectionChange} />
 
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -222,6 +239,8 @@ export function AppSidebar({ activeSection, hasUnsavedChanges = false, cmoSafe =
                 label="Ver Catálogo"
                 isActive={activeSection === "module-center"}
                 testId="nav-module-catalog"
+                sectionKey="module-center"
+                onSectionChange={onSectionChange}
               />
               {signalModules.length > 0 && (
                 <>
@@ -229,7 +248,7 @@ export function AppSidebar({ activeSection, hasUnsavedChanges = false, cmoSafe =
                     <TrendingUp className="h-3 w-3" />
                     Signals ({signalModules.length})
                   </div>
-                  <ModuleNavItems contracts={signalModules} activeSection={activeSection} />
+                  <ModuleNavItems contracts={signalModules} activeSection={activeSection} onSectionChange={onSectionChange} />
                 </>
               )}
               {synthesisModules.length > 0 && (
@@ -238,7 +257,7 @@ export function AppSidebar({ activeSection, hasUnsavedChanges = false, cmoSafe =
                     <BrainCircuit className="h-3 w-3" />
                     Synthesis ({synthesisModules.length})
                   </div>
-                  <ModuleNavItems contracts={synthesisModules} activeSection={activeSection} />
+                  <ModuleNavItems contracts={synthesisModules} activeSection={activeSection} onSectionChange={onSectionChange} />
                 </>
               )}
               {actionModules.length > 0 && (
@@ -247,14 +266,14 @@ export function AppSidebar({ activeSection, hasUnsavedChanges = false, cmoSafe =
                     <Zap className="h-3 w-3" />
                     Actions ({actionModules.length})
                   </div>
-                  <ModuleNavItems contracts={actionModules} activeSection={activeSection} />
+                  <ModuleNavItems contracts={actionModules} activeSection={activeSection} onSectionChange={onSectionChange} />
                 </>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <NavGroup label="Governance" items={GOVERNANCE_NAV_ITEMS} activeSection={activeSection} />
+        <NavGroup label="Governance" items={GOVERNANCE_NAV_ITEMS} activeSection={activeSection} onSectionChange={onSectionChange} />
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t">

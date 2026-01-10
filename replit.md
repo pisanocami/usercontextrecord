@@ -42,7 +42,14 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
   - Quality score indicators with visual progress bars
   - Section-specific fields displayed (top 4 fields per section)
   - Navigation directly to configuration editor
-  - `MainLayout` component reducing code duplication for sidebar-enabled pages
+  - **Layout Components** (`client/src/components/layouts/`):
+    - `MainLayout`: Shared layout for sidebar-enabled pages with AlertsPanel, user menu, and theme toggle
+    - `HeaderOnlyLayout`: Layout for standalone pages without sidebar (ContentBrief, SWOT Analysis)
+  - **Sidebar Architecture** (`client/src/components/app-sidebar.tsx`):
+    - `NavItem`: Reusable navigation item component
+    - `NavGroup`: Reusable navigation group with label and icon support
+    - Configuration arrays: `CONTEXT_NAV_ITEMS`, `SECTION_NAV_ITEMS`, `ANALYSIS_NAV_ITEMS`, `GOVERNANCE_NAV_ITEMS`
+    - Dynamic module navigation via `ModuleNavItems` component
 - **AI-Powered Suggestions**: Integrated "Generate with AI" functionality across configuration sections.
 - **One Pager Visualization**: Executive summary view of User Context Records (UCR).
 - **Keyword Gap Analysis**: Comprehensive competitor keyword analysis with UCR-based filtering and a 3-tier classification system (Pass, Review, Out of Play) based on capability and opportunity scoring. Features include intent classification, configurable scoring models, vertical presets, and detailed result breakdowns with confidence levels.
