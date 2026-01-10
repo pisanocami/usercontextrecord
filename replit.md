@@ -139,3 +139,9 @@ The architecture emphasizes modularity with clear separation of concerns (fronte
 - **Fonts**: IBM Plex Sans, IBM Plex Mono
 - **Keyword Data Providers**: DataForSEO, Ahrefs (integrated through a factory pattern)
 - **Trends Data Providers**: DataForSEO Google Trends API (for Market Demand module)
+
+## Developer Documentation
+
+- **[ADDING_MODULES.md](ADDING_MODULES.md)**: Step-by-step guide for adding new modules to the platform
+- **[docs/MULTI_API_INTELLIGENCE_MODULES.md](docs/MULTI_API_INTELLIGENCE_MODULES.md)**: Comprehensive guide for implementing multi-API intelligence modules (SERP+Trends+Social, Cross-Channel Messaging, SERP+Attribution, Demand Forecasting, Intent+Positioning)
+- **[CONTEXT_MODULE_ARCHITECTURE.md](CONTEXT_MODULE_ARCHITECTURE.md)**: Context-first architecture patterns
