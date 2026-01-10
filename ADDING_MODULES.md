@@ -357,3 +357,9 @@ Si ninguno de estos campos tiene contenido, se mostrará el mensaje "Análisis c
 | `server/module-result-adapters.ts` | Adaptadores para ModuleRunResult v2 |
 | `client/src/pages/module-shell.tsx` | UI de ejecución de módulos |
 | `client/src/components/module-visualizer.tsx` | Renderizado de resultados |
+
+---
+
+## Guías Relacionadas
+
+- **[Módulos de Inteligencia Multi-API](docs/MULTI_API_INTELLIGENCE_MODULES.md)**: Guía completa para implementar módulos que combinan múltiples APIs externas (SerpApi, DataForSEO, GA4, Meta Ads, etc.) con patrones ETL, caching, y schemas unificados de output.
