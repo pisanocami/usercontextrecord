@@ -7,14 +7,12 @@ import {
   Sparkles,
   Search,
   TrendingUp,
-  BarChart3,
   FileText,
   History,
   Shield,
   BookOpen,
   Zap,
   BrainCircuit,
-  Globe,
   Megaphone,
   CheckCircle2,
   AlertCircle,
@@ -48,28 +46,112 @@ interface SidebarProps {
   cmoSafe?: boolean;
 }
 
+interface NavItemConfig {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  section: string | string[];
+  testId: string;
+}
+
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "SEO Signal": Search,
   "Market Trends": TrendingUp,
   "Brand Signal": Megaphone,
-  "Market Intelligence": Globe,
-  "Action": Zap,
-  "Synthesis": BrainCircuit,
 };
 
-const LAYER_ICONS: Record<string, LucideIcon> = {
-  Signal: TrendingUp,
-  Synthesis: BrainCircuit,
-  Action: Zap,
-};
+const CONTEXT_NAV_ITEMS: NavItemConfig[] = [
+  { href: "/", icon: List, label: "Mis Contextos", section: "list", testId: "nav-contexts-list" },
+  { href: "/new", icon: Plus, label: "Nuevo Contexto", section: ["new", "brand"], testId: "nav-new-context" },
+  { href: "/bulk", icon: Sparkles, label: "Bulk Generation", section: "bulk", testId: "nav-bulk" },
+  { href: "/brands", icon: Building2, label: "Gestión de Brands", section: "brands", testId: "nav-brands" },
+];
 
-function ModuleNavItems({
-  contracts,
-  activeSection,
-}: {
-  contracts: ModuleContract[];
+const SECTION_NAV_ITEMS: NavItemConfig[] = [
+  { href: "/sections/brand", icon: Building2, label: "Brand Identity", section: "section-brand", testId: "nav-section-brand" },
+  { href: "/sections/category_definition", icon: Layers, label: "Category Definition", section: "section-category", testId: "nav-section-category" },
+  { href: "/sections/competitors", icon: Users, label: "Competitive Set", section: "section-competitors", testId: "nav-section-competitors" },
+  { href: "/sections/demand_definition", icon: Search, label: "Demand Definition", section: "section-demand", testId: "nav-section-demand" },
+  { href: "/sections/strategic_intent", icon: Target, label: "Strategic Intent", section: "section-strategic", testId: "nav-section-strategic" },
+  { href: "/sections/channel_context", icon: Megaphone, label: "Channel Context", section: "section-channel", testId: "nav-section-channel" },
+  { href: "/sections/negative_scope", icon: ShieldX, label: "Negative Scope", section: "section-negative", testId: "nav-section-negative" },
+  { href: "/sections/governance", icon: FileCheck, label: "Governance", section: "section-governance", testId: "nav-section-governance" },
+];
+
+const ANALYSIS_NAV_ITEMS: NavItemConfig[] = [
+  { href: "/keyword-gap", icon: Search, label: "Keyword Gap", section: "keyword-gap", testId: "nav-keyword-gap" },
+  { href: "/market-demand", icon: TrendingUp, label: "Market Demand", section: "market-demand", testId: "nav-market-demand" },
+  { href: "/one-pager/latest", icon: FileText, label: "One Pager", section: "one-pager", testId: "nav-one-pager" },
+  { href: "/versions/latest", icon: History, label: "Version History", section: "versions", testId: "nav-versions" },
+];
+
+const GOVERNANCE_NAV_ITEMS: NavItemConfig[] = [
+  { href: "/report/gap", icon: Shield, label: "Compliance Report", section: "gap-report", testId: "nav-gap-report" },
+];
+
+interface NavItemProps {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  isActive: boolean;
+  testId: string;
+}
+
+function NavItem({ href, icon: Icon, label, isActive, testId }: NavItemProps) {
+  return (
+    <SidebarMenuItem>
+      <Link href={href}>
+        <SidebarMenuButton
+          isActive={isActive}
+          className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
+          data-testid={testId}
+        >
+          <Icon className="h-4 w-4" />
+          <span>{label}</span>
+        </SidebarMenuButton>
+      </Link>
+    </SidebarMenuItem>
+  );
+}
+
+interface NavGroupProps {
+  label: string;
+  items: NavItemConfig[];
   activeSection: string;
-}) {
+  icon?: LucideIcon;
+}
+
+function NavGroup({ label, items, activeSection, icon: GroupIcon }: NavGroupProps) {
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+        {GroupIcon && <GroupIcon className="h-3 w-3" />}
+        {label}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            const isActive = Array.isArray(item.section)
+              ? item.section.includes(activeSection)
+              : activeSection === item.section;
+            return (
+              <NavItem
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                isActive={isActive}
+                testId={item.testId}
+              />
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+function ModuleNavItems({ contracts, activeSection }: { contracts: ModuleContract[]; activeSection: string }) {
   return (
     <>
       {contracts.map((contract) => {
@@ -88,9 +170,7 @@ function ModuleNavItems({
               >
                 <Icon className="h-4 w-4 text-muted-foreground/70" />
                 <div className="flex flex-1 flex-col items-start overflow-hidden">
-                  <span className="text-sm font-medium truncate w-full">
-                    {contract.name}
-                  </span>
+                  <span className="text-sm font-medium truncate w-full">{contract.name}</span>
                 </div>
               </SidebarMenuButton>
             </Link>
@@ -101,12 +181,7 @@ function ModuleNavItems({
   );
 }
 
-export function AppSidebar({
-  activeSection,
-  onSectionChange,
-  hasUnsavedChanges = false,
-  cmoSafe = false,
-}: SidebarProps) {
+export function AppSidebar({ activeSection, hasUnsavedChanges = false, cmoSafe = false }: SidebarProps) {
   const allContracts = Object.values(CONTRACT_REGISTRY);
   const signalModules = allContracts.filter((c) => c.layer === "Signal");
   const synthesisModules = allContracts.filter((c) => c.layer === "Synthesis");
@@ -121,305 +196,16 @@ export function AppSidebar({
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">Brand Intelligence</span>
-            <span className="text-xs text-muted-foreground">
-              Context-First OS
-            </span>
+            <span className="text-xs text-muted-foreground">Context-First OS</span>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-        {/* CONTEXTOS - Hub Principal */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Contextos
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/">
-                  <SidebarMenuButton
-                    isActive={activeSection === "list"}
-                    className={
-                      activeSection === "list"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-contexts-list"
-                  >
-                    <List className="h-4 w-4" />
-                    <span>Mis Contextos</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/new">
-                  <SidebarMenuButton
-                    isActive={activeSection === "new" || activeSection === "brand"}
-                    className={
-                      activeSection === "new" || activeSection === "brand"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-new-context"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Nuevo Contexto</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/bulk">
-                  <SidebarMenuButton
-                    isActive={activeSection === "bulk"}
-                    className={
-                      activeSection === "bulk"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-bulk"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    <span>Bulk Generation</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/brands">
-                  <SidebarMenuButton
-                    isActive={activeSection === "brands"}
-                    className={
-                      activeSection === "brands"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-brands"
-                  >
-                    <Building2 className="h-4 w-4" />
-                    <span>Gestión de Brands</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavGroup label="Contextos" items={CONTEXT_NAV_ITEMS} activeSection={activeSection} />
+        <NavGroup label="Sections" items={SECTION_NAV_ITEMS} activeSection={activeSection} icon={LayoutGrid} />
+        <NavGroup label="Análisis" items={ANALYSIS_NAV_ITEMS} activeSection={activeSection} />
 
-        {/* SECTIONS - Section comparison lists */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <LayoutGrid className="h-3 w-3" />
-            Sections
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/sections/brand">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-brand"}
-                    className={
-                      activeSection === "section-brand"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-brand"
-                  >
-                    <Building2 className="h-4 w-4" />
-                    <span>Brand Identity</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/sections/category_definition">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-category"}
-                    className={
-                      activeSection === "section-category"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-category"
-                  >
-                    <Layers className="h-4 w-4" />
-                    <span>Category Definition</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/sections/competitors">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-competitors"}
-                    className={
-                      activeSection === "section-competitors"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-competitors"
-                  >
-                    <Users className="h-4 w-4" />
-                    <span>Competitive Set</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/sections/demand_definition">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-demand"}
-                    className={
-                      activeSection === "section-demand"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-demand"
-                  >
-                    <Search className="h-4 w-4" />
-                    <span>Demand Definition</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/sections/strategic_intent">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-strategic"}
-                    className={
-                      activeSection === "section-strategic"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-strategic"
-                  >
-                    <Target className="h-4 w-4" />
-                    <span>Strategic Intent</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/sections/channel_context">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-channel"}
-                    className={
-                      activeSection === "section-channel"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-channel"
-                  >
-                    <Megaphone className="h-4 w-4" />
-                    <span>Channel Context</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/sections/negative_scope">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-negative"}
-                    className={
-                      activeSection === "section-negative"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-negative"
-                  >
-                    <ShieldX className="h-4 w-4" />
-                    <span>Negative Scope</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/sections/governance">
-                  <SidebarMenuButton
-                    isActive={activeSection === "section-governance"}
-                    className={
-                      activeSection === "section-governance"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-section-governance"
-                  >
-                    <FileCheck className="h-4 w-4" />
-                    <span>Governance</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* ANÁLISIS - Páginas de análisis existentes */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Análisis
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/keyword-gap">
-                  <SidebarMenuButton
-                    isActive={activeSection === "keyword-gap"}
-                    className={
-                      activeSection === "keyword-gap"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-keyword-gap"
-                  >
-                    <Search className="h-4 w-4" />
-                    <span>Keyword Gap</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/market-demand">
-                  <SidebarMenuButton
-                    isActive={activeSection === "market-demand"}
-                    className={
-                      activeSection === "market-demand"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-market-demand"
-                  >
-                    <TrendingUp className="h-4 w-4" />
-                    <span>Market Demand</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/one-pager/latest">
-                  <SidebarMenuButton
-                    isActive={activeSection === "one-pager"}
-                    className={
-                      activeSection === "one-pager"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-one-pager"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span>One Pager</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <Link href="/versions/latest">
-                  <SidebarMenuButton
-                    isActive={activeSection === "versions"}
-                    className={
-                      activeSection === "versions"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-versions"
-                  >
-                    <History className="h-4 w-4" />
-                    <span>Version History</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* MODULE CENTER - Grupo consolidado con submenu por layer */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <BookOpen className="h-3 w-3" />
@@ -430,94 +216,45 @@ export function AppSidebar({
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/modules">
-                  <SidebarMenuButton
-                    isActive={activeSection === "module-center"}
-                    className={
-                      activeSection === "module-center"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-module-catalog"
-                  >
-                    <BookOpen className="h-4 w-4" />
-                    <span>Ver Catálogo</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-              
-              {/* Signal Modules */}
+              <NavItem
+                href="/modules"
+                icon={BookOpen}
+                label="Ver Catálogo"
+                isActive={activeSection === "module-center"}
+                testId="nav-module-catalog"
+              />
               {signalModules.length > 0 && (
                 <>
                   <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     Signals ({signalModules.length})
                   </div>
-                  <ModuleNavItems
-                    contracts={signalModules}
-                    activeSection={activeSection}
-                  />
+                  <ModuleNavItems contracts={signalModules} activeSection={activeSection} />
                 </>
               )}
-              
-              {/* Synthesis Modules */}
               {synthesisModules.length > 0 && (
                 <>
                   <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
                     <BrainCircuit className="h-3 w-3" />
                     Synthesis ({synthesisModules.length})
                   </div>
-                  <ModuleNavItems
-                    contracts={synthesisModules}
-                    activeSection={activeSection}
-                  />
+                  <ModuleNavItems contracts={synthesisModules} activeSection={activeSection} />
                 </>
               )}
-              
-              {/* Action Modules */}
               {actionModules.length > 0 && (
                 <>
                   <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
                     <Zap className="h-3 w-3" />
                     Actions ({actionModules.length})
                   </div>
-                  <ModuleNavItems
-                    contracts={actionModules}
-                    activeSection={activeSection}
-                  />
+                  <ModuleNavItems contracts={actionModules} activeSection={activeSection} />
                 </>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* GOVERNANCE */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Governance
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Link href="/report/gap">
-                  <SidebarMenuButton
-                    isActive={activeSection === "gap-report"}
-                    className={
-                      activeSection === "gap-report"
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : ""
-                    }
-                    data-testid="nav-gap-report"
-                  >
-                    <Shield className="h-4 w-4" />
-                    <span>Compliance Report</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavGroup label="Governance" items={GOVERNANCE_NAV_ITEMS} activeSection={activeSection} />
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t">
@@ -525,25 +262,17 @@ export function AppSidebar({
           {hasUnsavedChanges && (
             <div className="flex items-center gap-2">
               <Clock className="h-3 w-3 text-amber-500" />
-              <span className="text-xs text-muted-foreground">
-                Unsaved changes
-              </span>
+              <span className="text-xs text-muted-foreground">Unsaved changes</span>
             </div>
           )}
           <div className="flex items-center gap-2">
             {cmoSafe ? (
-              <Badge
-                variant="default"
-                className="text-xs w-full justify-center gap-1"
-              >
+              <Badge variant="default" className="text-xs w-full justify-center gap-1">
                 <CheckCircle2 className="h-3 w-3" />
                 CMO Safe
               </Badge>
             ) : (
-              <Badge
-                variant="secondary"
-                className="text-xs w-full justify-center gap-1"
-              >
+              <Badge variant="secondary" className="text-xs w-full justify-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Not Validated
               </Badge>
