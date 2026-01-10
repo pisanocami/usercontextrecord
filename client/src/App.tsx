@@ -43,6 +43,7 @@ import { AlertsPanel } from "@/components/alerts-panel";
 import AlertPreferencesPage from "@/pages/alert-preferences";
 import ContentBriefPage from "@/pages/content-brief";
 import SWOTAnalysisPage from "@/pages/swot-analysis";
+import CompetitiveRadarPage from "@/pages/competitive-radar";
 
 function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
@@ -304,6 +305,13 @@ function Router() {
           <HeaderOnlyLayout>
             <SWOTAnalysisPage />
           </HeaderOnlyLayout>
+        )}
+      </Route>
+      <Route path="/competitive-radar/:id">
+        {() => (
+          <MainLayout activeSection="competitive-radar">
+            <CompetitiveRadarPage />
+          </MainLayout>
         )}
       </Route>
       <Route path="/sections/:sectionKey">

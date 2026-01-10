@@ -23,6 +23,7 @@ import {
   ShieldX,
   FileCheck,
   LayoutGrid,
+  Radar,
 } from "lucide-react";
 import {
   Sidebar,
@@ -81,6 +82,7 @@ const SECTION_NAV_ITEMS: NavItemConfig[] = [
 const ANALYSIS_NAV_ITEMS: NavItemConfig[] = [
   { href: "/keyword-gap", icon: Search, label: "Keyword Gap", section: "keyword-gap", testId: "nav-keyword-gap" },
   { href: "/market-demand", icon: TrendingUp, label: "Market Demand", section: "market-demand", testId: "nav-market-demand" },
+  { href: "/competitive-radar/latest", icon: Radar, label: "Radar Competitivo", section: "competitive-radar", testId: "nav-competitive-radar" },
   { href: "/one-pager/latest", icon: FileText, label: "One Pager", section: "one-pager", testId: "nav-one-pager" },
   { href: "/versions/latest", icon: History, label: "Version History", section: "versions", testId: "nav-versions" },
 ];
