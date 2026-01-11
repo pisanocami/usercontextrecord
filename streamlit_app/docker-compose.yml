@@ -1,0 +1,71 @@
+# ============================================
+# Brand Intelligence Platform - Docker Compose
+# UCR FIRST Architecture
+# ============================================
+
+version: '3.8'
+
+services:
+  # Streamlit Microservice
+  streamlit:
+    build:
+      context: ..
+      dockerfile: streamlit_app/Dockerfile
+    container_name: brand-intel-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      # BYOK API Keys (from host environment)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Database
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      # UCR Settings
+      - UCR_API_BASE_URL=http://host.docker.internal:3000
+      - UCR_VALIDATION_STRICT=true
+      # External APIs
+      - DATAFORSEO_LOGIN=${DATAFORSEO_LOGIN}
+      - DATAFORSEO_PASSWORD=${DATAFORSEO_PASSWORD}
+      - AHREFS_API_KEY=${AHREFS_API_KEY}
+      - SERPAPI_KEY=${SERPAPI_KEY}
+    volumes:
+      # Mount for development hot-reload
+      - ./:/app/streamlit_app:ro
+      - ../brand_intel:/app/brand_intel:ro
+    depends_on:
+      - redis
+    networks:
+      - brand-intel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: brand-intel-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - brand-intel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  brand-intel-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
