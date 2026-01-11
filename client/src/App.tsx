@@ -49,25 +49,26 @@ function GapReportPage() {
   const { logout, isLoggingOut } = useAuth();
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden">
-      <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+    <div className="flex min-h-screen w-full flex-col sm:h-screen">
+      <header className="sticky top-0 z-40 flex h-12 sm:h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
         <div className="flex items-center gap-2">
           <Link href="/">
             <Button variant="ghost" size="sm">
               <List className="h-4 w-4 mr-2" />
-              Configurations
+              <span className="hidden sm:inline">Configurations</span>
+              <span className="sm:hidden">Back</span>
             </Button>
           </Link>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={() => logout()} disabled={isLoggingOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign out
+          <Button variant="ghost" size="sm" onClick={() => logout()} disabled={isLoggingOut} aria-label="Sign out">
+            <LogOut className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
       </header>
-      <main className="flex-1 overflow-auto p-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-8">
         <div className="mx-auto max-w-4xl prose dark:prose-invert">
           <ReactMarkdown>{GapComplianceReport}</ReactMarkdown>
         </div>
@@ -97,22 +98,22 @@ function ConfigurationLayout() {
 
   return (
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
-      <div className="flex h-screen w-full">
+      <div className="flex min-h-screen w-full sm:h-screen">
         <AppSidebar
           activeSection={activeSection}
           onSectionChange={setActiveSection}
           hasUnsavedChanges={hasUnsavedChanges}
           cmoSafe={cmoSafe}
         />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-2">
+        <div className="flex flex-1 flex-col sm:overflow-hidden">
+          <header className="sticky top-0 z-40 flex h-12 sm:h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" aria-label="Toggle sidebar" />
+            <div className="flex items-center gap-1 sm:gap-2">
               <AlertsPanel />
               <ThemeToggle />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu" aria-label="User menu">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
                       <AvatarFallback>
@@ -135,7 +136,7 @@ function ConfigurationLayout() {
               </DropdownMenu>
             </div>
           </header>
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-auto sm:overflow-hidden">
             <ConfigurationPage
               activeSection={activeSection}
               onDirtyChange={handleDirtyChange}
@@ -159,7 +160,7 @@ function BrandContextLayout() {
 
   return (
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
-      <div className="flex h-screen w-full">
+      <div className="flex min-h-screen w-full sm:h-screen">
         <AppSidebar
           activeSection="context"
           onSectionChange={(section) => {
@@ -170,14 +171,14 @@ function BrandContextLayout() {
           hasUnsavedChanges={false}
           cmoSafe={false}
         />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-2">
+        <div className="flex flex-1 flex-col sm:overflow-hidden">
+          <header className="sticky top-0 z-40 flex h-12 sm:h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" aria-label="Toggle sidebar" />
+            <div className="flex items-center gap-1 sm:gap-2">
               <ThemeToggle />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu" aria-label="User menu">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
                       <AvatarFallback>
@@ -200,7 +201,7 @@ function BrandContextLayout() {
               </DropdownMenu>
             </div>
           </header>
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-auto sm:overflow-hidden">
             <BrandContextPage />
           </main>
         </div>

@@ -382,7 +382,7 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
+        <main className="flex-1 overflow-auto p-4 pb-24 sm:p-6 sm:pb-6">
           <div className="mx-auto max-w-6xl">
             <div className={isEditMode && existingConfig ? "grid gap-6 lg:grid-cols-[1fr_320px]" : ""}>
               <div className="max-w-4xl">
@@ -403,6 +403,21 @@ export function ConfigurationPage({ activeSection, onDirtyChange, onCmoSafeChang
             </div>
           </div>
         </main>
+
+        {isDirty && (
+          <div className="fixed bottom-20 left-0 right-0 z-50 flex justify-center px-4 sm:hidden safe-area-inset-bottom">
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              size="lg"
+              className="w-full max-w-sm shadow-lg"
+              data-testid="button-save-mobile"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saveMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        )}
       </div>
     </FormProvider>
   );

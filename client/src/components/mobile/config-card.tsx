@@ -49,34 +49,34 @@ export function ConfigCard({ config, onEdit, onDelete }: ConfigCardProps) {
     .filter((c) => c.status === "approved").length;
 
   return (
-    <Card className="p-4 hover-elevate" data-testid={`config-card-${config.id}`}>
+    <Card className="p-4 hover-elevate active-elevate-2" data-testid={`config-card-${config.id}`}>
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Building2 className="h-5 w-5" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Building2 className="h-5 w-5" aria-hidden="true" />
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-medium text-sm truncate">{config.brand?.name || config.name}</h3>
-            <Badge variant="secondary" className={cn("text-[10px] shrink-0", statusInfo.className)}>
+          <div className="flex items-center gap-2 mb-1.5">
+            <h3 className="font-medium text-base truncate">{config.brand?.name || config.name}</h3>
+            <Badge variant="secondary" className={cn("text-[11px] shrink-0", statusInfo.className)}>
               {statusInfo.label}
             </Badge>
           </div>
           
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             {config.brand?.domain && (
-              <span className="flex items-center gap-1 truncate">
-                <Globe className="h-3 w-3" />
+              <span className="flex items-center gap-1.5 truncate">
+                <Globe className="h-3.5 w-3.5" aria-hidden="true" />
                 {config.brand.domain}
               </span>
             )}
           </div>
           
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-4 text-sm">
             <span className={cn(
               "font-medium",
-              qualityScore >= 80 ? "text-green-600" :
-              qualityScore >= 50 ? "text-amber-600" : "text-red-600"
+              qualityScore >= 80 ? "text-green-600 dark:text-green-400" :
+              qualityScore >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"
             )}>
               {qualityScore}% quality
             </span>
@@ -86,18 +86,18 @@ export function ConfigCard({ config, onEdit, onDelete }: ConfigCardProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button variant="ghost" size="icon" asChild aria-label="View one pager">
             <Link href={`/one-pager/${config.id}`}>
               <FileText className="h-4 w-4" />
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+          <Button variant="ghost" size="icon" asChild aria-label="View keyword gap analysis">
             <Link href={`/keyword-gap/${config.id}`}>
               <BarChart3 className="h-4 w-4" />
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+          <Button variant="ghost" size="icon" className="hidden sm:flex" asChild aria-label="Create content brief">
             <Link href={`/content-brief/${config.id}`}>
               <Sparkles className="h-4 w-4" />
             </Link>
@@ -105,11 +105,17 @@ export function ConfigCard({ config, onEdit, onDelete }: ConfigCardProps) {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" aria-label="More actions">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="min-w-[160px]">
+              <DropdownMenuItem asChild className="sm:hidden">
+                <Link href={`/content-brief/${config.id}`}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Content Brief
+                </Link>
+              </DropdownMenuItem>
               {onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(Number(config.id))}>
                   <Pencil className="h-4 w-4 mr-2" />
@@ -119,7 +125,7 @@ export function ConfigCard({ config, onEdit, onDelete }: ConfigCardProps) {
               {onDelete && (
                 <DropdownMenuItem 
                   onClick={() => onDelete(Number(config.id))}
-                  className="text-destructive"
+                  className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
@@ -128,7 +134,7 @@ export function ConfigCard({ config, onEdit, onDelete }: ConfigCardProps) {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+          <Button variant="ghost" size="icon" asChild aria-label="View details">
             <Link href={`/brand-context?editId=${config.id}&reason=Review`}>
               <ChevronRight className="h-4 w-4" />
             </Link>

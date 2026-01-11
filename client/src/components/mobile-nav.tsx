@@ -1,4 +1,4 @@
-import { Home, FileText, BarChart3, Settings, Plus } from "lucide-react";
+import { Home, FileText, BarChart3, Building2, Layers } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -7,46 +7,51 @@ interface NavItem {
   label: string;
   icon: typeof Home;
   href: string;
+  matchPaths?: string[];
 }
 
 const navItems: NavItem[] = [
-  { id: "home", label: "Home", icon: Home, href: "/" },
-  { id: "context", label: "Context", icon: FileText, href: "/brand-context" },
-  { id: "new", label: "New", icon: Plus, href: "/bulk" },
-  { id: "analysis", label: "Analysis", icon: BarChart3, href: "/" },
-  { id: "settings", label: "Settings", icon: Settings, href: "/" },
+  { id: "home", label: "Contexts", icon: Home, href: "/", matchPaths: ["/", "/new"] },
+  { id: "brands", label: "Brands", icon: Building2, href: "/brands" },
+  { id: "modules", label: "Modules", icon: Layers, href: "/modules" },
+  { id: "analysis", label: "Analysis", icon: BarChart3, href: "/keyword-gap", matchPaths: ["/keyword-gap", "/market-demand", "/one-pager"] },
+  { id: "bulk", label: "Create", icon: FileText, href: "/bulk" },
 ];
 
 export function MobileNav() {
   const [location] = useLocation();
 
-  const isActive = (href: string) => {
-    if (href === "/" && location === "/") return true;
-    if (href !== "/" && location.startsWith(href)) return true;
+  const isActive = (item: NavItem) => {
+    if (item.matchPaths) {
+      return item.matchPaths.some(path => {
+        if (path === "/") return location === "/";
+        return location.startsWith(path);
+      });
+    }
+    if (item.href === "/" && location === "/") return true;
+    if (item.href !== "/" && location.startsWith(item.href)) return true;
     return false;
   };
 
   return (
-    <nav className="bottom-nav mobile-only" data-testid="mobile-nav">
+    <nav className="bottom-nav mobile-only" data-testid="mobile-nav" role="navigation" aria-label="Main navigation">
       <div className="flex items-stretch">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = isActive(item.href);
+          const active = isActive(item);
           
           return (
             <Link key={item.id} href={item.href} asChild>
               <a
                 className={cn(
-                  "bottom-nav-item",
+                  "bottom-nav-item touch-target",
                   active && "active"
                 )}
                 data-testid={`nav-${item.id}`}
+                aria-current={active ? "page" : undefined}
               >
-                <Icon className={cn(
-                  "h-5 w-5 mb-0.5",
-                  item.id === "new" && "h-6 w-6"
-                )} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <Icon className="h-5 w-5 mb-1" aria-hidden="true" />
+                <span className="text-[11px] font-medium leading-tight">{item.label}</span>
               </a>
             </Link>
           );

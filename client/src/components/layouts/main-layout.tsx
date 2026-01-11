@@ -65,22 +65,22 @@ export function MainLayout({
 
   return (
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
-      <div className="flex h-screen w-full">
+      <div className="flex min-h-screen w-full sm:h-screen">
         <AppSidebar
           activeSection={computedActiveSection}
           onSectionChange={handleSectionChange}
           hasUnsavedChanges={hasUnsavedChanges}
           cmoSafe={cmoSafe}
         />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-2">
+        <div className="flex flex-1 flex-col sm:overflow-hidden">
+          <header className="sticky top-0 z-40 flex h-12 sm:h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" aria-label="Toggle sidebar" />
+            <div className="flex items-center gap-1 sm:gap-2">
               {showAlerts && <AlertsPanel />}
               <ThemeToggle />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu" aria-label="User menu">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
                       <AvatarFallback>
@@ -103,7 +103,7 @@ export function MainLayout({
               </DropdownMenu>
             </div>
           </header>
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-auto sm:overflow-hidden">
             {children}
           </main>
         </div>
@@ -116,15 +116,15 @@ export function HeaderOnlyLayout({ children, showAlerts = true }: { children: Re
   const { user, logout, isLoggingOut } = useAuth();
 
   return (
-    <div className="flex h-screen w-full flex-col">
-      <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+    <div className="flex min-h-screen w-full flex-col sm:h-screen">
+      <header className="sticky top-0 z-40 flex h-12 sm:h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
         <div />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {showAlerts && <AlertsPanel />}
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+              <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu" aria-label="User menu">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
                   <AvatarFallback>
@@ -147,7 +147,7 @@ export function HeaderOnlyLayout({ children, showAlerts = true }: { children: Re
           </DropdownMenu>
         </div>
       </header>
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-auto sm:overflow-hidden">
         {children}
       </main>
     </div>
