@@ -18,7 +18,10 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from streamlit_app.services.ai_service import get_ai_service
 from streamlit_app.services.session_manager import SessionManager
+from streamlit_app.components.ai_generate_button import render_ai_generate_button, render_ai_result_display
+from streamlit_app.components.ai_provider_selector import render_ai_provider_selector
 
 st.set_page_config(
     page_title="Competitive Signals | UCR FIRST",
@@ -27,6 +30,7 @@ st.set_page_config(
 )
 
 session = SessionManager()
+ai_service = get_ai_service()
 
 # Header
 st.title("🎯 Competitive Signal Detection")
@@ -151,6 +155,44 @@ if st.button("🚀 Detect Signals", type="primary", use_container_width=True):
         })
         
         st.success(f"✅ Detected {len(detected_signals)} signals")
+
+# AI Insights Generation
+st.markdown("---")
+st.subheader("🤖 AI Insights Generation")
+
+# AI Provider Selection
+ai_provider = render_ai_provider_selector(ai_service)
+
+if signals:
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        insight_result = render_ai_generate_button(
+            "Generate Executive Insights",
+            generate_insights_from_signals,
+            key="generate_insights",
+            help_text="Generate executive-level insights from detected signals"
+        )
+
+    if insight_result:
+        render_ai_result_display(insight_result, result_type="markdown")
+
+else:
+    st.info("Generate signals first to enable AI insights.")
+
+async def generate_insights_from_signals() -> str:
+    """Generate insights from current signals."""
+    if not ai_provider:
+        return "No AI provider selected"
+
+    try:
+        signals = session.get_signals()
+        ucr = session.get_current_ucr()
+
+        insights = await ai_service.generate_insights(signals, ucr, ai_provider)
+        return insights
+    except Exception as e:
+        return f"Failed to generate insights: {str(e)}"
 
 # Display Signals
 st.markdown("---")

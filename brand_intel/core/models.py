@@ -360,5 +360,24 @@ class Configuration(BaseModel):
             len(self.competitors.get_approved()) > 0
         )
     
+    def copy(self) -> 'Configuration':
+        """Create a deep copy of the configuration."""
+        return Configuration(
+            id=self.id,
+            user_id=self.user_id,
+            brand_id=self.brand_id,
+            name=self.name,
+            brand=self.brand.model_copy(),  # Use model_copy for proper deep copy
+            category_definition=self.category_definition.model_copy(),
+            competitors=self.competitors.model_copy(),
+            demand_definition=self.demand_definition.copy() if self.demand_definition else {},
+            strategic_intent=self.strategic_intent.model_copy(),
+            channel_context=self.channel_context.copy() if self.channel_context else {},
+            negative_scope=self.negative_scope.model_copy(),
+            governance=self.governance.model_copy(),
+            created_at=self.created_at,
+            updated_at=self.updated_at
+        )
+    
     class Config:
         extra = "allow"

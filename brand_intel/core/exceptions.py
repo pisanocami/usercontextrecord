@@ -77,3 +77,12 @@ class AuthorizationError(BrandIntelError):
     
     def __init__(self, message: str = "Access denied"):
         super().__init__(message, code="AUTHORIZATION_ERROR")
+
+
+class DataServiceError(BrandIntelError):
+    """Raised when data service operations fail."""
+    
+    def __init__(self, message: str, operation: str = None, service: str = None):
+        self.operation = operation
+        self.service = service
+        super().__init__(message, code="DATA_SERVICE_ERROR")

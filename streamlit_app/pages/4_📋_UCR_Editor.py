@@ -33,13 +33,26 @@ def render_ucr_editor():
         st.error("No UCR selected. Please select a UCR from the sidebar.")
         return
 
-    # Quality Score Header
+    # Quality Score Header with real validation
     render_quality_score_header(config, ucr_service)
+
+    # Real-time validation status
+    validation_result = ucr_service.validate(config)
+    if validation_result.status == UCRValidationStatus.BLOCKED:
+        st.error("⚠️ **Critical Issues Found** - Please fix before proceeding")
+        for reason in validation_result.blocked_reasons:
+            st.error(f"• {reason}")
+    elif validation_result.status == UCRValidationStatus.NEEDS_REVIEW:
+        st.warning("⚠️ **Review Required** - Some sections need attention")
+        for warning in validation_result.warnings:
+            st.warning(f"• {warning}")
+    else:
+        st.success("✅ **UCR Valid** - Ready for analysis")
 
     # Main editor tabs
     section_tabs = st.tabs([
         "🏢 A: Brand Context",
-        "🎯 B: Category Definition",
+        "🎯 B: Category Definition", 
         "🏆 C: Competitive Set",
         "📊 D: Demand Definition",
         "🎯 E: Strategic Intent",
@@ -50,62 +63,67 @@ def render_ucr_editor():
 
     # Track changes for save button
     changes_made = False
+    updated_config = config.copy()
 
     # Section A: Brand Context
     with section_tabs[0]:
         new_config_a, changed_a = render_section_a(config)
         if changed_a:
-            config = new_config_a
+            updated_config = new_config_a
             changes_made = True
 
     # Section B: Category Definition
     with section_tabs[1]:
         new_config_b, changed_b = render_section_b(config)
         if changed_b:
-            config = new_config_b
+            updated_config = new_config_b
             changes_made = True
 
     # Section C: Competitive Set
     with section_tabs[2]:
         new_config_c, changed_c = render_section_c(config)
         if changed_c:
-            config = new_config_c
+            updated_config = new_config_c
             changes_made = True
 
     # Section D: Demand Definition
     with section_tabs[3]:
         new_config_d, changed_d = render_section_d(config)
         if changed_d:
-            config = new_config_d
+            updated_config = new_config_d
             changes_made = True
 
     # Section E: Strategic Intent
     with section_tabs[4]:
         new_config_e, changed_e = render_section_e(config)
         if changed_e:
-            config = new_config_e
+            updated_config = new_config_e
             changes_made = True
 
     # Section F: Channel Context
     with section_tabs[5]:
         new_config_f, changed_f = render_section_f(config)
         if changed_f:
-            config = new_config_f
+            updated_config = new_config_f
             changes_made = True
 
     # Section G: Negative Scope
     with section_tabs[6]:
         new_config_g, changed_g = render_section_g(config)
         if changed_g:
-            config = new_config_g
+            updated_config = new_config_g
             changes_made = True
 
     # Section H: Governance
     with section_tabs[7]:
         new_config_h, changed_h = render_section_h(config)
         if changed_h:
-            config = new_config_h
+            updated_config = new_config_h
             changes_made = True
+
+    # Update config for validation
+    if changes_made:
+        config = updated_config
 
     # Save button
     render_save_section(config, changes_made, session, ucr_service)

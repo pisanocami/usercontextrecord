@@ -22,8 +22,9 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import Settings
-from services.session_manager import SessionManager
+from streamlit_app.services.data_service import get_data_service
+from streamlit_app.services.session_manager import SessionManager
+from streamlit_app.config.settings import Settings
 
 # Page configuration
 st.set_page_config(
@@ -109,6 +110,10 @@ def render_ucr_status(ucr_loaded: bool, quality_score: int = 0):
             status_color = "🔴"
             quality_class = "low"
         
+        st.sidebar.markdown("---")
+        from streamlit_app.components.quality_score_card import render_quality_score_mini
+        render_quality_score_mini(session.get_current_ucr())
+        
         st.sidebar.markdown(f"""
         <div class="quality-gauge quality-{quality_class}">
             <div style="font-size: 24px;">{status_color}</div>
@@ -120,32 +125,32 @@ def render_ucr_status(ucr_loaded: bool, quality_score: int = 0):
         st.sidebar.warning("⚠️ No UCR loaded")
 
 
-def render_sidebar():
+async def render_sidebar():
     """Render sidebar with UCR selection and status."""
     with st.sidebar:
         st.markdown('<span class="ucr-badge">UCR FIRST</span>', unsafe_allow_html=True)
         st.title("🎯 Brand Intelligence")
-        
+
         st.markdown("---")
-        
+
         # UCR Selection
         st.subheader("📋 User Context Record")
-        
-        # Get available UCRs (mock for now)
-        available_ucrs = session.get_available_ucrs()
-        
+
+        # Get available UCRs (from backend)
+        available_ucrs = await session.get_available_ucrs()
+
         if available_ucrs:
             selected_ucr = st.selectbox(
                 "Select UCR",
                 options=[u["name"] for u in available_ucrs],
                 index=0
             )
-            
+
             # Load selected UCR
-            ucr = session.load_ucr(selected_ucr)
+            ucr = await session.load_ucr(selected_ucr)
             if ucr:
                 render_ucr_status(True, ucr.get("quality_score", 0))
-                
+
                 # UCR Sections Status
                 st.markdown("### 📊 UCR Sections")
                 sections = [
@@ -154,16 +159,16 @@ def render_sidebar():
                     ("C", "Competitors", ucr.get("section_c_valid", True)),
                     ("G", "Guardrails", ucr.get("section_g_valid", True)),
                 ]
-                
+
                 for code, name, valid in sections:
                     icon = "✅" if valid else "⚠️"
                     st.markdown(f"{icon} **{code}**: {name}")
         else:
             render_ucr_status(False)
             st.info("No UCRs available. Create one in the main app.")
-        
+
         st.markdown("---")
-        
+
         # Navigation info
         st.markdown("### 📍 Navigation")
         st.markdown("""
@@ -318,21 +323,55 @@ def render_home():
             st.info("Navigate to Guardrails page to review Section G")
 
 
-def main():
+async def main():
     """Main application entry point."""
-    render_sidebar()
-    render_home()
-    
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style="text-align: center; color: #666; font-size: 12px;">
-        <strong>UCR FIRST Architecture</strong> | 
-        All operations validated against User Context Record |
-        Fortune 500 Grade Competitive Intelligence
-    </div>
-    """, unsafe_allow_html=True)
+    # Initialize data service
+    data_service = get_data_service(settings)
+    session_manager = SessionManager(data_service)
+
+    # Override global session with async-enabled version
+    global session
+    session = session_manager
+
+    # Page routing
+    page = st.sidebar.selectbox(
+        "Navigate",
+        ["Home", "Signals", "Analysis", "Guardrails", "Module Center", "Quality Score"],
+        key="main_navigation"
+    )
+
+    # Render sidebar
+    await render_sidebar()
+
+    # Page routing
+    if page == "Home":
+        render_home()
+    elif page == "Signals":
+        # Import and render signals page
+        try:
+            from pages.page_1_signals import render_signals_page
+            render_signals_page()
+        except ImportError:
+            st.error("Signals page not available")
+    elif page == "Analysis":
+        st.info("Analysis page coming soon")
+    elif page == "Guardrails":
+        st.info("Guardrails page coming soon")
+    elif page == "Module Center":
+        try:
+            from pages.page_6_module_center import render_module_center
+            render_module_center()
+        except ImportError:
+            st.error("Module Center page not available")
+    elif page == "Quality Score":
+        try:
+            from pages.page_8_quality_score import render_quality_score_page
+            render_quality_score_page()
+        except ImportError:
+            st.error("Quality Score page not available")
 
 
 if __name__ == "__main__":
-    main()
+    # Run async main
+    import asyncio
+    asyncio.run(main())

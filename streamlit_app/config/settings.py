@@ -10,6 +10,62 @@ import os
 from typing import Optional
 from dataclasses import dataclass
 
+# Try to load .env file
+try:
+    from dotenv import load_dotenv
+    import os
+    
+    # Try multiple possible paths for .env file
+    possible_paths = [
+        os.path.join(os.path.dirname(__file__), '..', '.env'),  # config/../.env
+        os.path.join(os.path.dirname(__file__), '..', '..', '.env'),  # config/../../.env
+        '.env',  # current directory
+        os.path.join(os.getcwd(), '.env'),  # working directory
+    ]
+    
+    env_loaded = False
+    for env_path in possible_paths:
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+            env_loaded = True
+            break
+    
+    if not env_loaded:
+        # Fallback: manually load from streamlit_app/.env
+        manual_env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+        if os.path.exists(manual_env_path):
+            with open(manual_env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key] = value
+            env_loaded = True
+    
+    # Debug: print loaded status
+    if env_loaded:
+        print(f"✅ Loaded .env file from: {env_path if 'env_path' in locals() else manual_env_path}")
+    else:
+        print("⚠️ No .env file found")
+        
+except ImportError:
+    # python-dotenv not installed, try manual loading
+    try:
+        import os
+        env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+        if os.path.exists(env_path):
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key] = value
+            print(f"✅ Manually loaded .env file from: {env_path}")
+    except Exception as e:
+        print(f"⚠️ Failed to load .env file: {e}")
+except Exception as e:
+    print(f"⚠️ Error loading .env file: {e}")
+
 
 @dataclass
 class Settings:

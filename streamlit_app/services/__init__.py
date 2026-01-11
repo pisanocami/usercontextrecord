@@ -6,6 +6,5 @@ Services for the Streamlit microservice.
 All services follow UCR FIRST principles.
 """
 
-from streamlit_app.services.session_manager import SessionManager
-
-__all__ = ["SessionManager"]
+# Remove circular imports - import directly where needed
+__all__ = []
