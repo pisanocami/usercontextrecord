@@ -267,7 +267,15 @@ class DataService:
                     error="API client not available"
                 )
 
-            saved_config_data = await self.api_client.save_configuration(config.dict(), self._user_id)
+            saved_config_data = await self.api_client.save_configuration(config.dict(by_alias=True), self._user_id)
+            
+            # Handle backend response - ensure negative_scope uses correct field names
+            if "negative_scope" in saved_config_data and isinstance(saved_config_data["negative_scope"], dict):
+                neg_scope = saved_config_data["negative_scope"]
+                # Map restricted_categories to excluded_categories if needed
+                if "restricted_categories" in neg_scope and "excluded_categories" not in neg_scope:
+                    neg_scope["excluded_categories"] = neg_scope.pop("restricted_categories")
+            
             saved_config = Configuration(**saved_config_data)
 
             # Cache the updated configuration

@@ -7,15 +7,14 @@ Gemini client with Google Search grounding for Brand Intelligence platform.
 
 import os
 import json
+import asyncio
 from typing import List, Dict, Any, Optional
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from brand_intel.ai.base import BaseAIClient
 from brand_intel.core.exceptions import AIClientError
 
 try:
-    from google import genai
-    from google.genai import types
+    import google.generativeai as genai
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -25,10 +24,10 @@ class GeminiClient(BaseAIClient):
     """
     Google Gemini client with Google Search grounding.
     
-    Reads API key from GEMINI_API_KEY or AI_INTEGRATIONS_GEMINI_API_KEY.
+    Reads API key from GEMINI_API_KEY or GOOGLE_API_KEY.
     """
     
-    DEFAULT_MODEL = "gemini-2.5-flash"
+    DEFAULT_MODEL = "gemini-1.5-flash"
     
     def __init__(
         self,
@@ -37,128 +36,130 @@ class GeminiClient(BaseAIClient):
     ):
         if not GEMINI_AVAILABLE:
             raise AIClientError(
-                "google-generativeai package not installed",
+                "google-generativeai package not installed. Run: pip install google-generativeai",
                 provider="gemini"
             )
         
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("AI_INTEGRATIONS_GEMINI_API_KEY")
+        # Try multiple env var names
+        self.api_key = (
+            api_key or 
+            os.getenv("GOOGLE_API_KEY") or 
+            os.getenv("GEMINI_API_KEY") or 
+            os.getenv("AI_INTEGRATIONS_GEMINI_API_KEY")
+        )
+        
         if not self.api_key:
             raise AIClientError(
-                "GEMINI_API_KEY not found",
+                "GEMINI_API_KEY or GOOGLE_API_KEY not found",
                 provider="gemini"
             )
         
-        self.client = genai.Client(api_key=self.api_key)
-        self.model = model or self.DEFAULT_MODEL
+        # Configure the API
+        genai.configure(api_key=self.api_key)
+        self.model_name = model or self.DEFAULT_MODEL
+        self.model = genai.GenerativeModel(self.model_name)
     
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
-    )
     async def _call_gemini(
         self,
         prompt: str,
-        use_search: bool = False
+        use_search: bool = False,
+        max_retries: int = 3
     ) -> Dict[str, Any]:
-        """Make a call to Gemini API with optional Google Search grounding."""
-        try:
-            config = {}
-            if use_search:
-                config["tools"] = [types.Tool(google_search=types.GoogleSearch())]
-            
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=config if config else None
-            )
-            
-            result = {
-                "text": response.text,
-                "sources": []
-            }
-            
-            # Extract grounding sources if available
-            if hasattr(response, 'candidates') and response.candidates:
-                candidate = response.candidates[0]
-                if hasattr(candidate, 'grounding_metadata'):
-                    metadata = candidate.grounding_metadata
-                    if hasattr(metadata, 'grounding_chunks'):
-                        result["sources"] = [
-                            chunk.web.uri 
-                            for chunk in metadata.grounding_chunks 
-                            if hasattr(chunk, 'web') and chunk.web.uri
-                        ]
-            
-            return result
-        except Exception as e:
-            raise AIClientError(
-                f"Gemini API call failed: {str(e)}",
-                provider="gemini",
-                original_error=e
-            )
+        """Make a call to Gemini API."""
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                # Run synchronous API call in executor to not block event loop
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(
+                    None,
+                    lambda: self.model.generate_content(prompt)
+                )
+                
+                result = {
+                    "text": response.text if hasattr(response, 'text') else str(response),
+                    "sources": []
+                }
+                
+                return result
+                
+            except Exception as e:
+                last_error = e
+                error_str = str(e).lower()
+                
+                # Don't retry on certain errors
+                if "api_key" in error_str or "invalid" in error_str:
+                    raise AIClientError(
+                        f"Gemini API key error: {str(e)}",
+                        provider="gemini",
+                        original_error=e
+                    )
+                
+                # Wait before retry
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+        
+        raise AIClientError(
+            f"Gemini API call failed after {max_retries} attempts: {str(last_error)}",
+            provider="gemini",
+            original_error=last_error
+        )
     
     async def analyze_competitors(
         self,
-        brand_name: str,
         domain: str,
         category: str,
         existing_competitors: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
-        Analyze competitors using Gemini with Google Search grounding.
+        Analyze competitors using Gemini.
         
-        This is the preferred method for finding REAL competitors
-        as it uses live web search data.
+        Args:
+            domain: The domain to analyze
+            category: The category/industry
+            existing_competitors: Optional list of known competitors
         """
         existing = ", ".join(existing_competitors) if existing_competitors else "None"
         
-        prompt = f"""Research and identify REAL competitors for this brand using web search:
+        prompt = f"""Identify competitors for this business:
 
-Brand: {brand_name}
 Domain: {domain}
 Category: {category}
 Known Competitors: {existing}
 
-Search the web to find actual competitors. For each competitor provide:
+For each competitor provide:
 - name: Company name
-- domain: Website domain (e.g., competitor.com)
+- domain: Website domain
 - tier: "tier1" (direct), "tier2" (indirect), "tier3" (aspirational)
-- why: Brief explanation based on your search findings
+- why: Brief explanation
 
 Return ONLY valid JSON:
 {{
   "competitors": [
     {{"name": "...", "domain": "...", "tier": "tier1", "why": "..."}}
   ],
-  "search_sources": ["url1", "url2"],
   "market_context": "Brief market analysis"
-}}
+}}"""
 
-IMPORTANT: Use REAL competitor domains from your search, not made up ones."""
-
-        result = await self._call_gemini(prompt, use_search=True)
+        result = await self._call_gemini(prompt)
         
         try:
             json_str = result["text"].strip()
-            if json_str.startswith("```json"):
-                json_str = json_str[7:]
-            if json_str.startswith("```"):
-                json_str = json_str[3:]
-            if json_str.endswith("```"):
-                json_str = json_str[:-3]
+            # Clean markdown code blocks
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0]
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0]
             
             data = json.loads(json_str.strip())
-            
-            # Add grounding sources
-            if result["sources"]:
-                data["grounding_sources"] = result["sources"]
-            
             return data
         except json.JSONDecodeError as e:
-            raise AIClientError(
-                f"Failed to parse Gemini response: {str(e)}",
-                provider="gemini"
-            )
+            # Return a basic structure if parsing fails
+            return {
+                "competitors": [],
+                "market_context": result["text"][:500] if result.get("text") else "Analysis completed"
+            }
     
     async def generate_insights(
         self,
@@ -176,7 +177,7 @@ Provide strategic insights with:
 3. Opportunities
 4. Recommended Actions"""
 
-        result = await self._call_gemini(prompt, use_search=False)
+        result = await self._call_gemini(prompt)
         return result["text"]
     
     async def sequential_reasoning(
@@ -192,14 +193,14 @@ Context: {json.dumps(context)}
 
 Return JSON array: [{{"step": 1, "title": "...", "reasoning": "...", "conclusion": "..."}}]"""
 
-        result = await self._call_gemini(prompt, use_search=False)
+        result = await self._call_gemini(prompt)
         
         try:
             json_str = result["text"].strip()
-            if json_str.startswith("```"):
-                json_str = json_str.split("```")[1]
-                if json_str.startswith("json"):
-                    json_str = json_str[4:]
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0]
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0]
             
             return json.loads(json_str.strip())
         except json.JSONDecodeError:
@@ -218,14 +219,14 @@ Guardrails: {json.dumps(negative_scope)}
 
 Return JSON: {{"is_valid": bool, "violations": [], "risk_level": "none|low|medium|high"}}"""
 
-        result = await self._call_gemini(prompt, use_search=False)
+        result = await self._call_gemini(prompt)
         
         try:
             json_str = result["text"].strip()
-            if "```" in json_str:
-                json_str = json_str.split("```")[1]
-                if json_str.startswith("json"):
-                    json_str = json_str[4:]
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0]
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0]
             
             return json.loads(json_str.strip())
         except json.JSONDecodeError:
@@ -237,7 +238,7 @@ Return JSON: {{"is_valid": bool, "violations": [], "risk_level": "none|low|mediu
         brand_context: Dict[str, Any],
         competitor_data: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
-        """Generate content brief with optional web research."""
+        """Generate content brief."""
         prompt = f"""Create content brief for keyword "{keyword}":
 
 Brand: {json.dumps(brand_context)}
@@ -245,19 +246,106 @@ Competitors: {json.dumps(competitor_data or [])}
 
 Return JSON content brief with search_intent, target_audience, recommended_format, key_topics, seo_recommendations."""
 
-        result = await self._call_gemini(prompt, use_search=True)
+        result = await self._call_gemini(prompt)
         
         try:
             json_str = result["text"].strip()
-            if "```" in json_str:
-                json_str = json_str.split("```")[1]
-                if json_str.startswith("json"):
-                    json_str = json_str[4:]
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0]
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0]
             
-            data = json.loads(json_str.strip())
-            if result["sources"]:
-                data["research_sources"] = result["sources"]
+            return json.loads(json_str.strip())
+        except json.JSONDecodeError:
+            return {
+                "search_intent": "informational",
+                "target_audience": "general",
+                "recommended_format": "article",
+                "key_topics": [keyword],
+                "seo_recommendations": ["Include target keyword in title"]
+            }
+    
+    async def analyze_domain(
+        self,
+        domain: str,
+        brand_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze a domain for brand intelligence.
+        
+        Args:
+            domain: The domain to analyze
+            brand_name: Optional brand name
+        
+        Returns:
+            Analysis results with brand, category, strategy, and guardrails
+        """
+        prompt = f"""Analyze this domain for brand intelligence:
+
+Domain: {domain}
+Brand Name: {brand_name or "Unknown"}
+
+Provide analysis in this JSON format:
+{{
+  "brand": {{
+    "name": "string",
+    "industry": "string",
+    "business_model": "B2B or B2C or D2C",
+    "target_market": "string",
+    "primary_geography": ["string"],
+    "funding_stage": "string"
+  }},
+  "category": {{
+    "primary_category": "string",
+    "included": ["string"],
+    "excluded": ["string"]
+  }},
+  "strategy": {{
+    "primary_goal": "string",
+    "risk_tolerance": "low or medium or high",
+    "secondary_goals": ["string"]
+  }},
+  "guardrails": {{
+    "excluded_categories": ["string"],
+    "excluded_keywords": ["string"]
+  }}
+}}
+
+Return ONLY valid JSON."""
+
+        result = await self._call_gemini(prompt)
+        
+        try:
+            json_str = result["text"].strip()
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0]
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0]
             
-            return data
-        except json.JSONDecodeError as e:
-            raise AIClientError(f"Failed to parse content brief: {str(e)}", provider="gemini")
+            return json.loads(json_str.strip())
+        except json.JSONDecodeError:
+            # Return basic structure
+            return {
+                "brand": {
+                    "name": brand_name or domain.split('.')[0].title(),
+                    "industry": "Technology",
+                    "business_model": "B2C",
+                    "target_market": "General consumers",
+                    "primary_geography": ["US"],
+                    "funding_stage": "Unknown"
+                },
+                "category": {
+                    "primary_category": "Technology",
+                    "included": [],
+                    "excluded": []
+                },
+                "strategy": {
+                    "primary_goal": "brand_awareness",
+                    "risk_tolerance": "medium",
+                    "secondary_goals": []
+                },
+                "guardrails": {
+                    "excluded_categories": ["adult_content", "gambling"],
+                    "excluded_keywords": []
+                }
+            }

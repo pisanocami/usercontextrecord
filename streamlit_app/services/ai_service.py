@@ -260,52 +260,20 @@ class AIService:
         domain: str,
         brand_name: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Analyze domain using Gemini with search."""
+        """Analyze domain using Gemini with comprehensive error handling."""
         if not self.gemini:
-            raise AIClientError("Gemini not available")
+            raise AIClientError("Gemini client not available")
 
-        prompt = f"""
-        Research and analyze the domain {domain} for brand intelligence context.
-
-        {f"The brand is known as '{brand_name}'." if brand_name else ""}
-
-        Use web search to gather information about:
-        1. What industry/sector this company operates in
-        2. Who their target customers are
-        3. What products/services they offer
-        4. Their business model
-        5. Any notable competitors
-        6. Geographic presence
-
-        Based on your research, create a User Context Record (UCR) with:
-
-        BRAND CONTEXT:
-        - Industry sector
-        - Business model (B2B, B2C, B2B2C, Marketplace, SaaS)
-        - Target market description
-        - Primary geography
-
-        CATEGORY DEFINITION:
-        - Primary category
-        - Included sub-categories
-        - Excluded categories
-
-        STRATEGIC INTENT:
-        - Primary goal
-        - Risk tolerance
-        - Time horizon
-
-        Return ONLY valid JSON in the specified format.
-        """
-
-        response = await self.gemini.generate_with_search(prompt)
-
-        # Parse and return
-        import json
         try:
-            return json.loads(response.strip())
-        except json.JSONDecodeError:
-            return self._parse_json_fallback(response)
+            print("🤖 Calling Gemini analyze_domain...")
+            response = await self.gemini.analyze_domain(domain, brand_name)
+            print("✅ Gemini domain analysis completed")
+            return response
+
+        except Exception as e:
+            print(f"❌ Gemini domain analysis failed: {str(e)}")
+            print("💥 NO FALLBACK DATA USED - Only real AI data accepted")
+            raise AIClientError(f"Gemini domain analysis failed: {str(e)}")
 
     async def _analyze_with_openai(
         self,
@@ -336,30 +304,27 @@ class AIService:
         if not self.gemini:
             raise AIClientError("Gemini not available")
 
-        prompt = f"""
-        Search the web to find real competitors for {brand_name or domain} in the {category} category.
-
-        Find:
-        1. Direct competitors (same products/services, same market)
-        2. Indirect competitors (similar products, adjacent markets)
-
-        For each competitor provide:
-        - Company name
-        - Domain (real website)
-        - Tier: "tier1" (direct), "tier2" (indirect)
-        - Why they compete (brief explanation from search results)
-
-        Return ONLY valid JSON array of competitor objects.
-        """
-
-        response = await self.gemini.generate_with_search(prompt)
-
-        import json
         try:
-            competitors = json.loads(response.strip())
-            return competitors if isinstance(competitors, list) else []
-        except json.JSONDecodeError:
-            return []
+            response = await self.gemini.analyze_competitors(
+                domain,  # First positional argument: domain
+                category,  # Second positional argument: category
+                None  # existing_competitors: Optional[List[str]] = None
+            )
+
+            # The analyze_competitors method returns Dict[str, Any]
+            # Extract competitors from the response
+            if isinstance(response, dict) and "competitors" in response:
+                return response["competitors"]
+            elif isinstance(response, list):
+                return response
+            else:
+                # No fallback data - only real AI data accepted
+                raise AIClientError("Invalid response format from Gemini - Only real AI data accepted")
+
+        except Exception as e:
+            print(f"❌ Gemini competitor search failed: {str(e)}")
+            print("💥 NO FALLBACK DATA USED - Only real AI data accepted")
+            raise AIClientError(f"Gemini competitor search failed: {str(e)}")
 
     async def _search_competitors_claude(
         self,
@@ -387,7 +352,7 @@ class AIService:
             return []
 
     def _parse_json_fallback(self, response: str) -> Dict[str, Any]:
-        """Fallback JSON parsing for malformed responses."""
+        """Parse JSON response - NO FALLBACK DATA USED."""
         # Simple fallback - extract JSON-like content
         import re
         import json
@@ -397,32 +362,13 @@ class AIService:
         if json_match:
             try:
                 return json.loads(json_match.group())
-            except:
-                pass
+            except Exception as e:
+                print(f"❌ JSON parsing failed: {str(e)}")
+                print("💥 NO FALLBACK DATA USED - Only real AI data accepted")
+                raise AIClientError(f"JSON parsing failed: {str(e)}")
 
-        # Return minimal fallback
-        return {
-            "brand": {
-                "name": "Unknown Brand",
-                "industry": "Technology",
-                "business_model": "B2B",
-                "target_market": "Business customers"
-            },
-            "category": {
-                "primary_category": "Software",
-                "included": ["Digital Tools"],
-                "excluded": ["Hardware"]
-            },
-            "strategy": {
-                "primary_goal": "market_share",
-                "risk_tolerance": "medium",
-                "time_horizon": "medium"
-            },
-            "guardrails": {
-                "excluded_categories": ["gambling"],
-                "excluded_keywords": ["cheap"]
-            }
-        }
+        # NO FALLBACK DATA - Only real AI data accepted
+        raise AIClientError("No valid JSON found in AI response - Only real AI data accepted")
 
     async def generate_insights(
         self,

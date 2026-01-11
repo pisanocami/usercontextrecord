@@ -218,7 +218,7 @@ class EnforcementRules(BaseModel):
 
 class NegativeScope(BaseModel):
     """Negative scope / guardrails configuration."""
-    excluded_categories: List[str] = Field(default_factory=list)
+    excluded_categories: List[str] = Field(default_factory=list, alias="restricted_categories")
     excluded_keywords: List[str] = Field(default_factory=list)
     excluded_use_cases: List[str] = Field(default_factory=list)
     excluded_competitors: List[str] = Field(default_factory=list)
@@ -228,6 +228,9 @@ class NegativeScope(BaseModel):
     competitor_exclusions: List[Dict[str, Any]] = Field(default_factory=list)
     enforcement_rules: EnforcementRules = Field(default_factory=EnforcementRules)
     audit_log: List[Dict[str, Any]] = Field(default_factory=list)
+    
+    class Config:
+        populate_by_name = True
     
     @property
     def total_exclusions(self) -> int:

@@ -224,6 +224,38 @@ class UCRAPIClient:
         except httpx.RequestError as e:
             raise APIError(f"Request failed: {str(e)}")
     
+    async def save_configuration(
+        self,
+        config_data: Dict[str, Any],
+        user_id: str
+    ) -> Dict[str, Any]:
+        """
+        Guardar configuración en el backend.
+        
+        Args:
+            config_data: Datos de configuración a guardar
+            user_id: ID del usuario
+            
+        Returns:
+            Datos de configuración guardada
+        """
+        try:
+            response = await self.client.post(
+                "/api/configurations",
+                headers={"X-User-ID": user_id},
+                json=config_data
+            )
+            
+            if response.status_code in [200, 201]:
+                return response.json()
+            else:
+                raise APIError(
+                    f"Failed to save configuration: {response.status_code}",
+                    status_code=response.status_code
+                )
+        except httpx.RequestError as e:
+            raise APIError(f"Request failed: {str(e)}")
+    
     async def get_competitive_signals(
         self,
         config_id: int,
