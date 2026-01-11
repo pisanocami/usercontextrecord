@@ -1,58 +1,120 @@
-# Documentación FON Platform
+# 📚 Brand Intelligence Platform - Documentation
 
-Este directorio contiene la documentación técnica del Brand Intelligence Configuration Platform (FON).
-
----
-
-## Índice de Documentación
-
-### Documentación Principal
-
-| Documento | Descripción |
-|-----------|-------------|
-| [SYSTEM_DOCUMENTATION.md](../SYSTEM_DOCUMENTATION.md) | Documentación general del sistema |
-| [CONTEXT_MODULE_ARCHITECTURE.md](../CONTEXT_MODULE_ARCHITECTURE.md) | Arquitectura Context-First |
-| [KEYWORD_GAP_ANALYSIS.md](../KEYWORD_GAP_ANALYSIS.md) | Documentación de Keyword Gap |
-| [OOFOS_CASE_STUDY.md](../OOFOS_CASE_STUDY.md) | Caso de estudio DTC footwear |
-
-### Documentación Técnica
-
-| Documento | Descripción |
-|-----------|-------------|
-| [MODULE_CONTRACTS.md](./MODULE_CONTRACTS.md) | Sistema de contratos de módulos |
-| [UCR_SPECIFICATION.md](./UCR_SPECIFICATION.md) | Especificación del User Context Record |
-
-### Configuración
-
-| Documento | Descripción |
-|-----------|-------------|
-| [replit.md](../replit.md) | Configuración del proyecto Replit |
-| [design_guidelines.md](../design_guidelines.md) | Guías de diseño UI/UX |
+> Documentación técnica completa del Brand Intelligence Configuration Platform
 
 ---
 
-## Estructura del Directorio
+## 🗂️ Estructura de Documentación
 
 ```
 docs/
-├── README.md                    # Este archivo (índice)
-├── MODULE_CONTRACTS.md          # Sistema de contratos de módulos
-├── UCR_SPECIFICATION.md         # Especificación del UCR
-├── screens-manifest.json        # Registro de pantallas y metadatos
-├── capture-screenshots.ts       # Script de captura de screenshots
-├── generate-documentation.ts    # Generador de documentación Markdown
-└── screenshots/                 # Capturas de pantalla
-    ├── 01-landing.png
-    ├── 02-configurations-list.png
-    └── ...
+├── getting-started/     # 🚀 Para nuevos desarrolladores
+├── architecture/        # 🏗️ Arquitectura técnica
+├── specifications/      # 📋 Especificaciones formales
+├── modules/             # 🔧 Sistema de módulos
+├── features/            # ✨ Documentación por feature
+├── guides/              # 📖 Guías prácticas
+├── reference/           # 📚 Material de referencia
+├── internal/            # 🔒 Docs internos/legacy
+└── _tools/              # 🛠️ Scripts de documentación
 ```
 
-## Uso
+---
+
+## 🚀 Getting Started (Nuevos Desarrolladores)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [ONBOARDING.md](./getting-started/ONBOARDING.md) | Guía de onboarding para nuevos devs |
+| [REPLIT.md](./getting-started/REPLIT.md) | Configuración del entorno Replit |
+
+---
+
+## 🏗️ Architecture (Arquitectura Técnica)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [OVERVIEW.md](./architecture/OVERVIEW.md) | Arquitectura Context-First del sistema |
+| [COMPONENTS.md](./architecture/COMPONENTS.md) | Diagramas de componentes |
+| [MODULE_SYSTEM.md](./architecture/MODULE_SYSTEM.md) | Sistema de contratos de módulos |
+
+---
+
+## 📋 Specifications (Especificaciones)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [UCR_SPEC.md](./specifications/UCR_SPEC.md) | Especificación del User Context Record |
+| [KEYWORD_CLASSIFICATION.md](./specifications/KEYWORD_CLASSIFICATION.md) | Clasificación de keywords |
+
+---
+
+## 🔧 Modules (Sistema de Módulos)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [ADDING_MODULES.md](./modules/ADDING_MODULES.md) | Cómo agregar nuevos módulos |
+| [MULTI_API_MODULES.md](./modules/MULTI_API_MODULES.md) | Módulos con múltiples APIs |
+| [playbooks/](./modules/playbooks/) | Playbooks por categoría (SEO, Market, Synthesis) |
+
+---
+
+## ✨ Features (Documentación por Feature)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [KEYWORD_GAP.md](./features/KEYWORD_GAP.md) | Análisis de Keyword Gap |
+| [keyword-gap-technical.md](./features/keyword-gap-technical.md) | Detalles técnicos de Keyword Gap |
+
+---
+
+## 📖 Guides (Guías Prácticas)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [DESIGN_GUIDELINES.md](./guides/DESIGN_GUIDELINES.md) | Guías de diseño UI/UX |
+
+---
+
+## 📚 Reference (Material de Referencia)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [MASTER_GUIDE.md](./reference/MASTER_GUIDE.md) | Guía maestra completa para desarrolladores |
+| [SYSTEM_DOCUMENTATION.md](./reference/SYSTEM_DOCUMENTATION.md) | Documentación general del sistema |
+
+---
+
+## 🔒 Internal (Docs Internos)
+
+| Documento | Descripción |
+|-----------|-------------|
+| [SYSTEM_AUDIT.md](./internal/SYSTEM_AUDIT.md) | Auditoría del sistema |
+| [20-transformational-ideas.md](./internal/20-transformational-ideas.md) | Ideas de transformación |
+| [notion_exports/](./internal/notion_exports/) | Exports de Notion (legacy) |
+
+---
+
+## 🛠️ Tools (Scripts de Documentación)
+
+Los scripts de generación de documentación están en `_tools/`:
+
+```bash
+# Capturar screenshots
+npx tsx docs/_tools/capture-screenshots.ts
+
+# Generar documentación
+npx tsx docs/_tools/generate-documentation.ts
+```
+
+---
+
+## 📖 Uso de Herramientas de Documentación
 
 ### 1. Generar Documentación (sin screenshots)
 
 ```bash
-npx tsx docs/generate-documentation.ts
+npx tsx docs/_tools/generate-documentation.ts
 ```
 
 Esto genera `SYSTEM_DOCUMENTATION.md` en la raíz del proyecto.

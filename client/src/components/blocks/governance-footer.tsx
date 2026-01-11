@@ -1,6 +1,7 @@
 import { useFormContext } from "react-hook-form";
-import { Shield, Hash, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Shield, Hash, Clock, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { InsertConfiguration } from "@shared/schema";
 import { format } from "date-fns";
@@ -26,6 +27,9 @@ export function GovernanceFooter({
   const evidenceCoverage = qualityScore?.evidence_coverage || 0;
   const overallScore = qualityScore?.overall || 0;
   const grade = qualityScore?.grade || "low";
+  const used = aiBehavior?.regeneration_count || 0;
+  const max = aiBehavior?.max_regenerations || 5;
+  const remaining = max - used;
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600 dark:text-green-400";
@@ -87,10 +91,19 @@ export function GovernanceFooter({
         </div>
 
         <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">Regenerations</div>
-          <div className="text-xs">
-            {aiBehavior?.regeneration_count || 0} / {aiBehavior?.max_regenerations || 5}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="text-xs">Regenerations</span>
+            </div>
+            <Badge 
+              variant={remaining <= 0 ? "destructive" : remaining === 1 ? "outline" : "secondary"}
+              className="text-xs"
+            >
+              {used} / {max}
+            </Badge>
           </div>
+          <Progress value={(used / max) * 100} className="h-1" />
         </div>
 
         <div className="space-y-1">

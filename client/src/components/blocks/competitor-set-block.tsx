@@ -1,6 +1,6 @@
     import { useState } from "react";
     import { useFormContext } from "react-hook-form";
-    import { Users, Check, X, ChevronDown, ChevronRight, AlertTriangle, Target, TrendingUp, Star, Building2, Globe, Plus, DollarSign } from "lucide-react";
+    import { Users, Check, X, ChevronDown, ChevronRight, AlertTriangle, Target, TrendingUp, Star, Building2, Globe, Plus, DollarSign, ExternalLink } from "lucide-react";
     import { ContextBlock, BlockStatus } from "@/components/context-block";
     import { Button } from "@/components/ui/button";
     import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,117 @@
       },
     };
 
-    function ScoreBar({ score, label }: { score: number; label: string }) {
+    function getEvidenceStrength(competitor: CompetitorEntry): number {
+  let score = 0;
+  const evidence = competitor.evidence;
+  
+  if (evidence?.why_selected) score += 25;
+  if (evidence?.top_overlap_keywords?.length > 0) score += 25;
+  if (evidence?.serp_examples?.length > 0) score += 25;
+  if (competitor.serp_overlap > 0) score += 25;
+  
+  return score;
+}
+
+function EvidencePackCard({ 
+  competitor 
+}: { 
+  competitor: CompetitorEntry 
+}) {
+  const evidence = competitor.evidence;
+  const hasEvidence = evidence?.why_selected || 
+    (evidence?.top_overlap_keywords?.length > 0) || 
+    (evidence?.serp_examples?.length > 0);
+  
+  if (!hasEvidence) {
+    return (
+      <div className="rounded-md border border-dashed border-amber-300 dark:border-amber-700 p-3 bg-amber-50/50 dark:bg-amber-950/20">
+        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4" />
+          <span className="text-xs font-medium">No evidence collected</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Run AI analysis to gather SERP overlap and competitive evidence.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border p-3 space-y-3 bg-muted/30">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">Evidence Pack</span>
+        <Badge variant="outline" className="text-xs">
+          {getEvidenceStrength(competitor)}% strength
+        </Badge>
+      </div>
+      
+      {/* Granular Score Breakdown */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="text-center p-2 rounded bg-background">
+          <div className="text-lg font-bold text-blue-600">{competitor.serp_overlap}%</div>
+          <div className="text-[10px] text-muted-foreground">SERP Overlap</div>
+        </div>
+        <div className="text-center p-2 rounded bg-background">
+          <div className="text-lg font-bold text-green-600">{competitor.size_proximity}%</div>
+          <div className="text-[10px] text-muted-foreground">Size Match</div>
+        </div>
+        <div className="text-center p-2 rounded bg-background">
+          <div className="text-lg font-bold text-purple-600">{competitor.similarity_score}%</div>
+          <div className="text-[10px] text-muted-foreground">Similarity</div>
+        </div>
+      </div>
+      
+      {/* Why Selected */}
+      {evidence.why_selected && (
+        <div>
+          <span className="text-xs font-medium">Reason</span>
+          <p className="text-xs text-muted-foreground mt-0.5">{evidence.why_selected}</p>
+        </div>
+      )}
+      
+      {/* SERP Examples as Links */}
+      {evidence.serp_examples?.length > 0 && (
+        <div>
+          <span className="text-xs font-medium">SERP Examples</span>
+          <div className="flex flex-col gap-1 mt-1">
+            {evidence.serp_examples.slice(0, 3).map((url, i) => (
+              <a 
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:underline truncate flex items-center gap-1"
+              >
+                <ExternalLink className="h-3 w-3 shrink-0" />
+                {new URL(url).hostname}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Overlap Keywords */}
+      {evidence.top_overlap_keywords?.length > 0 && (
+        <div>
+          <span className="text-xs font-medium">Keyword Overlap ({evidence.top_overlap_keywords.length})</span>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {evidence.top_overlap_keywords.slice(0, 8).map((kw, i) => (
+              <Badge key={i} variant="secondary" className="text-[10px]">{kw}</Badge>
+            ))}
+            {evidence.top_overlap_keywords.length > 8 && (
+              <Badge variant="outline" className="text-[10px]">
+                +{evidence.top_overlap_keywords.length - 8} more
+              </Badge>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScoreBar({ score, label }: { score: number; label: string }) {
       const color = score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";
       return (
         <div className="flex items-center gap-2">
@@ -50,19 +160,21 @@
       );
     }
 
-    function CompetitorRow({
-      competitor,
-      onApprove,
-      onReject,
-      isExpanded,
-      onToggle,
-    }: {
-      competitor: CompetitorEntry;
-      onApprove: () => void;
-      onReject: () => void;
-      isExpanded: boolean;
-      onToggle: () => void;
-    }) {
+    function CompetitorRow({ 
+  competitor, 
+  isExpanded, 
+  onToggle, 
+  onApprove, 
+  onReject,
+  form 
+}: { 
+  competitor: CompetitorEntry; 
+  isExpanded: boolean; 
+  onToggle: () => void; 
+  onApprove: () => void; 
+  onReject: () => void;
+  form: any;
+}) {
       const tierConfig = TIER_CONFIG[competitor.tier];
       const hasSizeMismatch = competitor.size_proximity < 40;
 
@@ -123,6 +235,20 @@
 
               {competitor.added_by === "ai" && (
                 <Badge variant="secondary" className="text-xs">AI</Badge>
+              )}
+
+              {competitor.status === "approved" && (
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-xs",
+                    getEvidenceStrength(competitor) >= 75 ? "text-green-600 border-green-300" :
+                    getEvidenceStrength(competitor) >= 50 ? "text-amber-600 border-amber-300" :
+                    "text-red-600 border-red-300"
+                  )}
+                >
+                  {getEvidenceStrength(competitor)}% evidence
+                </Badge>
               )}
             </div>
 
@@ -188,6 +314,22 @@
                     {competitor.funding_stage === "public" ? "PUBLIC" : competitor.funding_stage.replace("_", " ").toUpperCase()}
                   </Badge>
                 )}
+                {/* Funding stage mismatch warning */}
+                {(() => {
+                  const brandFundingStage = form.watch("brand.funding_stage") || "unknown";
+                  const hasFundingStageMismatch = (
+                    competitor.funding_stage === "public" && brandFundingStage !== "public" && brandFundingStage !== "unknown"
+                  ) || (
+                    competitor.funding_stage !== "public" && competitor.funding_stage !== "unknown" && brandFundingStage === "public"
+                  );
+                  
+                  return hasFundingStageMismatch ? (
+                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span className="text-xs">Size mismatch</span>
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {competitor.evidence?.why_selected && (
@@ -203,6 +345,9 @@
                   ))}
                 </div>
               )}
+
+              {/* NEW: Evidence Pack Card */}
+              <EvidencePackCard competitor={competitor} />
             </div>
           )}
         </div>
@@ -216,6 +361,7 @@
       onToggle,
       onApprove,
       onReject,
+      form,
     }: {
       tier: "tier1" | "tier2" | "tier3";
       competitors: CompetitorEntry[];
@@ -223,6 +369,7 @@
       onToggle: (name: string) => void;
       onApprove: (name: string) => void;
       onReject: (name: string) => void;
+      form: any;
     }) {
       const config = TIER_CONFIG[tier];
       const Icon = config.icon;
@@ -246,6 +393,7 @@
                 onToggle={() => onToggle(c.name)}
                 onApprove={() => onApprove(c.name)}
                 onReject={() => onReject(c.name)}
+                form={form}
               />
             ))}
           </div>
@@ -430,6 +578,7 @@
                 onToggle={toggleExpand}
                 onApprove={handleApprove}
                 onReject={handleReject}
+                form={form}
               />
               <TierGroup 
                 tier="tier2" 
@@ -438,6 +587,7 @@
                 onToggle={toggleExpand}
                 onApprove={handleApprove}
                 onReject={handleReject}
+                form={form}
               />
               <TierGroup 
                 tier="tier3" 
@@ -446,6 +596,7 @@
                 onToggle={toggleExpand}
                 onApprove={handleApprove}
                 onReject={handleReject}
+                form={form}
               />
 
               {competitors.length === 0 && (

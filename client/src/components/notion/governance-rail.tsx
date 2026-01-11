@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { SectionApprovals, Governance, ContextStatus } from "@shared/schema";
 import { Link } from "wouter";
+import { RegenerationTracker } from "@/components/blocks/regeneration-tracker";
 
 interface QualityGate {
   id: string;
@@ -215,6 +216,10 @@ export function GovernanceRail({
           </div>
         </CardContent>
       </Card>
+
+      {governance.ai_behavior && (
+        <RegenerationTracker aiBehavior={governance.ai_behavior} />
+      )}
 
       {qualityGates.length > 0 && (
         <Card>

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { AuditLogPanel } from "./audit-log-panel";
+import { createAuditEntry } from "@/lib/audit-utils";
 import type { InsertConfiguration, ExclusionEntry } from "@shared/schema";
 
 function ExclusionChip({ 
@@ -62,6 +64,13 @@ function ExclusionChip({
   );
 }
 
+function getExclusionType(fieldName: string): "category" | "keyword" | "use_case" | "competitor" {
+  if (fieldName.includes("category")) return "category";
+  if (fieldName.includes("keyword")) return "keyword";
+  if (fieldName.includes("use_case")) return "use_case";
+  return "competitor";
+}
+
 function ExclusionSection({
   title,
   icon: Icon,
@@ -101,6 +110,17 @@ function ExclusionSection({
     };
     
     append(newEntry);
+    
+    // Add audit entry
+    const currentAuditLog = form.getValues("negative_scope.audit_log") || [];
+    const auditEntry = createAuditEntry(
+      "applied",
+      newValue.trim(),
+      getExclusionType(enhancedFieldName),
+      "Manually added by user"
+    );
+    form.setValue("negative_scope.audit_log", [...currentAuditLog, auditEntry], { shouldDirty: true });
+    
     setNewValue("");
   };
 
@@ -261,6 +281,7 @@ export function FenceBlock() {
   const competitorExclusions = form.watch("negative_scope.competitor_exclusions") || [];
   const legacyCategories = form.watch("negative_scope.excluded_categories") || [];
   const legacyKeywords = form.watch("negative_scope.excluded_keywords") || [];
+  const auditLog = form.watch("negative_scope.audit_log") || [];
   
   const totalExclusions = 
     categoryExclusions.length + 
@@ -338,7 +359,7 @@ export function FenceBlock() {
               <span className="text-sm">Hard Exclusion</span>
               <Switch
                 checked={hardExclusion}
-                onCheckedChange={(checked) => form.setValue("negative_scope.enforcement_rules.hard_exclusion", checked, { shouldDirty: true })}
+                onCheckedChange={(checked: boolean) => form.setValue("negative_scope.enforcement_rules.hard_exclusion", checked, { shouldDirty: true })}
                 data-testid="switch-hard-exclusion"
               />
             </label>
@@ -347,7 +368,7 @@ export function FenceBlock() {
               <span className="text-sm">AI Suggestions</span>
               <Switch
                 checked={allowModelSuggestion}
-                onCheckedChange={(checked) => form.setValue("negative_scope.enforcement_rules.allow_model_suggestion", checked, { shouldDirty: true })}
+                onCheckedChange={(checked: boolean) => form.setValue("negative_scope.enforcement_rules.allow_model_suggestion", checked, { shouldDirty: true })}
                 data-testid="switch-model-suggestion"
               />
             </label>
@@ -356,11 +377,15 @@ export function FenceBlock() {
               <span className="text-sm">Require Override</span>
               <Switch
                 checked={requireHumanOverride}
-                onCheckedChange={(checked) => form.setValue("negative_scope.enforcement_rules.require_human_override_for_expansion", checked, { shouldDirty: true })}
+                onCheckedChange={(checked: boolean) => form.setValue("negative_scope.enforcement_rules.require_human_override_for_expansion", checked, { shouldDirty: true })}
                 data-testid="switch-human-override"
               />
             </label>
           </div>
+        </div>
+
+        <div className="border-t pt-4 mt-4">
+          <AuditLogPanel auditLog={auditLog} />
         </div>
       </div>
     </ContextBlock>

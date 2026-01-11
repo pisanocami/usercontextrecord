@@ -532,6 +532,7 @@ Return a complete JSON object with ALL sections filled.`;
       excluded: generated.category_definition?.excluded || [],
       approved_categories: [generated.category_definition?.primary_category || generated.brand?.industry || primaryCategory],
       alternative_categories: generated.category_definition?.alternative_categories || [],
+      semantic_extensions: generated.category_definition?.semantic_extensions || [],
     },
     competitors: {
       direct: (competitorData?.direct || []).map((d: string) => normalizeDomain(d)),
@@ -2975,7 +2976,7 @@ IMPORTANT:
         updated_at: config.updated_at.toISOString()
       };
 
-      const swotAnalysis = await analyzeSWOT(configForAnalysis, openai, keywordGapData, marketDemandData);
+      const swotAnalysis = await analyzeSWOT(configForAnalysis, openai, keywordGapData as any, marketDemandData);
       const executionTimeMs = Date.now() - startTime;
 
       try {
@@ -3064,7 +3065,7 @@ IMPORTANT:
         });
       }
 
-      const config = await storage.getConfiguration(configId, userId);
+      const config = await storage.getConfigurationById(configId, userId);
       if (!config) {
         return res.status(404).json({ error: "Configuracion no encontrada" });
       }

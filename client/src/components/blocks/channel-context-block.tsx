@@ -4,8 +4,10 @@ import { ContextBlock, BlockStatus } from "@/components/context-block";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { InsertConfiguration } from "@shared/schema";
+import { ChannelSummaryCards } from "./channel-summary-cards";
 
 export function ChannelContextBlock() {
   const form = useFormContext<InsertConfiguration>();
@@ -26,17 +28,37 @@ export function ChannelContextBlock() {
     }
   };
 
+  const getSummaryText = () => {
+    const parts = [];
+    if (paidMediaActive) parts.push("Paid ✓");
+    parts.push(`SEO: ${seoLevel}`);
+    parts.push(`Marketplace: ${marketplaceDependence}`);
+    return parts.join(" • ");
+  };
+
   return (
     <ContextBlock
       id="channel-context"
       title="Channel Context"
-      subtitle="Marketing investment levels"
+      subtitle={getSummaryText()}
       icon={<Megaphone className="h-5 w-5" />}
       status={status}
       statusLabel={paidMediaActive ? "Paid active" : "Organic focus"}
       defaultExpanded={false}
     >
       <div className="space-y-4">
+        {/* Summary Cards */}
+        <ChannelSummaryCards
+          channelContext={{
+            paid_media_active: paidMediaActive,
+            seo_investment_level: seoLevel,
+            marketplace_dependence: marketplaceDependence,
+          }}
+        />
+
+        <Separator />
+
+        {/* Existing form fields */}
         <p className="text-sm text-muted-foreground">
           Configure your marketing channel investment levels to help AI understand your strategy context.
         </p>
