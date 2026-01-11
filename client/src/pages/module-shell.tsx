@@ -78,7 +78,34 @@ function isEmptyResult(data: any): boolean {
     
     // ModuleRunResult v2 format: { envelope, items, summary }
     if (data.envelope && Array.isArray(data.items)) {
-        return data.items.length === 0;
+        // Check if items has content
+        if (data.items.length > 0) {
+            return false;
+        }
+        // If items is empty, check if summary has meaningful data
+        if (data.summary && typeof data.summary === 'object') {
+            const summaryMetaFields = new Set(['totalSignals', 'actionableCount', 'dataSourcesUsed', 'warnings']);
+            for (const [key, value] of Object.entries(data.summary)) {
+                // Skip known meta fields that are always present
+                if (summaryMetaFields.has(key) && (Array.isArray(value) ? value.length === 0 : value === 0)) continue;
+                
+                // If there's a string with meaningful content
+                if (typeof value === 'string' && value.length > 10) return false;
+                // If there's a positive number (indicates actual data)
+                if (typeof value === 'number' && value > 0) return false;
+                // If there's a non-empty array
+                if (Array.isArray(value) && value.length > 0) return false;
+                // If there's an object with nested data
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    if (hasNonEmptyData(value)) return false;
+                }
+            }
+        }
+        // Check envelope warnings - if there are warnings, we should show the result
+        if (data.envelope.warnings && data.envelope.warnings.length > 0) {
+            return false;
+        }
+        return true;
     }
     
     // Fields that should be IGNORED when determining if result has data
@@ -182,6 +209,12 @@ function getEmptyResultSuggestions(moduleId: string, _category: string): string[
             "Revisa la configuración de fuentes de datos",
             "Verifica que las categorías tengan cobertura de datos",
             "Prueba ajustando los filtros de contexto"
+        ],
+        "intel": [
+            "Ejecuta primero el módulo Keyword Gap para obtener datos de análisis",
+            "Verifica que el módulo Market Demand tenga datos históricos",
+            "Revisa que los competidores tengan presencia medible",
+            "Las APIs de Social/Ads están en modo stub - algunos datos son simulados"
         ]
     };
     
