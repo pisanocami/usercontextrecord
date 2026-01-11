@@ -42,7 +42,7 @@ export function AlertsPanel() {
   });
 
   const { data: alerts = [], isLoading } = useQuery<Alert[]>({
-    queryKey: ["/api/alerts", { limit: 20 }],
+    queryKey: ["/api/alerts?limit=20"],
     refetchInterval: 30000,
   });
 

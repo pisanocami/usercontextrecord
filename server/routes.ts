@@ -3248,7 +3248,7 @@ IMPORTANT:
       const contract = CONTRACT_REGISTRY[moduleId];
       const moduleName = contract?.name || moduleId;
 
-      const result = await runModule(moduleId, configId, inputs || {});
+      const result = await runModule(moduleId, configId, { ...inputs, userId });
       const executionTimeMs = Date.now() - startTime;
 
       // Persist module run to database
