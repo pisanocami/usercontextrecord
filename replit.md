@@ -13,6 +13,20 @@ The platform is built with a clear separation of concerns, using React 18 with T
 ### UI/UX Decisions
 The frontend features a modern design with light/dark mode support, section-based configuration wizards, persistent navigation, and an executive summary visualization.
 
+**Mobile-First Responsive Design**:
+- Layouts use `min-h-screen` on mobile with native scroll, `h-screen` with contained scroll on desktop (640px+)
+- Headers are sticky with z-40, compact on mobile (h-12) vs desktop (h-14)
+- Mobile navigation: bottom nav bar with 48px touch targets, active indicator bar
+- Floating action buttons (e.g., Save) positioned at bottom-20 to clear mobile nav
+- Dialogs/modals: max-h-[90vh] with internal scroll, responsive padding (p-4 mobile, p-6 desktop)
+- Sidebar: Shadcn collapsible sidebar on desktop, hidden on mobile
+
+**Accessibility Features**:
+- aria-labels on all icon-only buttons (theme toggle, sidebar trigger, action buttons)
+- aria-current on active navigation items
+- Improved muted-foreground contrast (42% lightness in light mode, 70% in dark)
+- role="navigation" on nav containers
+
 ### Technical Implementations
 - **Frontend**: React 18, Wouter for routing, TanStack React Query for server state, React Hook Form, Vite.
 - **Backend**: Express.js with TypeScript, RESTful JSON API.
