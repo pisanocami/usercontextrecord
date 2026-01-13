@@ -5,6 +5,7 @@
  */
 
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { DiffHighlight, MatchTypeBadge } from "./DiffHighlight";
 import type { FieldComparison } from "@/lib/comparison/types";
 
@@ -49,9 +50,16 @@ export function FieldComparisonRow({ field, showMatchBadge = true }: FieldCompar
         <span className="text-sm font-medium text-muted-foreground min-w-[140px] shrink-0">
           {field.fieldName}
         </span>
-        {showMatchBadge && (
-          <MatchTypeBadge matchType={field.matchType} />
-        )}
+        <div className="flex items-center gap-2">
+          {showMatchBadge && (
+            <MatchTypeBadge matchType={field.matchType} />
+          )}
+          {field.isArray && field.similarityPercentage !== undefined && (
+            <Badge variant="outline" className="text-xs">
+              {field.similarityPercentage}%
+            </Badge>
+          )}
+        </div>
       </div>
       
       <div

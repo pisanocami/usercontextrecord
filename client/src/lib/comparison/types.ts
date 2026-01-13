@@ -69,6 +69,7 @@ export interface FieldComparison {
   matchType: MatchType;
   isArray: boolean;
   isNested: boolean;
+  similarityPercentage?: number; // For arrays - 0-100 similarity score
 }
 
 // Value from a specific context
