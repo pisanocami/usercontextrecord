@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import {
   AlertCircle,
   Clock,
   FileText,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
 import type { BulkJob, InsertConfiguration } from "@shared/schema";
 
@@ -27,6 +28,9 @@ export default function BulkGeneration() {
   const { toast } = useToast();
   const [primaryCategory, setPrimaryCategory] = useState("");
   const [brandsInput, setBrandsInput] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: jobs, isLoading: jobsLoading } = useQuery<BulkJob[]>({
     queryKey: ["/api/bulk/jobs"],
@@ -65,6 +69,76 @@ export default function BulkGeneration() {
       };
     });
   };
+
+  const processFile = useCallback((file: File) => {
+    if (!file.name.endsWith('.txt')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a .txt file with one domain per line",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        setBrandsInput(content.trim());
+        setUploadedFileName(file.name);
+        toast({
+          title: "File loaded",
+          description: `Loaded ${parseBrandsInput(content).length} domains from ${file.name}`,
+        });
+      }
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Error reading file",
+        description: "Could not read the uploaded file",
+        variant: "destructive",
+      });
+    };
+    reader.readAsText(file);
+  }, [toast]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      processFile(files[0]);
+    }
+  }, [processFile]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      processFile(files[0]);
+    }
+  }, [processFile]);
+
+  const clearFile = useCallback(() => {
+    setBrandsInput("");
+    setUploadedFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
 
   const handleStartJob = () => {
     if (!primaryCategory.trim()) {
@@ -206,9 +280,69 @@ export default function BulkGeneration() {
                 <label className="mb-2 block text-sm font-medium">
                   Brand Domains (one per line, optionally with name after comma)
                 </label>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  data-testid="input-file-upload"
+                />
+                
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`relative mb-3 rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
+                    isDragging
+                      ? "border-primary bg-primary/5"
+                      : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                  }`}
+                >
+                  {uploadedFileName ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span className="font-medium">{uploadedFileName}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={clearFile}
+                        data-testid="button-clear-file"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <div>
+                        <button
+                          type="button"
+                          className="text-primary underline hover:no-underline"
+                          onClick={() => fileInputRef.current?.click()}
+                          data-testid="button-browse-file"
+                        >
+                          Click to upload
+                        </button>
+                        <span className="text-muted-foreground"> or drag and drop</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        .txt file with one domain per line
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <Textarea
                   value={brandsInput}
-                  onChange={(e) => setBrandsInput(e.target.value)}
+                  onChange={(e) => {
+                    setBrandsInput(e.target.value);
+                    if (uploadedFileName && e.target.value !== brandsInput) {
+                      setUploadedFileName(null);
+                    }
+                  }}
                   placeholder={`stripe.com, Stripe
 shopify.com, Shopify
 notion.so
