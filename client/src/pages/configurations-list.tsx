@@ -54,11 +54,16 @@ import {
   History,
   Eye,
   Calendar,
+  LogOut,
+  User,
+  List,
+  HelpCircle,
+  GitCompare,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Brand, CategoryDefinition, Competitors, DemandDefinition, StrategicIntent, ChannelContext, NegativeScope, Governance } from "@shared/schema";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ConfigCardList } from "@/components/mobile/config-card";
 import { BrandSelector } from "@/components/brand-selector";
@@ -208,12 +213,16 @@ function ConfigurationCard({
   onDelete,
   onRegenerate,
   isRegenerating,
+  isSelectedForCompare,
+  onToggleCompare,
 }: {
   config: Configuration;
   onEdit: () => void;
   onDelete: () => void;
   onRegenerate: () => void;
   isRegenerating: boolean;
+  isSelectedForCompare?: boolean;
+  onToggleCompare?: () => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -270,6 +279,20 @@ function ConfigurationCard({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {onToggleCompare && (
+                  <Button
+                    variant={isSelectedForCompare ? "default" : "ghost"}
+                    size="icon"
+                    title={isSelectedForCompare ? "Remove from comparison" : "Add to comparison"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleCompare();
+                    }}
+                    data-testid={`button-compare-${config.id}`}
+                  >
+                    <GitCompare className="h-4 w-4" />
+                  </Button>
+                )}
                 <Link href={`/one-pager/${config.id}`} onClick={(e) => e.stopPropagation()}>
                   <Button
                     variant="ghost"
@@ -414,13 +437,44 @@ function ConfigurationCard({
 
 export default function ConfigurationsList() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<Configuration | null>(null);
   const [editReason, setEditReason] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
+  const [compareSelection, setCompareSelection] = useState<Set<number>>(new Set());
   const isMobile = useIsMobile();
+
+  const toggleCompareSelection = (id: number) => {
+    setCompareSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < 4) {
+        next.add(id);
+      } else {
+        toast({
+          title: "Maximum reached",
+          description: "You can compare up to 4 contexts at a time.",
+          variant: "destructive",
+        });
+      }
+      return next;
+    });
+  };
+
+  const handleCompare = () => {
+    if (compareSelection.size >= 2) {
+      const ids = Array.from(compareSelection).join(",");
+      setLocation(`/compare?ids=${ids}`);
+    }
+  };
+
+  const clearCompareSelection = () => {
+    setCompareSelection(new Set());
+  };
 
   const { data: configurations, isLoading } = useQuery<Configuration[]>({
     queryKey: ["/api/configurations"],
@@ -608,6 +662,8 @@ export default function ConfigurationsList() {
                   onDelete={() => handleDelete(config)}
                   onRegenerate={() => handleRegenerate(config)}
                   isRegenerating={regeneratingId === config.id}
+                  isSelectedForCompare={compareSelection.has(config.id)}
+                  onToggleCompare={() => toggleCompareSelection(config.id)}
                 />
               ))
             )}
@@ -671,6 +727,35 @@ export default function ConfigurationsList() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Floating Compare Bar */}
+        {compareSelection.size > 0 && (
+          <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50">
+            <div className="flex items-center gap-3 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-lg">
+              <span className="text-sm font-medium">
+                {compareSelection.size} selected
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleCompare}
+                disabled={compareSelection.size < 2}
+                className="h-8"
+              >
+                <GitCompare className="h-4 w-4 mr-1" />
+                Compare
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={clearCompareSelection}
+                className="h-8 text-primary-foreground hover:text-primary-foreground hover:bg-primary/80"
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </ScrollArea>
   );

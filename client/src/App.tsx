@@ -21,6 +21,7 @@ import MarketDemand from "@/pages/market-demand";
 import { ModuleShell } from "@/pages/module-shell";
 import BrandsPage from "@/pages/brands";
 import ModuleCenterPage from "@/pages/module-center";
+import ContextComparisonPage from "@/pages/context-comparison";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -889,6 +890,7 @@ function Router() {
       <Route path="/market-demand" component={MarketDemandLayout} />
       <Route path="/market-demand/:configId" component={MarketDemandLayout} />
       <Route path="/brands" component={BrandsLayout} />
+      <Route path="/compare" component={ContextComparisonPage} />
       <Route path="/modules" component={ModuleCenterLayout} />
 
       {/* Dynamic Module Shell - The Future of All Modules */}

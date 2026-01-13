@@ -13,8 +13,10 @@ import type { OverlapMetrics } from "./types";
 function jaccardSimilarity(setA: Set<string>, setB: Set<string>): number {
   if (setA.size === 0 && setB.size === 0) return 100;
   
-  const intersection = new Set([...setA].filter((x) => setB.has(x)));
-  const union = new Set([...setA, ...setB]);
+  const arrA = Array.from(setA);
+  const arrB = Array.from(setB);
+  const intersection = new Set(arrA.filter((x) => setB.has(x)));
+  const union = new Set([...arrA, ...arrB]);
   
   if (union.size === 0) return 100;
   return Math.round((intersection.size / union.size) * 100);
@@ -25,21 +27,21 @@ function jaccardSimilarity(setA: Set<string>, setB: Set<string>): number {
  */
 function multiSetOverlap(sets: Set<string>[]): { overlap: number; shared: string[] } {
   if (sets.length === 0) return { overlap: 100, shared: [] };
-  if (sets.length === 1) return { overlap: 100, shared: [...sets[0]] };
+  if (sets.length === 1) return { overlap: 100, shared: Array.from(sets[0]) };
 
   // Find intersection (items in ALL sets)
-  let intersection = new Set(sets[0]);
+  let intersection = new Set(Array.from(sets[0]));
   for (let i = 1; i < sets.length; i++) {
-    intersection = new Set([...intersection].filter((x) => sets[i].has(x)));
+    intersection = new Set(Array.from(intersection).filter((x) => sets[i].has(x)));
   }
 
   // Find union (items in ANY set)
-  const union = new Set(sets.flatMap((s) => [...s]));
+  const union = new Set(sets.flatMap((s) => Array.from(s)));
 
   if (union.size === 0) return { overlap: 100, shared: [] };
 
   const overlap = Math.round((intersection.size / union.size) * 100);
-  return { overlap, shared: [...intersection] };
+  return { overlap, shared: Array.from(intersection) };
 }
 
 /**

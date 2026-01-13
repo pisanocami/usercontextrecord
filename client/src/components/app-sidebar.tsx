@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Clock,
   Upload,
+  GitCompare,
 } from "lucide-react";
 import {
   Sidebar,
@@ -208,6 +209,22 @@ export function AppSidebar({
                   >
                     <Building2 className="h-4 w-4" />
                     <span>Brand Management</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/compare">
+                  <SidebarMenuButton
+                    isActive={activeSection === "compare"}
+                    className={
+                      activeSection === "compare"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-compare"
+                  >
+                    <GitCompare className="h-4 w-4" />
+                    <span>Compare Contexts</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
