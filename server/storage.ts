@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { configurations, bulkJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses } from "@shared/schema";
+import { configurations, bulkJobs, bulkImportJobs, configurationVersions, brands, keywordGapAnalyses, marketDemandAnalyses } from "@shared/schema";
 import { eq, and, desc, max } from "drizzle-orm";
 import type {
   Brand,
@@ -13,6 +13,8 @@ import type {
   InsertConfiguration,
   BulkJob,
   BulkBrandInput,
+  BulkImportJob,
+  BulkImportItem,
   ConfigurationVersion,
   BrandEntity,
   InsertBrandEntity,
@@ -93,6 +95,11 @@ export interface IStorage {
   getMarketDemandAnalyses(userId: string): Promise<MarketDemandAnalysis[]>;
   getMarketDemandAnalysisById(id: number, userId: string): Promise<MarketDemandAnalysis | undefined>;
   deleteMarketDemandAnalysis(id: number, userId: string): Promise<void>;
+  // Bulk Import Job operations
+  createBulkImportJob(userId: string, domains: string[]): Promise<BulkImportJob>;
+  getBulkImportJob(id: number, userId: string): Promise<BulkImportJob | undefined>;
+  getBulkImportJobs(userId: string): Promise<BulkImportJob[]>;
+  updateBulkImportJob(id: number, updates: Partial<BulkImportJob>): Promise<BulkImportJob>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1018,6 +1025,115 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(marketDemandAnalyses)
       .where(and(eq(marketDemandAnalyses.id, id), eq(marketDemandAnalyses.userId, userId)));
+  }
+
+  // ============ BULK IMPORT JOB OPERATIONS ============
+
+  async createBulkImportJob(userId: string, domains: string[]): Promise<BulkImportJob> {
+    const items: BulkImportItem[] = domains.map(domain => ({
+      domain,
+      status: "pending" as const,
+    }));
+
+    const [job] = await db
+      .insert(bulkImportJobs)
+      .values({
+        userId,
+        totalDomains: domains.length,
+        domains: domains,
+        items: items,
+        status: "pending",
+        completedDomains: 0,
+        failedDomains: 0,
+      })
+      .returning();
+
+    return {
+      id: job.id,
+      userId: job.userId,
+      status: job.status as BulkImportJob["status"],
+      totalDomains: job.totalDomains,
+      completedDomains: job.completedDomains,
+      failedDomains: job.failedDomains,
+      domains: job.domains as string[],
+      items: job.items as BulkImportItem[],
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    };
+  }
+
+  async getBulkImportJob(id: number, userId: string): Promise<BulkImportJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkImportJobs)
+      .where(and(eq(bulkImportJobs.id, id), eq(bulkImportJobs.userId, userId)))
+      .limit(1);
+
+    if (!job) return undefined;
+
+    return {
+      id: job.id,
+      userId: job.userId,
+      status: job.status as BulkImportJob["status"],
+      totalDomains: job.totalDomains,
+      completedDomains: job.completedDomains,
+      failedDomains: job.failedDomains,
+      domains: job.domains as string[],
+      items: job.items as BulkImportItem[],
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    };
+  }
+
+  async getBulkImportJobs(userId: string): Promise<BulkImportJob[]> {
+    const jobs = await db
+      .select()
+      .from(bulkImportJobs)
+      .where(eq(bulkImportJobs.userId, userId))
+      .orderBy(desc(bulkImportJobs.created_at));
+
+    return jobs.map(job => ({
+      id: job.id,
+      userId: job.userId,
+      status: job.status as BulkImportJob["status"],
+      totalDomains: job.totalDomains,
+      completedDomains: job.completedDomains,
+      failedDomains: job.failedDomains,
+      domains: job.domains as string[],
+      items: job.items as BulkImportItem[],
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    }));
+  }
+
+  async updateBulkImportJob(id: number, updates: Partial<BulkImportJob>): Promise<BulkImportJob> {
+    const updateData: Record<string, any> = {
+      updated_at: new Date(),
+    };
+
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.completedDomains !== undefined) updateData.completedDomains = updates.completedDomains;
+    if (updates.failedDomains !== undefined) updateData.failedDomains = updates.failedDomains;
+    if (updates.items !== undefined) updateData.items = updates.items;
+
+    const [job] = await db
+      .update(bulkImportJobs)
+      .set(updateData)
+      .where(eq(bulkImportJobs.id, id))
+      .returning();
+
+    return {
+      id: job.id,
+      userId: job.userId,
+      status: job.status as BulkImportJob["status"],
+      totalDomains: job.totalDomains,
+      completedDomains: job.completedDomains,
+      failedDomains: job.failedDomains,
+      domains: job.domains as string[],
+      items: job.items as BulkImportItem[],
+      created_at: job.created_at,
+      updated_at: job.updated_at,
+    };
   }
 }
 

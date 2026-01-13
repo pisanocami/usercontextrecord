@@ -74,6 +74,44 @@ export const bulkJobs = pgTable("bulk_jobs", {
   updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Bulk Import Jobs table - auto-creates brands + configurations from domains
+export const bulkImportJobs = pgTable("bulk_import_jobs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  status: varchar("status").notNull().default("pending"), // "pending" | "processing" | "completed" | "failed"
+  totalDomains: integer("total_domains").notNull(),
+  completedDomains: integer("completed_domains").notNull().default(0),
+  failedDomains: integer("failed_domains").notNull().default(0),
+  domains: jsonb("domains").notNull(), // Array of domain strings
+  items: jsonb("items").notNull().default([]), // Array of BulkImportItem tracking each domain
+  created_at: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updated_at: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Bulk Import Item - tracks status of each domain in the import
+export interface BulkImportItem {
+  domain: string;
+  status: "pending" | "processing" | "completed" | "failed" | "skipped";
+  inferredCategory?: string;
+  brandId?: number;
+  configurationId?: number;
+  error?: string;
+  processedAt?: string;
+}
+
+export interface BulkImportJob {
+  id: number;
+  userId: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  totalDomains: number;
+  completedDomains: number;
+  failedDomains: number;
+  domains: string[];
+  items: BulkImportItem[];
+  created_at: Date;
+  updated_at: Date;
+}
+
 // Keyword Gap Analyses table - stores completed analysis runs
 export const keywordGapAnalyses = pgTable("keyword_gap_analyses", {
   id: serial("id").primaryKey(),

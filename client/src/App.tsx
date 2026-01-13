@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ConfigurationPage } from "@/pages/configuration";
 import { BrandContextPage } from "@/pages/brand-context";
 import BulkGeneration from "@/pages/bulk-generation";
+import BulkImport from "@/pages/bulk-import";
 import ConfigurationsList from "@/pages/configurations-list";
 import OnePager from "@/pages/one-pager";
 import KeywordGap from "@/pages/keyword-gap";
@@ -240,6 +241,71 @@ function BulkGenerationLayout() {
           </header>
           <main className="flex-1 overflow-hidden">
             <BulkGeneration />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function BulkImportLayout() {
+  const { user, logout, isLoggingOut } = useAuth();
+  const [, setLocation] = useLocation();
+  const resetTutorial = useResetTutorial();
+
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+      <div className="flex h-screen w-full">
+        <AppSidebar
+          activeSection="import"
+          onSectionChange={(section) => {
+            if (section === "import") return;
+            setLocation("/");
+          }}
+          hasUnsavedChanges={false}
+          cmoSafe={false}
+        />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <header className="flex h-14 items-center justify-between gap-2 border-b bg-background px-3 sm:gap-4 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5 text-sm">
+                    <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </header>
+          <main className="flex-1 overflow-hidden">
+            <BulkImport />
           </main>
         </div>
       </div>
@@ -814,6 +880,7 @@ function Router() {
       <Route path="/new" component={ConfigurationLayout} />
       <Route path="/context" component={BrandContextLayout} />
       <Route path="/bulk" component={BulkGenerationLayout} />
+      <Route path="/import" component={BulkImportLayout} />
       <Route path="/one-pager/:id" component={OnePagerLayout} />
       <Route path="/keyword-gap" component={KeywordGapListLayout} />
       <Route path="/keyword-gap/:id" component={KeywordGapLayout} />

@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  Upload,
 } from "lucide-react";
 import {
   Sidebar,
@@ -175,6 +176,22 @@ export function AppSidebar({
                   >
                     <Sparkles className="h-4 w-4" />
                     <span>Bulk Generation</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/import">
+                  <SidebarMenuButton
+                    isActive={activeSection === "import"}
+                    className={
+                      activeSection === "import"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : ""
+                    }
+                    data-testid="nav-import"
+                  >
+                    <Upload className="h-4 w-4" />
+                    <span>Bulk Import</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

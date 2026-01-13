@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, type InsertConfiguration, type BulkBrandInput, type ContextQualityScore } from "@shared/schema";
+import { insertConfigurationSchema, defaultConfiguration, bulkJobRequestSchema, type InsertConfiguration, type BulkBrandInput, type BulkImportItem, type ContextQualityScore } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import OpenAI from "openai";
@@ -1627,6 +1627,71 @@ IMPORTANT:
     }
   });
 
+  // ============ BULK IMPORT ENDPOINTS (Auto-creates brands + configurations) ============
+
+  // Create bulk import job (domains only - AI infers categories)
+  app.post("/api/bulk-import/jobs", async (req: any, res: Response) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const { domains } = req.body;
+
+      if (!domains || !Array.isArray(domains) || domains.length === 0) {
+        return res.status(400).json({ error: "domains array is required" });
+      }
+
+      if (domains.length > 500) {
+        return res.status(400).json({ error: "Maximum 500 domains per import" });
+      }
+
+      // Normalize and dedupe domains
+      const normalizedDomains = Array.from(new Set(
+        domains
+          .map((d: string) => d.trim().toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, ""))
+          .filter((d: string) => d.length > 0)
+      ));
+
+      const job = await storage.createBulkImportJob(userId, normalizedDomains);
+
+      // Start background processing
+      processBulkImportJob(job.id, userId, normalizedDomains);
+
+      res.json(job);
+    } catch (error) {
+      console.error("Error creating bulk import job:", error);
+      res.status(500).json({ error: "Failed to create bulk import job" });
+    }
+  });
+
+  // Get all bulk import jobs for user
+  app.get("/api/bulk-import/jobs", async (req: any, res: Response) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const jobs = await storage.getBulkImportJobs(userId);
+      res.json(jobs);
+    } catch (error) {
+      console.error("Error fetching bulk import jobs:", error);
+      res.status(500).json({ error: "Failed to fetch bulk import jobs" });
+    }
+  });
+
+  // Get specific bulk import job
+  app.get("/api/bulk-import/jobs/:id", async (req: any, res: Response) => {
+    try {
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const jobId = parseInt(req.params.id);
+      const job = await storage.getBulkImportJob(jobId, userId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      res.json(job);
+    } catch (error) {
+      console.error("Error fetching bulk import job:", error);
+      res.status(500).json({ error: "Failed to fetch bulk import job" });
+    }
+  });
+
   // Context Validation Council endpoint
   app.post("/api/context/validate", async (req: any, res) => {
     try {
@@ -2731,5 +2796,125 @@ async function processBulkJob(
     failedBrands: failed,
     results: results,
     errors: errors,
+  });
+}
+
+// AI-inferred category + complete configuration for bulk import
+async function inferCategoryFromDomain(domain: string): Promise<string> {
+  const prompt = `Analyze the domain "${domain}" and determine the most appropriate primary business category for this company.
+
+Based on the domain name and your knowledge of the company:
+1. Identify what the company does
+2. Determine their primary business category
+
+Return ONLY a short, clear category name (2-4 words max). Examples:
+- "Athletic Apparel"
+- "Pharmaceuticals"
+- "E-commerce Fashion"
+- "Business Software"
+- "Health & Wellness"
+- "Consumer Electronics"
+
+Return only the category name, nothing else.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 50,
+  });
+
+  return response.choices[0]?.message?.content?.trim() || "General Business";
+}
+
+async function processBulkImportJob(
+  jobId: number,
+  userId: string,
+  domains: string[]
+) {
+  await storage.updateBulkImportJob(jobId, { status: "processing" });
+
+  let completed = 0;
+  let failed = 0;
+  const items: BulkImportItem[] = domains.map(d => ({ domain: d, status: "pending" as const }));
+
+  // Process domains one by one (sequentially to avoid rate limits)
+  for (let i = 0; i < domains.length; i++) {
+    const domain = domains[i];
+    items[i].status = "processing";
+    
+    await storage.updateBulkImportJob(jobId, { items });
+
+    try {
+      // Check if brand already exists for this user
+      const existingBrand = await storage.getBrandByDomain(userId, domain);
+      if (existingBrand) {
+        items[i].status = "skipped";
+        items[i].error = "Brand already exists";
+        completed++;
+        await storage.updateBulkImportJob(jobId, { 
+          items, 
+          completedDomains: completed 
+        });
+        continue;
+      }
+
+      // Step 1: Infer category from domain
+      const inferredCategory = await inferCategoryFromDomain(domain);
+      items[i].inferredCategory = inferredCategory;
+      await storage.updateBulkImportJob(jobId, { items });
+
+      // Step 2: Generate complete configuration
+      const config = await generateCompleteConfiguration(domain, undefined, inferredCategory);
+
+      // Step 3: Create brand entity
+      const brandEntity = await storage.createBrand(userId, {
+        domain: domain,
+        name: config.brand.name || domain.split('.')[0],
+        industry: config.brand.industry,
+        business_model: config.brand.business_model,
+        primary_geography: config.brand.primary_geography,
+        revenue_band: config.brand.revenue_band,
+        target_market: config.brand.target_market,
+      });
+
+      items[i].brandId = brandEntity.id;
+
+      // Step 4: Create configuration linked to brand
+      const savedConfig = await storage.createConfiguration(userId, {
+        ...config,
+        name: config.brand.name || domain.split('.')[0],
+      });
+
+      items[i].configurationId = savedConfig.id;
+      items[i].status = "completed";
+      items[i].processedAt = new Date().toISOString();
+      completed++;
+
+      await storage.updateBulkImportJob(jobId, { 
+        items, 
+        completedDomains: completed 
+      });
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+    } catch (error: any) {
+      console.error(`Error processing domain ${domain}:`, error);
+      items[i].status = "failed";
+      items[i].error = error.message || "Unknown error";
+      failed++;
+
+      await storage.updateBulkImportJob(jobId, { 
+        items, 
+        failedDomains: failed 
+      });
+    }
+  }
+
+  await storage.updateBulkImportJob(jobId, {
+    status: "completed",
+    completedDomains: completed,
+    failedDomains: failed,
+    items,
   });
 }
