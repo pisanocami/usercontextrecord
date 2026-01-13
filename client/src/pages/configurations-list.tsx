@@ -280,18 +280,25 @@ function ConfigurationCard({
               </div>
               <div className="flex items-center gap-2">
                 {onToggleCompare && (
-                  <Button
-                    variant={isSelectedForCompare ? "default" : "ghost"}
-                    size="icon"
-                    title={isSelectedForCompare ? "Remove from comparison" : "Add to comparison"}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleCompare();
-                    }}
-                    data-testid={`button-compare-${config.id}`}
-                  >
-                    <GitCompare className="h-4 w-4" />
-                  </Button>
+                  <div className="relative">
+                    <Button
+                      variant={isSelectedForCompare ? "default" : "outline"}
+                      size="sm"
+                      className={isSelectedForCompare ? "bg-primary text-primary-foreground" : "hover:bg-primary/10"}
+                      title={isSelectedForCompare ? "Remove from comparison" : "Add to comparison"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleCompare();
+                      }}
+                      data-testid={`button-compare-${config.id}`}
+                    >
+                      <GitCompare className="h-4 w-4 mr-1" />
+                      Compare
+                    </Button>
+                    {isSelectedForCompare && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background"></div>
+                    )}
+                  </div>
                 )}
                 <Link href={`/one-pager/${config.id}`} onClick={(e) => e.stopPropagation()}>
                   <Button
@@ -606,6 +613,27 @@ export default function ConfigurationsList() {
             />
           </div>
         </div>
+
+        {/* Comparison Tip */}
+        {filteredConfigurations && filteredConfigurations.length >= 2 && compareSelection.size === 0 && (
+          <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+                  <GitCompare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-sm text-blue-900 dark:text-blue-100">
+                    Want to compare contexts?
+                  </h3>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    Click the <strong>"Compare"</strong> button on any 2-4 contexts to see detailed side-by-side analysis
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <div className="space-y-4">

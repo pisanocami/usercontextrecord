@@ -8,6 +8,7 @@ import { useState, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 import { ComparisonHeader } from "./ComparisonHeader";
 import { ComparisonToolbar } from "./ComparisonToolbar";
@@ -88,15 +89,58 @@ export function ComparisonView({
 
   if (!result || result.contexts.length < 2) {
     return (
-      <div className="p-6">
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>No Comparison Available</AlertTitle>
-          <AlertDescription>
-            Select at least 2 contexts to compare. You can select contexts from the
-            configurations list.
-          </AlertDescription>
-        </Alert>
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <div className="max-w-md text-center space-y-6">
+          {/* Icon */}
+          <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+          </div>
+          
+          {/* Title */}
+          <div>
+            <h2 className="text-xl font-semibold">Select Contexts to Compare</h2>
+            <p className="text-muted-foreground mt-2">
+              Choose 2-4 contexts from your list to see detailed side-by-side comparisons
+            </p>
+          </div>
+          
+          {/* Steps */}
+          <div className="bg-muted/50 rounded-lg p-4 text-left space-y-3">
+            <h3 className="font-medium text-sm">How to compare contexts:</h3>
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="font-medium text-primary">1.</span>
+                <span>Go to <strong>"My Contexts"</strong> from the sidebar</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-medium text-primary">2.</span>
+                <span>Click the <strong>GitCompare</strong> icon on each context you want to compare</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-medium text-primary">3.</span>
+                <span>Use the floating bar at the bottom to start comparing</span>
+              </li>
+            </ol>
+          </div>
+          
+          {/* Quick Actions */}
+          <div className="flex gap-3 justify-center">
+            <a href="/" className="inline-flex">
+              <Button variant="outline">
+                Go to My Contexts
+              </Button>
+            </a>
+            {result && result.contexts.length === 1 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => onRemoveContext?.(Number(result.contexts[0].id))}
+              >
+                Clear Selection
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

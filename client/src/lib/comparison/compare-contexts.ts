@@ -4,7 +4,7 @@
  * Functions for comparing multiple User Context Records.
  */
 
-import type { Configuration } from "@shared/schema";
+import type { Configuration } from "../../../../shared/schema";
 import type {
   ComparisonResult,
   SectionComparison,

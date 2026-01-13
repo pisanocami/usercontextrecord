@@ -4,7 +4,7 @@
  * Functions for generating strategic insights from comparison results.
  */
 
-import type { Configuration } from "@shared/schema";
+import type { Configuration } from "../../../../shared/schema";
 import type {
   ComparisonInsight,
   SectionComparison,

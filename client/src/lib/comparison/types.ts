@@ -4,7 +4,7 @@
  * Types for comparing multiple User Context Records side-by-side.
  */
 
-import type { Configuration } from "@shared/schema";
+import type { Configuration } from "../../../../shared/schema";
 
 // Section keys that can be compared
 export type SectionKey =

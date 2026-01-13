@@ -80,14 +80,24 @@ export default function ContextComparisonPage() {
             <div>
               <h1 className="text-lg font-semibold">Context Comparison</h1>
               <p className="text-sm text-muted-foreground">
-                Compare {selectedIds.length} context{selectedIds.length !== 1 ? "s" : ""} side-by-side
+                {selectedIds.length === 0 
+                  ? "Select contexts to compare side-by-side"
+                  : `Compare ${selectedIds.length} context${selectedIds.length !== 1 ? "s" : ""} side-by-side`
+                }
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Context Selector */}
-            {selectedIds.length < 4 && availableContexts && availableContexts.length > 0 && (
+            {/* Context Selector - Show when no contexts selected */}
+            {selectedIds.length === 0 && allConfigurations && allConfigurations.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                {allConfigurations.length} contexts available
+              </div>
+            )}
+            
+            {/* Context Selector - Show when contexts exist to add */}
+            {selectedIds.length > 0 && selectedIds.length < 4 && availableContexts && availableContexts.length > 0 && (
               <Select onValueChange={handleAddContext}>
                 <SelectTrigger className="w-[200px]">
                   <div className="flex items-center gap-2">

@@ -4,7 +4,7 @@
  * Functions for calculating overlap between contexts.
  */
 
-import type { Configuration } from "@shared/schema";
+import type { Configuration } from "../../../../shared/schema";
 import type { OverlapMetrics } from "./types";
 
 /**
