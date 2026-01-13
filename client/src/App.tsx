@@ -91,7 +91,7 @@ function ConfigurationLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection={activeSection}
@@ -157,7 +157,7 @@ function BulkGenerationLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection="bulk"
@@ -222,7 +222,7 @@ function ConfigurationsListLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection="list"
@@ -522,7 +522,7 @@ function BrandContextLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection="context"
@@ -588,7 +588,7 @@ function MarketDemandLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection="market-demand"
@@ -658,7 +658,7 @@ function BrandsLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection="brands"
@@ -719,7 +719,7 @@ function ModuleCenterLayout() {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={true}>
       <div className="flex h-screen w-full">
         <AppSidebar
           activeSection="module-center"
@@ -791,7 +791,7 @@ function Router() {
       {/* Dynamic Module Shell - The Future of All Modules */}
       <Route path="/modules/:moduleId">
         {(params) => (
-          <SidebarProvider style={{ "--sidebar-width": "16rem", "--sidebar-width-icon": "3rem" } as React.CSSProperties} defaultOpen={false}>
+          <SidebarProvider style={{ "--sidebar-width": "16rem", "--sidebar-width-icon": "3rem" } as React.CSSProperties} defaultOpen={true}>
             <div className="flex h-screen w-full">
               <AppSidebar activeSection={params.moduleId} onSectionChange={() => { }} />
               <div className="flex flex-1 flex-col overflow-hidden">
