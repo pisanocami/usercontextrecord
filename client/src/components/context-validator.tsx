@@ -74,8 +74,8 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
     },
     onSuccess: () => {
       toast({
-        title: "Contexto Aprobado",
-        description: "El contexto ha sido aprobado y está listo para análisis.",
+        title: "Context Approved",
+        description: "The context has been approved and is ready for analysis.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/configurations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/context/validate", configurationId] });
@@ -96,7 +96,7 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
         <CardContent className="py-6">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Validando contexto...
+            Validating context...
           </div>
         </CardContent>
       </Card>
@@ -111,21 +111,21 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
       color: "text-green-600",
       bg: "bg-green-50 dark:bg-green-950",
       badge: "default" as const,
-      label: "Aprobado",
+      label: "Approved",
     },
     needs_review: {
       icon: AlertTriangle,
       color: "text-amber-600",
       bg: "bg-amber-50 dark:bg-amber-950",
       badge: "secondary" as const,
-      label: "Requiere Revisión",
+      label: "Needs Review",
     },
     blocked: {
       icon: XCircle,
       color: "text-red-600",
       bg: "bg-red-50 dark:bg-red-950",
       badge: "destructive" as const,
-      label: "Bloqueado",
+      label: "Blocked",
     },
   };
 
@@ -162,7 +162,7 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
                   : "border-red-500 text-red-700"
               }`}
             >
-              Confianza: {Math.round(validation.confidence_score * 100)}%
+              Confidence: {Math.round(validation.confidence_score * 100)}%
             </Badge>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Puntuación de confianza</span>
+            <span className="text-muted-foreground">Confidence score</span>
             <span className="font-medium">{Math.round(validation.confidence_score * 100)}%</span>
           </div>
           <Progress value={validation.confidence_score * 100} className="h-2" />
@@ -180,25 +180,25 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
           {errorCount > 0 && (
             <span className="flex items-center gap-1 text-red-600">
               <XCircle className="h-3 w-3" />
-              {errorCount} errores
+              {errorCount} errors
             </span>
           )}
           {warningCount > 0 && (
             <span className="flex items-center gap-1 text-amber-600">
               <AlertTriangle className="h-3 w-3" />
-              {warningCount} advertencias
+              {warningCount} warnings
             </span>
           )}
           {infoCount > 0 && (
             <span className="flex items-center gap-1 text-blue-600">
               <CheckCircle className="h-3 w-3" />
-              {infoCount} sugerencias
+              {infoCount} suggestions
             </span>
           )}
           {validation.issues.length === 0 && (
             <span className="flex items-center gap-1 text-green-600">
               <CheckCircle className="h-3 w-3" />
-              Sin problemas detectados
+              No issues detected
             </span>
           )}
         </div>
@@ -207,7 +207,7 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="w-full justify-between">
-                Ver detalles ({validation.issues.length} items)
+                View details ({validation.issues.length} items)
                 {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </Button>
             </CollapsibleTrigger>
@@ -252,7 +252,7 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
             ) : (
               <ThumbsUp className="h-4 w-4 mr-2" />
             )}
-            Aprobar Contexto
+            Approve Context
           </Button>
           <Button
             variant="outline"
@@ -266,7 +266,7 @@ export function ContextValidator({ configurationId, onApproved }: ContextValidat
 
         {validation.context_status === "blocked" && (
           <p className="text-xs text-red-600 text-center">
-            Resuelva los errores antes de aprobar el contexto
+            Resolve errors before approving the context
           </p>
         )}
       </CardContent>

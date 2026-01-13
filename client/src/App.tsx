@@ -30,11 +30,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, List } from "lucide-react";
+import { LogOut, User, List, HelpCircle } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { Link } from "wouter";
 import { MobileNav } from "@/components/mobile-nav";
 import { BrandProvider } from "@/contexts/brand-context";
+import { QuickstartTutorial, useResetTutorial } from "@/components/quickstart-tutorial";
 import GapComplianceReport from "./pages/gap-compliance-report.md?raw";
 import ReactMarkdown from "react-markdown";
 
@@ -74,6 +75,7 @@ function ConfigurationLayout() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [cmoSafe, setCmoSafe] = useState(false);
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   const handleDirtyChange = useCallback((isDirty: boolean) => {
     setHasUnsavedChanges(isDirty);
@@ -119,6 +121,10 @@ function ConfigurationLayout() {
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
@@ -143,6 +149,7 @@ function ConfigurationLayout() {
 function BulkGenerationLayout() {
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
+  const resetTutorial = useResetTutorial();
 
   const style = {
     "--sidebar-width": "16rem",
@@ -183,6 +190,10 @@ function BulkGenerationLayout() {
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
@@ -203,6 +214,7 @@ function BulkGenerationLayout() {
 function ConfigurationsListLayout() {
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
+  const resetTutorial = useResetTutorial();
 
   const style = {
     "--sidebar-width": "16rem",
@@ -243,6 +255,10 @@ function ConfigurationsListLayout() {
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
@@ -262,6 +278,7 @@ function ConfigurationsListLayout() {
 
 function OnePagerLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   return (
     <div className="flex h-screen w-full flex-col">
@@ -286,6 +303,10 @@ function OnePagerLayout() {
                 <p className="text-muted-foreground">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                View Tutorial
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
@@ -303,6 +324,7 @@ function OnePagerLayout() {
 
 function KeywordGapListLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   return (
     <div className="flex h-screen w-full flex-col">
@@ -332,6 +354,10 @@ function KeywordGapListLayout() {
                 <p className="text-muted-foreground">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                View Tutorial
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
@@ -349,6 +375,7 @@ function KeywordGapListLayout() {
 
 function KeywordGapLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   return (
     <div className="flex h-screen w-full flex-col">
@@ -373,6 +400,10 @@ function KeywordGapLayout() {
                 <p className="text-muted-foreground">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                View Tutorial
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
@@ -390,6 +421,7 @@ function KeywordGapLayout() {
 
 function KeywordGapReportLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   return (
     <div className="flex h-screen w-full flex-col">
@@ -414,6 +446,10 @@ function KeywordGapReportLayout() {
                 <p className="text-muted-foreground">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                View Tutorial
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
@@ -431,6 +467,7 @@ function KeywordGapReportLayout() {
 
 function VersionHistoryLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   return (
     <div className="flex h-screen w-full flex-col">
@@ -455,6 +492,10 @@ function VersionHistoryLayout() {
                 <p className="text-muted-foreground">{user?.email}</p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                View Tutorial
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
@@ -473,6 +514,7 @@ function VersionHistoryLayout() {
 function BrandContextLayout() {
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
+  const resetTutorial = useResetTutorial();
 
   const style = {
     "--sidebar-width": "16rem",
@@ -514,6 +556,10 @@ function BrandContextLayout() {
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
@@ -534,6 +580,7 @@ function BrandContextLayout() {
 function MarketDemandLayout() {
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
+  const resetTutorial = useResetTutorial();
 
   const style = {
     "--sidebar-width": "16rem",
@@ -580,6 +627,10 @@ function MarketDemandLayout() {
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
@@ -599,6 +650,7 @@ function MarketDemandLayout() {
 
 function BrandsLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   const style = {
     "--sidebar-width": "16rem",
@@ -636,6 +688,10 @@ function BrandsLayout() {
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
@@ -655,6 +711,7 @@ function BrandsLayout() {
 
 function ModuleCenterLayout() {
   const { user, logout, isLoggingOut } = useAuth();
+  const resetTutorial = useResetTutorial();
 
   const style = {
     "--sidebar-width": "16rem",
@@ -692,6 +749,10 @@ function ModuleCenterLayout() {
                     <p className="text-muted-foreground">{user?.email}</p>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={resetTutorial} data-testid="button-view-tutorial">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign out
@@ -758,6 +819,7 @@ function App() {
       <BrandProvider>
         <TooltipProvider>
           <Toaster />
+          <QuickstartTutorial />
           <div className="pb-[72px] sm:pb-0">
             <Router />
           </div>

@@ -44,19 +44,19 @@ const LAYER_CONFIG = {
     icon: TrendingUp,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
-    description: "Datos externos y señales del mercado",
+    description: "External data and market signals",
   },
   Synthesis: {
     icon: BrainCircuit,
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
-    description: "Análisis y síntesis de información",
+    description: "Analysis and information synthesis",
   },
   Action: {
     icon: Zap,
     color: "text-amber-500",
     bgColor: "bg-amber-500/10",
-    description: "Recomendaciones accionables",
+    description: "Actionable recommendations",
   },
 };
 
@@ -83,7 +83,7 @@ function SectionBadge({ sectionId, isRequired }: { sectionId: UCRSectionID; isRe
       <TooltipContent>
         <p className="font-medium">{UCR_SECTION_NAMES[sectionId]}</p>
         <p className="text-xs text-muted-foreground">
-          {isRequired ? "Requerido" : "Opcional"}
+          {isRequired ? "Required" : "Optional"}
         </p>
       </TooltipContent>
     </Tooltip>
@@ -124,7 +124,7 @@ function ModuleCard({ contract }: { contract: ModuleContract }) {
         {/* Strategic Question */}
         <div className="rounded-md bg-muted/50 p-3">
           <p className="text-xs font-medium text-muted-foreground mb-1">
-            Pregunta Estratégica
+            Strategic Question
           </p>
           <p className="text-sm italic">"{contract.strategicQuestion}"</p>
         </div>
@@ -132,7 +132,7 @@ function ModuleCard({ contract }: { contract: ModuleContract }) {
         {/* UCR Sections Required */}
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-2">
-            Secciones UCR
+            UCR Sections
           </p>
           <div className="flex flex-wrap gap-1">
             {contract.contextInjection.requiredSections.map((s) => (
@@ -163,14 +163,14 @@ function ModuleCard({ contract }: { contract: ModuleContract }) {
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Estados UCR permitidos para ejecutar este módulo</p>
+                <p>Allowed UCR states to execute this module</p>
               </TooltipContent>
             </Tooltip>
           </div>
           <Link href={`/modules/${contract.moduleId}`}>
             <Button variant="ghost" size="sm" className="gap-1">
               <PlayCircle className="h-4 w-4" />
-              Ejecutar
+              Execute
             </Button>
           </Link>
         </div>
@@ -183,7 +183,7 @@ function ModuleList({ modules }: { modules: ModuleContract[] }) {
   if (modules.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No hay módulos en esta categoría
+        No modules in this category
       </div>
     );
   }
@@ -214,8 +214,61 @@ export default function ModuleCenterPage() {
               Module Center
             </h1>
             <p className="text-muted-foreground">
-              Catálogo de módulos de análisis disponibles y sus requisitos de contexto
+              Catalog of available analysis modules and their context requirements
             </p>
+          </div>
+
+          {/* Functional Modules - Currently Available */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <h2 className="text-lg font-semibold">Functional Modules</h2>
+              <Badge variant="secondary" className="text-xs">2 Available</Badge>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20" data-testid="card-functional-keyword-gap">
+                <CardContent className="flex items-start gap-4 p-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                    <Search className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold">Keyword Gap Analysis</h3>
+                      <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Compare your brand against competitors to discover SEO keyword opportunities you're missing.
+                    </p>
+                    <div className="mt-2">
+                      <a href="/keyword-gap" className="text-sm text-primary hover:underline">
+                        Open Keyword Gap →
+                      </a>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20" data-testid="card-functional-market-demand">
+                <CardContent className="flex items-start gap-4 p-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30 shrink-0">
+                    <TrendingUp className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold">Market Demand Analysis</h3>
+                      <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Analyze market demand signals and trends to understand consumer interest in your category.
+                    </p>
+                    <div className="mt-2">
+                      <a href="/market-demand" className="text-sm text-primary hover:underline">
+                        Open Market Demand →
+                      </a>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Stats */}
@@ -251,7 +304,7 @@ export default function ModuleCenterPage() {
               <AccordionTrigger className="text-sm font-medium">
                 <div className="flex items-center gap-2">
                   <Info className="h-4 w-4" />
-                  Referencia de Secciones UCR
+                  UCR Sections Reference
                 </div>
               </AccordionTrigger>
               <AccordionContent>

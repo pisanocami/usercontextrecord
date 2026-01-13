@@ -36,7 +36,7 @@ import {
 import { downloadCSV } from "@/lib/downloadUtils";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import type { ConfigurationVersion } from "@shared/schema";
 
 interface Configuration {
@@ -81,7 +81,7 @@ export default function VersionHistory() {
     onSuccess: () => {
       toast({
         title: "Version restored",
-        description: "La configuración ha sido restaurada exitosamente.",
+        description: "The configuration has been successfully restored.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/configurations"] });
       setRestoreDialogOpen(false);
@@ -127,12 +127,12 @@ export default function VersionHistory() {
           <Link href="/">
             <Button variant="ghost" size="sm" className="mb-4" data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a configuraciones
+              Back to Configurations
             </Button>
           </Link>
           <Card>
             <CardHeader>
-              <CardTitle>Configuración no encontrada</CardTitle>
+              <CardTitle>Configuration not found</CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -142,15 +142,15 @@ export default function VersionHistory() {
 
   const formatDate = (date: Date | string) => {
     const d = typeof date === "string" ? new Date(date) : date;
-    return format(d, "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es });
+    return format(d, "MMMM d, yyyy 'at' HH:mm", { locale: enUS });
   };
 
   const renderSectionSummary = (version: ConfigurationVersion) => {
     const sections = [
-      { key: "brand", label: "Marca", value: version.brand?.name || "-" },
-      { key: "category", label: "Categoría", value: version.category_definition?.primary_category || "-" },
-      { key: "competitors", label: "Competidores", value: `${(version.competitors?.direct?.length || 0) + (version.competitors?.indirect?.length || 0)} configurados` },
-      { key: "negative", label: "Exclusiones", value: `${(version.negative_scope?.excluded_keywords?.length || 0)} keywords` },
+      { key: "brand", label: "Brand", value: version.brand?.name || "-" },
+      { key: "category", label: "Category", value: version.category_definition?.primary_category || "-" },
+      { key: "competitors", label: "Competitors", value: `${(version.competitors?.direct?.length || 0) + (version.competitors?.indirect?.length || 0)} configured` },
+      { key: "negative", label: "Exclusions", value: `${(version.negative_scope?.excluded_keywords?.length || 0)} keywords` },
     ];
 
     return (
@@ -171,7 +171,7 @@ export default function VersionHistory() {
         <Link href="/">
           <Button variant="ghost" size="sm" className="mb-4" data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver a configuraciones
+            Back to Configurations
           </Button>
         </Link>
 
@@ -179,7 +179,7 @@ export default function VersionHistory() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <History className="h-6 w-6" />
-              Historial de Versiones
+              Version History
             </h1>
             <p className="text-muted-foreground">
               {config.name} - {config.brand?.name || config.brand?.domain}
@@ -193,14 +193,14 @@ export default function VersionHistory() {
               onClick={() => {
                 if (!versions || versions.length === 0) return;
                 const exportData = versions.map(v => ({
-                  "Versión": v.versionNumber,
-                  "Fecha": format(new Date(v.created_at), "dd/MM/yyyy HH:mm", { locale: es }),
-                  "Marca": v.brand?.name || "-",
-                  "Categoría": v.category_definition?.primary_category || "-",
-                  "Competidores Directos": (v.competitors?.direct?.length || 0),
-                  "Competidores Indirectos": (v.competitors?.indirect?.length || 0),
-                  "Keywords Excluidos": (v.negative_scope?.excluded_keywords?.length || 0),
-                  "Estado Contexto": v.governance?.context_status || "DRAFT_AI",
+                  "Version": v.versionNumber,
+                  "Date": format(new Date(v.created_at), "MM/dd/yyyy HH:mm", { locale: enUS }),
+                  "Brand": v.brand?.name || "-",
+                  "Category": v.category_definition?.primary_category || "-",
+                  "Direct Competitors": (v.competitors?.direct?.length || 0),
+                  "Indirect Competitors": (v.competitors?.indirect?.length || 0),
+                  "Excluded Keywords": (v.negative_scope?.excluded_keywords?.length || 0),
+                  "Context Status": v.governance?.context_status || "DRAFT_AI",
                 }));
                 downloadCSV(exportData, `version-history-${config.name}-${new Date().toISOString().split("T")[0]}`);
               }}
@@ -209,7 +209,7 @@ export default function VersionHistory() {
               CSV
             </Button>
             <Badge variant="secondary">
-              {versions?.length || 0} versiones
+              {versions?.length || 0} versions
             </Badge>
           </div>
         </div>
@@ -223,12 +223,12 @@ export default function VersionHistory() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <CardTitle className="text-base">
-                          Versión {version.versionNumber}
+                          Version {version.versionNumber}
                         </CardTitle>
                         {index === 0 && (
                           <Badge variant="outline" className="text-xs">
                             <Clock className="h-3 w-3 mr-1" />
-                            Más reciente
+                            Latest
                           </Badge>
                         )}
                       </div>
@@ -245,7 +245,7 @@ export default function VersionHistory() {
                       data-testid={`button-restore-${version.id}`}
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
-                      Restaurar
+                      Restore
                     </Button>
                   </div>
                 </CardHeader>
@@ -262,7 +262,7 @@ export default function VersionHistory() {
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="details" className="border-none">
                       <AccordionTrigger className="py-2 text-sm">
-                        Ver detalles
+                        View details
                       </AccordionTrigger>
                       <AccordionContent>
                         {renderSectionSummary(version)}
@@ -277,9 +277,9 @@ export default function VersionHistory() {
           <Card>
             <CardContent className="py-12 text-center">
               <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Sin historial de versiones</h3>
+              <h3 className="text-lg font-medium mb-2">No version history</h3>
               <p className="text-muted-foreground">
-                El historial de versiones se crea automáticamente cuando editas una configuración.
+                Version history is automatically created when you edit a configuration.
               </p>
             </CardContent>
           </Card>
@@ -288,20 +288,20 @@ export default function VersionHistory() {
         <Dialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Restaurar versión</DialogTitle>
+              <DialogTitle>Restore Version</DialogTitle>
               <DialogDescription>
-                ¿Estás seguro de que deseas restaurar la versión {selectedVersion?.versionNumber}?
-                La configuración actual será guardada automáticamente como una nueva versión antes de restaurar.
+                Are you sure you want to restore version {selectedVersion?.versionNumber}?
+                The current configuration will be automatically saved as a new version before restoring.
               </DialogDescription>
             </DialogHeader>
             {selectedVersion && (
               <div className="p-3 bg-muted rounded-md">
                 <p className="text-sm mb-2">
-                  <strong>Fecha:</strong> {formatDate(selectedVersion.created_at)}
+                  <strong>Date:</strong> {formatDate(selectedVersion.created_at)}
                 </p>
                 {selectedVersion.change_summary && (
                   <p className="text-sm">
-                    <strong>Cambio:</strong> {selectedVersion.change_summary}
+                    <strong>Change:</strong> {selectedVersion.change_summary}
                   </p>
                 )}
               </div>
@@ -312,7 +312,7 @@ export default function VersionHistory() {
                 onClick={() => setRestoreDialogOpen(false)}
                 disabled={restoreMutation.isPending}
               >
-                Cancelar
+                Cancel
               </Button>
               <Button
                 onClick={confirmRestore}
@@ -324,7 +324,7 @@ export default function VersionHistory() {
                 ) : (
                   <CheckCircle className="h-4 w-4 mr-2" />
                 )}
-                Confirmar restauración
+                Confirm Restore
               </Button>
             </DialogFooter>
           </DialogContent>

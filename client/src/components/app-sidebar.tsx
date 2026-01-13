@@ -123,10 +123,10 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent className="px-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-        {/* CONTEXTOS - Hub Principal */}
+        {/* CONTEXTS - Main Hub */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Contextos
+            Contexts
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -142,7 +142,7 @@ export function AppSidebar({
                     data-testid="nav-contexts-list"
                   >
                     <List className="h-4 w-4" />
-                    <span>Mis Contextos</span>
+                    <span>My Contexts</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -158,7 +158,7 @@ export function AppSidebar({
                     data-testid="nav-new-context"
                   >
                     <Plus className="h-4 w-4" />
-                    <span>Nuevo Contexto</span>
+                    <span>New Context</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -190,7 +190,7 @@ export function AppSidebar({
                     data-testid="nav-brands"
                   >
                     <Building2 className="h-4 w-4" />
-                    <span>Gestión de Brands</span>
+                    <span>Brand Management</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -198,10 +198,10 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* ANÁLISIS - Páginas de análisis existentes */}
+        {/* ANALYSIS - Existing analysis pages */}
         <SidebarGroup>
           <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Análisis
+            Analysis
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -296,7 +296,7 @@ export function AppSidebar({
                     data-testid="nav-module-catalog"
                   >
                     <BookOpen className="h-4 w-4" />
-                    <span>Ver Catálogo</span>
+                    <span>View Catalog</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

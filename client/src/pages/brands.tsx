@@ -267,24 +267,24 @@ export default function BrandsPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" data-testid="text-brands-title">
                 <Building2 className="h-6 w-6" />
-                Gestión de Brands
+                Brand Management
               </h1>
               <p className="text-muted-foreground">
-                Administra entidades de marca reutilizables para múltiples contextos
+                Manage reusable brand entities for multiple contexts
               </p>
             </div>
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-brand">
                   <Plus className="h-4 w-4 mr-2" />
-                  Nueva Brand
+                  New Brand
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Crear Nueva Brand</DialogTitle>
+                  <DialogTitle>Create New Brand</DialogTitle>
                   <DialogDescription>
-                    Agrega una nueva entidad de marca para reutilizar en múltiples contextos.
+                    Add a new brand entity to reuse across multiple contexts.
                   </DialogDescription>
                 </DialogHeader>
                 <BrandForm />
@@ -294,14 +294,14 @@ export default function BrandsPage() {
                     onClick={() => setIsCreateOpen(false)}
                     data-testid="button-cancel-create"
                   >
-                    Cancelar
+                    Cancel
                   </Button>
                   <Button
                     onClick={handleSubmit}
                     disabled={createMutation.isPending || !formData.domain}
                     data-testid="button-submit-create"
                   >
-                    {createMutation.isPending ? "Creando..." : "Crear Brand"}
+                    {createMutation.isPending ? "Creating..." : "Create Brand"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -312,7 +312,7 @@ export default function BrandsPage() {
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar brands..."
+              placeholder="Search brands..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -342,9 +342,9 @@ export default function BrandsPage() {
                   <Building2 className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">No hay brands</h3>
+                  <h3 className="font-semibold">No brands found</h3>
                   <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "Intenta con otro término de búsqueda" : "Crea tu primera brand para comenzar"}
+                    {searchQuery ? "Try a different search term" : "Create your first brand to get started"}
                   </p>
                 </div>
               </div>
@@ -371,7 +371,7 @@ export default function BrandsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEditDialog(brand)}>
                             <Pencil className="h-4 w-4 mr-2" />
-                            Editar
+                            Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <a
@@ -380,7 +380,7 @@ export default function BrandsPage() {
                               rel="noopener noreferrer"
                             >
                               <ExternalLink className="h-4 w-4 mr-2" />
-                              Visitar sitio
+                              Visit Site
                             </a>
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -388,7 +388,7 @@ export default function BrandsPage() {
                             onClick={() => setDeleteConfirmBrand(brand)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Eliminar
+                            Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -416,22 +416,22 @@ export default function BrandsPage() {
       <Dialog open={!!editingBrand} onOpenChange={(open) => !open && setEditingBrand(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Brand</DialogTitle>
+            <DialogTitle>Edit Brand</DialogTitle>
             <DialogDescription>
-              Actualiza la información de la brand.
+              Update the brand information.
             </DialogDescription>
           </DialogHeader>
           <BrandForm />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingBrand(null)}>
-              Cancelar
+              Cancel
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={updateMutation.isPending}
               data-testid="button-submit-edit"
             >
-              {updateMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -441,19 +441,19 @@ export default function BrandsPage() {
       <AlertDialog open={!!deleteConfirmBrand} onOpenChange={(open) => !open && setDeleteConfirmBrand(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Brand</AlertDialogTitle>
+            <AlertDialogTitle>Delete Brand</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. La brand "{deleteConfirmBrand?.name}" será eliminada permanentemente.
+              This action cannot be undone. The brand "{deleteConfirmBrand?.name}" will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteConfirmBrand && deleteMutation.mutate(deleteConfirmBrand.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              Eliminar
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
