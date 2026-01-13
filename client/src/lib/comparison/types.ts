@@ -26,12 +26,30 @@ export type InsightType = "warning" | "success" | "info" | "opportunity";
 // Insight priority
 export type InsightPriority = "high" | "medium" | "low";
 
+// Field categories for smart filtering
+export type FieldCategory = 
+  | "always_unique"    // Brand name, domain - always different by design
+  | "competitive"      // Competitors, keywords, geography - key for competitive analysis
+  | "strategic"        // Goals, risk tolerance, channel strategy - strategic alignment
+  | "metadata";        // Version, timestamps - not strategically relevant
+
+// Comparison purpose - determines which fields are most relevant
+export type ComparisonPurpose = 
+  | "threat_analysis"      // Is this brand a threat to my market?
+  | "expansion_research"   // Should I enter their market?
+  | "benchmarking"         // What can I learn from their strategy?
+  | "portfolio_analysis";  // How do my own brands relate?
+
 // Comparison settings
 export interface ComparisonSettings {
   mode: "full" | "section" | "diff-only";
   sections: SectionKey[];
   highlightMode: "all" | "differences" | "matches";
   showInsights: boolean;
+  // New CMO-grade settings
+  comparisonPurpose: ComparisonPurpose;
+  showUniqueFields: boolean;
+  fieldCategories: FieldCategory[];
 }
 
 // Comparison session (for future persistence)
@@ -71,7 +89,29 @@ export interface SectionComparison {
   totalFieldsCount: number;
 }
 
-// Comparison insight
+// Insight strategic category
+export type InsightCategory = "threat" | "opportunity" | "positioning" | "resource";
+
+// Insight estimated impact
+export type InsightImpact = "low" | "medium" | "high" | "critical";
+
+// Strategic metric score with reasoning
+export interface MetricScore {
+  score: number;           // 0-100
+  label: "Low" | "Medium" | "High" | "Critical";
+  reasoning: string[];     // Bullet points explaining score
+  keyFactors: string[];    // Main contributing factors
+}
+
+// Full strategic metrics result
+export interface StrategicMetrics {
+  competitiveIntensity: MetricScore;    // How much fighting for same customer
+  strategicAlignment: MetricScore;       // How similar go-to-market approaches
+  marketAdjacency: MetricScore;          // How close target markets are
+  threatProbability: MetricScore;        // Likelihood of direct competition
+}
+
+// Comparison insight - CMO-grade with actionable items
 export interface ComparisonInsight {
   id: string;
   type: InsightType;
@@ -83,6 +123,15 @@ export interface ComparisonInsight {
   priority: InsightPriority;
   actionable: boolean;
   suggestion?: string;
+  // CMO-grade additions
+  category: InsightCategory;
+  estimatedImpact: InsightImpact;
+  actionItems: string[];
+  forBrand?: string;  // Which brand this insight primarily applies to
+  metric?: {
+    value: number;
+    label: string;
+  };
 }
 
 // Overlap metrics between contexts
@@ -113,6 +162,8 @@ export interface ComparisonResult {
   overlapMetrics: OverlapMetrics;
   competitorMatrix: CompetitorPresence[];
   comparedAt: string;
+  // CMO-grade strategic metrics
+  strategicMetrics?: StrategicMetrics;
 }
 
 // Section definition for UI rendering
@@ -129,6 +180,7 @@ export interface FieldDefinition {
   label: string;
   isArray?: boolean;
   isNested?: boolean;
+  category: FieldCategory;  // Field category for smart filtering
 }
 
 // Default comparison settings
@@ -146,22 +198,26 @@ export const DEFAULT_COMPARISON_SETTINGS: ComparisonSettings = {
   ],
   highlightMode: "all",
   showInsights: true,
+  // CMO-grade defaults
+  comparisonPurpose: "threat_analysis",
+  showUniqueFields: false,  // Hide unique fields by default
+  fieldCategories: ["competitive", "strategic"],  // Show only strategic fields by default
 };
 
-// Section definitions with fields to compare
+// Section definitions with fields to compare (with CMO-grade categories)
 export const SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: "brand",
     title: "Brand Context",
     icon: "Building2",
     fields: [
-      { key: "name", label: "Name" },
-      { key: "domain", label: "Domain" },
-      { key: "industry", label: "Industry" },
-      { key: "business_model", label: "Business Model" },
-      { key: "target_market", label: "Target Market" },
-      { key: "primary_geography", label: "Primary Geography", isArray: true },
-      { key: "revenue_band", label: "Revenue Band" },
+      { key: "name", label: "Name", category: "always_unique" },
+      { key: "domain", label: "Domain", category: "always_unique" },
+      { key: "industry", label: "Industry", category: "strategic" },
+      { key: "business_model", label: "Business Model", category: "strategic" },
+      { key: "target_market", label: "Target Market", category: "strategic" },
+      { key: "primary_geography", label: "Primary Geography", isArray: true, category: "competitive" },
+      { key: "revenue_band", label: "Revenue Band", category: "strategic" },
     ],
   },
   {
@@ -169,11 +225,11 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
     title: "Category Definition",
     icon: "Layers",
     fields: [
-      { key: "primary_category", label: "Primary Category" },
-      { key: "approved_categories", label: "Approved Categories", isArray: true },
-      { key: "included", label: "Included", isArray: true },
-      { key: "excluded", label: "Excluded", isArray: true },
-      { key: "semantic_extensions", label: "Semantic Extensions", isArray: true },
+      { key: "primary_category", label: "Primary Category", category: "competitive" },
+      { key: "approved_categories", label: "Approved Categories", isArray: true, category: "competitive" },
+      { key: "included", label: "Included", isArray: true, category: "competitive" },
+      { key: "excluded", label: "Excluded", isArray: true, category: "competitive" },
+      { key: "semantic_extensions", label: "Semantic Extensions", isArray: true, category: "competitive" },
     ],
   },
   {
@@ -181,11 +237,11 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
     title: "Competitive Set",
     icon: "Users",
     fields: [
-      { key: "direct", label: "Direct Competitors", isArray: true },
-      { key: "indirect", label: "Indirect Competitors", isArray: true },
-      { key: "marketplaces", label: "Marketplaces", isArray: true },
-      { key: "approved_count", label: "Approved Count" },
-      { key: "rejected_count", label: "Rejected Count" },
+      { key: "direct", label: "Direct Competitors", isArray: true, category: "competitive" },
+      { key: "indirect", label: "Indirect Competitors", isArray: true, category: "competitive" },
+      { key: "marketplaces", label: "Marketplaces", isArray: true, category: "competitive" },
+      { key: "approved_count", label: "Approved Count", category: "metadata" },
+      { key: "rejected_count", label: "Rejected Count", category: "metadata" },
     ],
   },
   {
@@ -193,11 +249,11 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
     title: "Demand Definition",
     icon: "Search",
     fields: [
-      { key: "brand_keywords.seed_terms", label: "Brand Seed Terms", isNested: true, isArray: true },
-      { key: "brand_keywords.top_n", label: "Top N Brand", isNested: true },
-      { key: "non_brand_keywords.category_terms", label: "Category Terms", isNested: true, isArray: true },
-      { key: "non_brand_keywords.problem_terms", label: "Problem Terms", isNested: true, isArray: true },
-      { key: "non_brand_keywords.top_n", label: "Top N Non-Brand", isNested: true },
+      { key: "brand_keywords.seed_terms", label: "Brand Seed Terms", isNested: true, isArray: true, category: "always_unique" },
+      { key: "brand_keywords.top_n", label: "Top N Brand", isNested: true, category: "strategic" },
+      { key: "non_brand_keywords.category_terms", label: "Category Terms", isNested: true, isArray: true, category: "competitive" },
+      { key: "non_brand_keywords.problem_terms", label: "Problem Terms", isNested: true, isArray: true, category: "competitive" },
+      { key: "non_brand_keywords.top_n", label: "Top N Non-Brand", isNested: true, category: "strategic" },
     ],
   },
   {
@@ -205,13 +261,13 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
     title: "Strategic Intent",
     icon: "Target",
     fields: [
-      { key: "growth_priority", label: "Growth Priority" },
-      { key: "risk_tolerance", label: "Risk Tolerance" },
-      { key: "primary_goal", label: "Primary Goal" },
-      { key: "secondary_goals", label: "Secondary Goals", isArray: true },
-      { key: "avoid", label: "Avoid", isArray: true },
-      { key: "goal_type", label: "Goal Type" },
-      { key: "time_horizon", label: "Time Horizon" },
+      { key: "growth_priority", label: "Growth Priority", category: "strategic" },
+      { key: "risk_tolerance", label: "Risk Tolerance", category: "strategic" },
+      { key: "primary_goal", label: "Primary Goal", category: "strategic" },
+      { key: "secondary_goals", label: "Secondary Goals", isArray: true, category: "strategic" },
+      { key: "avoid", label: "Avoid", isArray: true, category: "strategic" },
+      { key: "goal_type", label: "Goal Type", category: "strategic" },
+      { key: "time_horizon", label: "Time Horizon", category: "strategic" },
     ],
   },
   {
@@ -219,9 +275,9 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
     title: "Channel Context",
     icon: "Megaphone",
     fields: [
-      { key: "paid_media_active", label: "Paid Media Active" },
-      { key: "seo_investment_level", label: "SEO Investment Level" },
-      { key: "marketplace_dependence", label: "Marketplace Dependence" },
+      { key: "paid_media_active", label: "Paid Media Active", category: "strategic" },
+      { key: "seo_investment_level", label: "SEO Investment Level", category: "strategic" },
+      { key: "marketplace_dependence", label: "Marketplace Dependence", category: "strategic" },
     ],
   },
   {
@@ -229,10 +285,10 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
     title: "Negative Scope",
     icon: "ShieldX",
     fields: [
-      { key: "excluded_categories", label: "Excluded Categories", isArray: true },
-      { key: "excluded_keywords", label: "Excluded Keywords", isArray: true },
-      { key: "excluded_use_cases", label: "Excluded Use Cases", isArray: true },
-      { key: "excluded_competitors", label: "Excluded Competitors", isArray: true },
+      { key: "excluded_categories", label: "Excluded Categories", isArray: true, category: "competitive" },
+      { key: "excluded_keywords", label: "Excluded Keywords", isArray: true, category: "competitive" },
+      { key: "excluded_use_cases", label: "Excluded Use Cases", isArray: true, category: "competitive" },
+      { key: "excluded_competitors", label: "Excluded Competitors", isArray: true, category: "competitive" },
     ],
   },
   {
@@ -240,13 +296,13 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
     title: "Governance",
     icon: "FileCheck",
     fields: [
-      { key: "cmo_safe", label: "CMO Safe" },
-      { key: "validation_status", label: "Validation Status" },
-      { key: "human_verified", label: "Human Verified" },
-      { key: "context_version", label: "Context Version" },
-      { key: "context_confidence.level", label: "Confidence Level", isNested: true },
-      { key: "last_reviewed", label: "Last Reviewed" },
-      { key: "reviewed_by", label: "Reviewed By" },
+      { key: "cmo_safe", label: "CMO Safe", category: "strategic" },
+      { key: "validation_status", label: "Validation Status", category: "metadata" },
+      { key: "human_verified", label: "Human Verified", category: "metadata" },
+      { key: "context_version", label: "Context Version", category: "metadata" },
+      { key: "context_confidence.level", label: "Confidence Level", isNested: true, category: "strategic" },
+      { key: "last_reviewed", label: "Last Reviewed", category: "metadata" },
+      { key: "reviewed_by", label: "Reviewed By", category: "metadata" },
     ],
   },
 ];

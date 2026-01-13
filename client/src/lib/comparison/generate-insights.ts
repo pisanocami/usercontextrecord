@@ -11,6 +11,8 @@ import type {
   SectionKey,
   OverlapMetrics,
   InsightPriority,
+  InsightCategory,
+  InsightImpact,
 } from "./types";
 
 let insightIdCounter = 0;
@@ -41,14 +43,21 @@ function checkRiskToleranceMisalignment(
       return {
         id: generateInsightId(),
         type: "warning",
-        title: "Strategic Risk Misalignment",
-        description: `${highRisk.map((r) => r.name).join(", ")} have high risk tolerance while ${lowRisk.map((r) => r.name).join(", ")} have low risk tolerance. This may cause conflicting strategies.`,
+        title: "STRATEGIC DIVERGENCE: Risk Tolerance Conflict",
+        description: `${highRisk.map((r) => r.name).join(", ")} operate with high risk tolerance while ${lowRisk.map((r) => r.name).join(", ")} are conservative. This creates potential for conflicting market approaches.`,
         affectedContextIds: [...highRisk, ...lowRisk].map((r) => r.id),
         affectedContextNames: [...highRisk, ...lowRisk].map((r) => r.name),
         section: "strategic_intent",
         priority: "high",
         actionable: true,
-        suggestion: "Consider aligning risk tolerance across related brands or documenting the strategic rationale for differences.",
+        suggestion: "Document strategic rationale for risk differences or align approaches.",
+        category: "positioning",
+        estimatedImpact: "medium",
+        actionItems: [
+          "Review if risk tolerance differences are intentional market segmentation",
+          "Document strategic rationale for each brand's risk approach",
+          "Ensure marketing teams understand different risk parameters",
+        ],
       };
     }
   }
@@ -75,14 +84,21 @@ function checkCmoSafeInconsistency(
     return {
       id: generateInsightId(),
       type: "info",
-      title: "Mixed CMO-Safe Status",
-      description: `${safe.length} context(s) are CMO-safe while ${notSafe.length} are not. Consider reviewing: ${notSafe.map((c) => c.name).join(", ")}`,
+      title: "GOVERNANCE: CMO Approval Gap",
+      description: `${notSafe.length} context(s) require CMO review before activation: ${notSafe.map((c) => c.name).join(", ")}`,
       affectedContextIds: notSafe.map((c) => c.id),
       affectedContextNames: notSafe.map((c) => c.name),
       section: "governance",
       priority: "medium",
       actionable: true,
-      suggestion: "Review and validate the non-CMO-safe contexts to ensure they meet approval criteria.",
+      suggestion: "Schedule CMO review for pending contexts.",
+      category: "resource",
+      estimatedImpact: "medium",
+      actionItems: [
+        "Schedule CMO review meeting for non-approved contexts",
+        "Prepare executive summary for each context requiring approval",
+        "Document any blockers preventing CMO-safe status",
+      ],
     };
   }
 
@@ -100,13 +116,24 @@ function checkCompetitorOverlap(
     return {
       id: generateInsightId(),
       type: "success",
-      title: "Shared Competitive Landscape",
-      description: `All contexts share ${overlapMetrics.sharedCompetitors.length} competitor(s): ${overlapMetrics.sharedCompetitors.slice(0, 5).join(", ")}${overlapMetrics.sharedCompetitors.length > 5 ? "..." : ""}`,
+      title: "BATTLEFIELD: Shared Competitors Identified",
+      description: `${overlapMetrics.sharedCompetitors.length} shared competitor(s) represent key battlegrounds: ${overlapMetrics.sharedCompetitors.slice(0, 5).join(", ")}`,
       affectedContextIds: contexts.map((c) => Number(c.id)),
       affectedContextNames: contexts.map((c) => c.name || c.brand?.domain || "Unknown"),
       section: "competitors",
       priority: "low",
-      actionable: false,
+      actionable: true,
+      category: "threat",
+      estimatedImpact: "low",
+      actionItems: [
+        "Analyze shared competitors' positioning strategies",
+        "Identify differentiation opportunities against shared competitors",
+        "Monitor shared competitors for market moves",
+      ],
+      metric: {
+        value: overlapMetrics.sharedCompetitors.length,
+        label: "Shared Competitors",
+      },
     };
   }
 
@@ -114,13 +141,23 @@ function checkCompetitorOverlap(
     return {
       id: generateInsightId(),
       type: "info",
-      title: "Low Competitor Overlap",
-      description: `Only ${overlapMetrics.competitorOverlap}% competitor overlap between contexts. These brands may be targeting different market segments.`,
+      title: "POSITIONING: Distinct Market Segments",
+      description: `Only ${overlapMetrics.competitorOverlap}% competitor overlap indicates these brands target different market segments. This is healthy differentiation.`,
       affectedContextIds: contexts.map((c) => Number(c.id)),
       affectedContextNames: contexts.map((c) => c.name || c.brand?.domain || "Unknown"),
       section: "competitors",
       priority: "low",
-      actionable: false,
+      actionable: true,
+      category: "positioning",
+      estimatedImpact: "low",
+      actionItems: [
+        "Document differentiation strategy for stakeholders",
+        "Ensure marketing messaging reinforces distinct positioning",
+      ],
+      metric: {
+        value: overlapMetrics.competitorOverlap,
+        label: "Competitor Overlap %",
+      },
     };
   }
 
@@ -158,14 +195,26 @@ function checkGeographyGaps(
     return {
       id: generateInsightId(),
       type: "opportunity",
-      title: "Geography Expansion Opportunity",
-      description: `Some contexts target unique geographies: ${uniqueGeos.map((u) => `${u.context} → ${u.geo.toUpperCase()}`).join(", ")}. Consider expansion opportunities.`,
+      title: "EXPANSION: Geographic Whitespace Detected",
+      description: `Unique geographic presence: ${uniqueGeos.map((u) => `${u.context} → ${u.geo.toUpperCase()}`).join(", ")}. Potential expansion opportunity for other brands.`,
       affectedContextIds: contexts.map((c) => Number(c.id)),
       affectedContextNames: contexts.map((c) => c.name || c.brand?.domain || "Unknown"),
       section: "brand",
       priority: "medium",
       actionable: true,
-      suggestion: "Evaluate whether successful strategies in unique geographies can be replicated across other brands.",
+      suggestion: "Evaluate geographic expansion ROI.",
+      category: "opportunity",
+      estimatedImpact: "high",
+      actionItems: [
+        "Analyze market size and growth potential in unique geographies",
+        "Evaluate successful strategies that could be replicated",
+        "Estimate investment required for geographic expansion",
+        "Assess competitive landscape in target geographies",
+      ],
+      metric: {
+        value: uniqueGeos.length,
+        label: "Unique Geographies",
+      },
     };
   }
 
@@ -190,13 +239,19 @@ function checkBusinessModelDifferences(
     return {
       id: generateInsightId(),
       type: "info",
-      title: "Different Business Models",
-      description: `Contexts have different business models: ${Array.from(uniqueModels).join(", ")}. Strategies may need to be tailored accordingly.`,
+      title: "STRATEGY: Multiple Business Models",
+      description: `Different go-to-market approaches: ${Array.from(uniqueModels).join(", ")}. Ensure channel strategies align with each model.`,
       affectedContextIds: models.map((m) => m.id),
       affectedContextNames: models.map((m) => m.name),
       section: "brand",
       priority: "low",
-      actionable: false,
+      actionable: true,
+      category: "resource",
+      estimatedImpact: "low",
+      actionItems: [
+        "Ensure marketing budgets align with business model requirements",
+        "Tailor channel mix to each business model's strengths",
+      ],
     };
   }
 
@@ -214,14 +269,26 @@ function checkKeywordCannibalization(
     return {
       id: generateInsightId(),
       type: "warning",
-      title: "Potential Keyword Cannibalization",
-      description: `High keyword overlap (${overlapMetrics.keywordOverlap}%) detected. ${overlapMetrics.sharedKeywords.length} shared keywords may cause internal competition.`,
+      title: "THREAT: Keyword Cannibalization Risk",
+      description: `${overlapMetrics.keywordOverlap}% keyword overlap with ${overlapMetrics.sharedKeywords.length} shared terms. Internal competition may be inflating CPCs and reducing efficiency.`,
       affectedContextIds: contexts.map((c) => Number(c.id)),
       affectedContextNames: contexts.map((c) => c.name || c.brand?.domain || "Unknown"),
       section: "demand_definition",
       priority: "high",
       actionable: true,
-      suggestion: "Review shared keywords and consider differentiating targeting strategies to avoid cannibalization.",
+      suggestion: "Implement keyword deduplication strategy.",
+      category: "threat",
+      estimatedImpact: "high",
+      actionItems: [
+        "Audit shared keywords for internal bidding conflicts",
+        "Assign keyword ownership to specific brands/contexts",
+        "Implement negative keyword lists to prevent overlap",
+        "Calculate estimated CPC savings from deduplication",
+      ],
+      metric: {
+        value: overlapMetrics.keywordOverlap,
+        label: "Keyword Overlap %",
+      },
     };
   }
 
@@ -243,13 +310,19 @@ function checkSectionMatchQuality(
       insights.push({
         id: generateInsightId(),
         type: "info",
-        title: `Low Alignment: ${section.sectionTitle}`,
-        description: `Only ${section.overallMatch}% field alignment in ${section.sectionTitle}. Contexts have significantly different configurations.`,
+        title: `DIVERGENCE: ${section.sectionTitle} Strategies Differ`,
+        description: `Only ${section.overallMatch}% alignment in ${section.sectionTitle}. This may be intentional differentiation or require review.`,
         affectedContextIds: contexts.map((c) => Number(c.id)),
         affectedContextNames: contexts.map((c) => c.name || c.brand?.domain || "Unknown"),
         section: key as SectionKey,
         priority: "low",
-        actionable: false,
+        actionable: true,
+        category: "positioning",
+        estimatedImpact: "low",
+        actionItems: [
+          `Review ${section.sectionTitle} configurations for intentional differences`,
+          "Document strategic rationale if divergence is intentional",
+        ],
       });
     }
 
@@ -258,13 +331,16 @@ function checkSectionMatchQuality(
       insights.push({
         id: generateInsightId(),
         type: "success",
-        title: `Perfect Alignment: ${section.sectionTitle}`,
-        description: `100% field alignment in ${section.sectionTitle}. All contexts are fully aligned in this section.`,
+        title: `ALIGNMENT: ${section.sectionTitle} Fully Synchronized`,
+        description: `100% alignment in ${section.sectionTitle}. Contexts share identical strategic approach in this area.`,
         affectedContextIds: contexts.map((c) => Number(c.id)),
         affectedContextNames: contexts.map((c) => c.name || c.brand?.domain || "Unknown"),
         section: key as SectionKey,
         priority: "low",
         actionable: false,
+        category: "positioning",
+        estimatedImpact: "low",
+        actionItems: [],
       });
     }
   });

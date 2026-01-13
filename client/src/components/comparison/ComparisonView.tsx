@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 import { ComparisonHeader } from "./ComparisonHeader";
 import { ComparisonToolbar } from "./ComparisonToolbar";
+import { StrategicScorecard } from "./StrategicScorecard";
 import { SectionComparisonCard } from "./SectionComparisonCard";
 import { OverlapMatrix } from "./OverlapMatrix";
 import { InsightsPanel } from "./InsightsPanel";
@@ -163,6 +164,13 @@ export function ComparisonView({
           />
         </div>
 
+        {/* Strategic Scorecard - CMO-grade metrics */}
+        {result.strategicMetrics && (
+          <div className="mt-6">
+            <StrategicScorecard metrics={result.strategicMetrics} />
+          </div>
+        )}
+
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
           {/* Left Column: Section Comparisons */}
@@ -179,6 +187,7 @@ export function ComparisonView({
                   key={section.sectionKey}
                   section={section}
                   defaultOpen={filteredSections.length <= 3}
+                  settings={settings}
                 />
               ))
             )}

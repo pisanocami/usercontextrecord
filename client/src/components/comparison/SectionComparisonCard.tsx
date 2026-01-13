@@ -2,13 +2,14 @@
  * SectionComparisonCard Component
  * 
  * Collapsible card for comparing a single section across contexts.
+ * Now with CMO-grade field filtering based on categories.
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, EyeOff } from "lucide-react";
 import {
   Building2,
   Layers,
@@ -20,11 +21,13 @@ import {
   FileCheck,
 } from "lucide-react";
 import { FieldComparisonRow } from "./FieldComparisonRow";
-import type { SectionComparison } from "@/lib/comparison/types";
+import type { SectionComparison, ComparisonSettings, FieldCategory } from "@/lib/comparison/types";
+import { SECTION_DEFINITIONS } from "@/lib/comparison/types";
 
 interface SectionComparisonCardProps {
   section: SectionComparison;
   defaultOpen?: boolean;
+  settings?: ComparisonSettings;
 }
 
 const sectionIcons: Record<string, React.ElementType> = {
@@ -45,9 +48,47 @@ function getMatchBadgeVariant(match: number): "default" | "secondary" | "destruc
   return "destructive";
 }
 
-export function SectionComparisonCard({ section, defaultOpen = false }: SectionComparisonCardProps) {
+export function SectionComparisonCard({ section, defaultOpen = false, settings }: SectionComparisonCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const Icon = sectionIcons[section.sectionKey] || FileCheck;
+
+  // Get field definitions for this section to check categories
+  const sectionDef = SECTION_DEFINITIONS.find(s => s.key === section.sectionKey);
+  
+  // Filter fields based on settings
+  const filteredFields = useMemo(() => {
+    if (!settings || !sectionDef) return section.fields;
+    
+    return section.fields.filter(field => {
+      const fieldDef = sectionDef.fields.find(f => f.key === field.fieldKey);
+      if (!fieldDef) return true;
+      
+      // If showUniqueFields is false, hide always_unique fields
+      if (!settings.showUniqueFields && fieldDef.category === "always_unique") {
+        return false;
+      }
+      
+      // If fieldCategories is set, only show fields in those categories
+      if (settings.fieldCategories.length > 0) {
+        // Always show if showUniqueFields is true and it's unique
+        if (settings.showUniqueFields && fieldDef.category === "always_unique") {
+          return true;
+        }
+        return settings.fieldCategories.includes(fieldDef.category);
+      }
+      
+      return true;
+    });
+  }, [section.fields, settings, sectionDef]);
+
+  // Calculate filtered stats
+  const filteredMatchingCount = filteredFields.filter(f => f.matchType === "full").length;
+  const hiddenFieldsCount = section.fields.length - filteredFields.length;
+
+  // Don't render if all fields are filtered out
+  if (filteredFields.length === 0) {
+    return null;
+  }
 
   return (
     <Card className="mb-4">
@@ -60,13 +101,19 @@ export function SectionComparisonCard({ section, defaultOpen = false }: SectionC
                   <Icon className="h-4 w-4" />
                 </div>
                 <CardTitle className="text-base">{section.sectionTitle}</CardTitle>
+                {hiddenFieldsCount > 0 && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <EyeOff className="h-3 w-3" />
+                    {hiddenFieldsCount} hidden
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant={getMatchBadgeVariant(section.overallMatch)}>
                   {section.overallMatch}% match
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {section.matchingFieldsCount}/{section.totalFieldsCount} fields
+                  {filteredMatchingCount}/{filteredFields.length} fields
                 </span>
                 {isOpen ? (
                   <ChevronDown className="h-5 w-5 text-muted-foreground" />
@@ -79,7 +126,7 @@ export function SectionComparisonCard({ section, defaultOpen = false }: SectionC
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="pt-0">
-            {section.fields.map((field) => (
+            {filteredFields.map((field) => (
               <FieldComparisonRow key={field.fieldKey} field={field} />
             ))}
           </CardContent>

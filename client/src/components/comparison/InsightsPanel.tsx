@@ -1,11 +1,14 @@
 /**
  * InsightsPanel Component
  * 
- * Displays generated insights from the comparison.
+ * CMO-grade insights panel with actionable recommendations.
  */
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -13,8 +16,14 @@ import {
   Info,
   Lightbulb,
   ChevronRight,
+  ChevronDown,
+  Target,
+  TrendingUp,
+  Shield,
+  DollarSign,
+  CheckSquare,
 } from "lucide-react";
-import type { ComparisonInsight, InsightType, InsightPriority } from "@/lib/comparison/types";
+import type { ComparisonInsight, InsightType, InsightPriority, InsightCategory, InsightImpact } from "@/lib/comparison/types";
 
 interface InsightsPanelProps {
   insights: ComparisonInsight[];
@@ -48,55 +57,115 @@ const priorityLabels: Record<InsightPriority, string> = {
   low: "Low",
 };
 
+const categoryIcons: Record<InsightCategory, React.ElementType> = {
+  threat: Shield,
+  opportunity: TrendingUp,
+  positioning: Target,
+  resource: DollarSign,
+};
+
+const categoryLabels: Record<InsightCategory, string> = {
+  threat: "Threat",
+  opportunity: "Opportunity",
+  positioning: "Positioning",
+  resource: "Resource",
+};
+
+const impactColors: Record<InsightImpact, string> = {
+  low: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
+  high: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+  critical: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+};
+
 function InsightCard({ insight }: { insight: ComparisonInsight }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const Icon = insightIcons[insight.type];
+  const CategoryIcon = insight.category ? categoryIcons[insight.category] : null;
+  const hasActionItems = insight.actionItems && insight.actionItems.length > 0;
 
   return (
     <div
       className={cn(
-        "p-4 rounded-lg border",
+        "rounded-lg border overflow-hidden",
         insightBgColors[insight.type]
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className={cn("mt-0.5", insightColors[insight.type])}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-medium text-sm">{insight.title}</h4>
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-xs",
-                insight.priority === "high" && "border-red-300 text-red-700",
-                insight.priority === "medium" && "border-yellow-300 text-yellow-700",
-                insight.priority === "low" && "border-gray-300 text-gray-600"
-              )}
-            >
-              {priorityLabels[insight.priority]}
-            </Badge>
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <CollapsibleTrigger asChild>
+          <div className="p-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className={cn("mt-0.5", insightColors[insight.type])}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h4 className="font-medium text-sm">{insight.title}</h4>
+                  {insight.category && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      {CategoryIcon && <CategoryIcon className="h-3 w-3" />}
+                      {categoryLabels[insight.category]}
+                    </Badge>
+                  )}
+                  {insight.estimatedImpact && (
+                    <Badge className={cn("text-xs", impactColors[insight.estimatedImpact])}>
+                      {insight.estimatedImpact.charAt(0).toUpperCase() + insight.estimatedImpact.slice(1)} Impact
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {insight.description}
+                </p>
+                {insight.metric && (
+                  <div className="mt-2 inline-flex items-center gap-2 px-2 py-1 bg-background/50 rounded text-xs">
+                    <span className="font-medium">{insight.metric.label}:</span>
+                    <span className="font-bold text-primary">{insight.metric.value}</span>
+                  </div>
+                )}
+              </div>
+              <div className="shrink-0">
+                {hasActionItems && (
+                  isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )
+                )}
+              </div>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground mb-2">
-            {insight.description}
-          </p>
-          {insight.suggestion && (
-            <div className="flex items-start gap-2 mt-2 p-2 bg-background/50 rounded text-xs">
-              <ChevronRight className="h-3 w-3 mt-0.5 text-primary shrink-0" />
-              <span>{insight.suggestion}</span>
+        </CollapsibleTrigger>
+        
+        {hasActionItems && (
+          <CollapsibleContent>
+            <div className="px-4 pb-4 pt-0 border-t border-current/10">
+              <div className="mt-3">
+                <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Action Items
+                </h5>
+                <ul className="space-y-1.5">
+                  {insight.actionItems.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm">
+                      <CheckSquare className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {insight.affectedContextNames.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t border-current/10">
+                  <span className="text-xs text-muted-foreground mr-1">Affects:</span>
+                  {insight.affectedContextNames.map((name, idx) => (
+                    <Badge key={idx} variant="secondary" className="text-xs">
+                      {name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-          {insight.affectedContextNames.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {insight.affectedContextNames.map((name, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
-                  {name}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+          </CollapsibleContent>
+        )}
+      </Collapsible>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import type {
 import { SECTION_DEFINITIONS } from "./types";
 import { generateInsights } from "./generate-insights";
 import { calculateOverlapMetrics } from "./calculate-overlap";
+import { calculateStrategicMetrics } from "./calculate-strategic-metrics";
 
 /**
  * Get a nested value from an object using dot notation
@@ -230,12 +231,16 @@ export function compareContexts(contexts: Configuration[]): ComparisonResult {
   // Generate insights
   const insights = generateInsights(contexts, sections, overlapMetrics);
 
+  // Calculate CMO-grade strategic metrics
+  const strategicMetrics = calculateStrategicMetrics(contexts, overlapMetrics, sections);
+
   return {
     contexts,
     sections,
     insights,
     overlapMetrics,
     competitorMatrix,
+    strategicMetrics,
     comparedAt: new Date().toISOString(),
   };
 }
