@@ -85,16 +85,17 @@ function MetricCard({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const Icon = config.icon;
-  const colorClass = config.color[metric.label];
+  const colorClass = config.color[metric.label.toLowerCase() as keyof typeof config.color];
+  const badgeColorClass = colorClass ? colorClass.replace("bg-", "bg-").replace("500", "100") : "bg-gray-100";
 
   if (compact) {
     return (
       <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-        <div className={cn("h-2 w-2 rounded-full", colorClass)} />
+        <div className={cn("h-2 w-2 rounded-full", colorClass || "bg-gray-500")} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">{config.label}</span>
-            <Badge className={cn("text-xs", colorClass.replace("bg-", "bg-").replace("500", "100"))}>
+            <Badge className={cn("text-xs", badgeColorClass)}>
               {metric.label}
             </Badge>
           </div>
@@ -110,13 +111,13 @@ function MetricCard({
         <CollapsibleTrigger asChild>
           <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center gap-3">
-              <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", colorClass)}>
+              <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", colorClass || "bg-gray-500")}>
                 <Icon className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-sm">{config.label}</h3>
-                  <Badge className={cn("text-xs", colorClass.replace("bg-", "bg-").replace("500", "100"))}>
+                  <Badge className={cn("text-xs", badgeColorClass)}>
                     {metric.label}
                   </Badge>
                 </div>
