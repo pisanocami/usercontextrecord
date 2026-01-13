@@ -49,6 +49,10 @@ export default function BulkGeneration() {
         description: "Bulk generation job has been started.",
       });
       setBrandsInput("");
+      setUploadedFileName(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -71,7 +75,7 @@ export default function BulkGeneration() {
   };
 
   const processFile = useCallback((file: File) => {
-    if (!file.name.endsWith('.txt')) {
+    if (!file.name.toLowerCase().endsWith('.txt')) {
       toast({
         title: "Invalid file type",
         description: "Please upload a .txt file with one domain per line",
