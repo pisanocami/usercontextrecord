@@ -194,7 +194,7 @@ export async function runModule(
         logModuleExecution({
             moduleId,
             configId,
-            userId,
+            userId: userId || "anonymous",
             startedAt: new Date(startTime).toISOString(),
             completedAt: new Date().toISOString(),
             success: false,
@@ -212,7 +212,7 @@ export async function runModule(
     logModuleExecution({
         moduleId,
         configId,
-        userId,
+        userId: userId || "anonymous",
         startedAt: new Date(startTime).toISOString(),
         completedAt: new Date().toISOString(),
         success: result.success,
