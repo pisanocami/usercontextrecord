@@ -8,6 +8,27 @@ import {
     ModuleOutputWrapper
 } from "./execution-gateway";
 
+/**
+ * Module Execution Audit Log
+ * Tracks all module executions for security and debugging
+ */
+interface ModuleExecutionLog {
+    moduleId: string;
+    configId: number;
+    userId: string;
+    startedAt: string;
+    completedAt: string;
+    success: boolean;
+    executionTimeMs: number;
+    error?: string;
+}
+
+function logModuleExecution(log: ModuleExecutionLog): void {
+    const status = log.success ? 'SUCCESS' : 'FAILED';
+    const errorSuffix = log.error ? ` | error: ${log.error.substring(0, 100)}` : '';
+    console.log(`[MODULE_AUDIT] ${log.moduleId} | user:${log.userId} | config:${log.configId} | ${status} | ${log.executionTimeMs}ms${errorSuffix}`);
+}
+
 // Import Real Implementations
 import { computeKeywordGap } from "./keyword-gap-lite";
 import { marketDemandAnalyzer } from "./market-demand-analyzer";
@@ -44,12 +65,24 @@ import { analyzeStrategicSummary } from "./modules/strategic-summary";
 export async function runModule(
     moduleId: string,
     configId: number,
-    inputs: any = {}
+    inputs: any = {},
+    userId?: string
 ): Promise<ModuleOutputWrapper<any>> {
+    const startTime = Date.now();
+
+    // 0. Validate userId (Security Gate)
+    if (!userId) {
+        const errorContext = createExecutionContext(moduleId, { id: "0", name: "Unknown" } as any, []);
+        return wrapModuleOutput(
+            null,
+            errorContext,
+            "Authentication required: userId is missing"
+        );
+    }
 
     // 1. Fetch Configuration (UCR)
-    // FIXED: Use getConfigurationById and ensure configId is a number
-    const dbConfig = await storage.getConfigurationById(Number(configId));
+    // FIXED: Use getConfigurationById with userId for ownership verification
+    const dbConfig = await storage.getConfigurationById(Number(configId), userId);
     if (!dbConfig) {
         throw new Error(`Configuration ${configId} not found`);
     }
@@ -162,9 +195,36 @@ export async function runModule(
         }
     } catch (err: any) {
         console.error(`Module Execution Error [${moduleId}]:`, err);
-        return wrapModuleOutput(null, context, err.message || "Unknown Module Execution Error");
+        const errorResult = wrapModuleOutput(null, context, err.message || "Unknown Module Execution Error");
+        
+        // Audit log for failed execution
+        logModuleExecution({
+            moduleId,
+            configId,
+            userId,
+            startedAt: new Date(startTime).toISOString(),
+            completedAt: new Date().toISOString(),
+            success: false,
+            executionTimeMs: Date.now() - startTime,
+            error: err.message
+        });
+        
+        return errorResult;
     }
 
     // 4. Return Wrapped Output
-    return wrapModuleOutput(resultData, context);
+    const result = wrapModuleOutput(resultData, context);
+    
+    // Audit log for successful execution
+    logModuleExecution({
+        moduleId,
+        configId,
+        userId,
+        startedAt: new Date(startTime).toISOString(),
+        completedAt: new Date().toISOString(),
+        success: result.success,
+        executionTimeMs: Date.now() - startTime
+    });
+    
+    return result;
 }
