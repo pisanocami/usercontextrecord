@@ -143,7 +143,7 @@ export function validateModuleExecution(
     // Use contract-based validation
     const availableSections = getAvailableSections(config);
     const requiredSections = contract.contextInjection.requiredSections;
-    const optionalSections = contract.contextInjection.optionalSections;
+    const optionalSections = contract.contextInjection.optionalSections || [];
     
     const missingSections = requiredSections.filter(
       section => !availableSections.includes(section)
