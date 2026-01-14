@@ -7,18 +7,14 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ComparisonView } from "@/components/comparison";
+import { ContextSelector } from "@/components/comparison/ContextSelector";
 import { useComparison, parseContextIdsFromUrl, buildCompareUrl } from "@/hooks/use-comparison";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { SelectionCounter } from "@/components/ui/selection-counter";
 import type { Configuration } from "@shared/schema";
 
 export default function ContextComparisonPage() {
@@ -35,8 +31,16 @@ export default function ContextComparisonPage() {
   }, []);
 
   // Fetch all configurations for the selector
-  const { data: allConfigurations } = useQuery<Configuration[]>({
+  const { 
+    data: allConfigurations, 
+    isLoading: isLoadingConfigs,
+    error: configsError,
+    refetch: refetchConfigs
+  } = useQuery<Configuration[]>({
     queryKey: ["/api/configurations"],
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Run comparison
@@ -50,9 +54,8 @@ export default function ContextComparisonPage() {
     }
   }, [selectedIds, location]);
 
-  const handleAddContext = (idStr: string) => {
-    const id = parseInt(idStr, 10);
-    if (!isNaN(id) && !selectedIds.includes(id) && selectedIds.length < 4) {
+  const handleAddContext = (id: number) => {
+    if (!selectedIds.includes(id) && selectedIds.length < 4) {
       setSelectedIds([...selectedIds, id]);
     }
   };
@@ -60,10 +63,6 @@ export default function ContextComparisonPage() {
   const handleRemoveContext = (id: number) => {
     setSelectedIds(selectedIds.filter((i) => i !== id));
   };
-
-  const availableContexts = allConfigurations?.filter(
-    (c) => !selectedIds.includes(Number(c.id))
-  );
 
   return (
     <div className="flex flex-col h-full">
@@ -89,58 +88,30 @@ export default function ContextComparisonPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Context Selector - Show when no contexts selected */}
-            {selectedIds.length === 0 && allConfigurations && allConfigurations.length > 0 && (
-              <div className="text-sm text-muted-foreground">
-                {allConfigurations.length} contexts available
-              </div>
-            )}
-            
-            {/* Context Selector - Show when contexts exist to add */}
-            {selectedIds.length > 0 && selectedIds.length < 4 && availableContexts && availableContexts.length > 0 && (
-              <Select onValueChange={handleAddContext}>
-                <SelectTrigger className="w-[200px]">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <SelectValue placeholder="Add context..." />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableContexts.map((ctx) => (
-                    <SelectItem key={ctx.id} value={String(ctx.id)}>
-                      {ctx.name || ctx.brand?.domain}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Selected contexts badges */}
-            <div className="flex items-center gap-2">
-              {selectedIds.map((id) => {
-                const ctx = allConfigurations?.find((c) => Number(c.id) === id);
-                return (
-                  <Badge
-                    key={id}
-                    variant="secondary"
-                    className="flex items-center gap-1 pr-1"
-                  >
-                    <span className="max-w-[100px] truncate">
-                      {ctx?.name || ctx?.brand?.domain || `ID: ${id}`}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 p-0 hover:bg-transparent"
-                      onClick={() => handleRemoveContext(id)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                );
-              })}
-            </div>
+            <SelectionCounter selected={selectedIds.length} max={4} />
           </div>
+        </div>
+
+        {/* Context Selector */}
+        <div className="mt-4">
+          {isLoadingConfigs ? (
+            <LoadingState message="Loading contexts..." size="sm" />
+          ) : configsError ? (
+            <ErrorState
+              error={configsError as Error}
+              title="Failed to load contexts"
+              onRetry={() => refetchConfigs()}
+            />
+          ) : allConfigurations ? (
+            <ContextSelector
+              configurations={allConfigurations}
+              selectedIds={selectedIds}
+              onSelect={handleAddContext}
+              onRemove={handleRemoveContext}
+              maxSelections={4}
+              isLoading={isLoadingConfigs}
+            />
+          ) : null}
         </div>
       </div>
 

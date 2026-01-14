@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { SelectionCounter } from "@/components/ui/selection-counter";
+import { ConfigurationSkeletonList } from "@/components/ui/configuration-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -483,8 +487,11 @@ export default function ConfigurationsList() {
     setCompareSelection(new Set());
   };
 
-  const { data: configurations, isLoading } = useQuery<Configuration[]>({
+  const { data: configurations, isLoading, error, refetch } = useQuery<Configuration[]>({
     queryKey: ["/api/configurations"],
+    retry: 3,
+    retryDelay: 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const deleteMutation = useMutation({
@@ -635,17 +642,14 @@ export default function ConfigurationsList() {
           </Card>
         )}
 
-        {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-4 w-32 mt-2" />
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+        {error ? (
+          <ErrorState
+            error={error as Error}
+            title="Failed to load contexts"
+            onRetry={() => refetch()}
+          />
+        ) : isLoading ? (
+          <ConfigurationSkeletonList count={3} />
         ) : filteredConfigurations?.length === 0 ? (
           <Card className="p-8 text-center">
             <div className="flex flex-col items-center gap-4">
@@ -760,9 +764,12 @@ export default function ConfigurationsList() {
         {compareSelection.size > 0 && (
           <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50">
             <div className="flex items-center gap-3 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-lg">
-              <span className="text-sm font-medium">
-                {compareSelection.size} selected
-              </span>
+              <SelectionCounter 
+                selected={compareSelection.size} 
+                max={4} 
+                showLabel={false}
+                className="text-primary-foreground [&_*]:text-primary-foreground"
+              />
               <Button
                 size="sm"
                 variant="secondary"
@@ -771,7 +778,7 @@ export default function ConfigurationsList() {
                 className="h-8"
               >
                 <GitCompare className="h-4 w-4 mr-1" />
-                Compare
+                Compare {compareSelection.size >= 2 ? `(${compareSelection.size})` : ""}
               </Button>
               <Button
                 size="sm"
