@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRoute } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
     Card,
     CardContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -20,27 +21,39 @@ import {
     ShieldCheck,
     Target,
     Loader2,
-    Play
+    Play,
+    Building2
 } from "lucide-react";
 import { CONTRACT_REGISTRY } from "@shared/module.contract";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ModuleVisualizer } from "@/components/module-visualizer";
+import type { Configuration } from "@shared/schema";
 
 export function ModuleShell() {
     const [match, params] = useRoute("/modules/:moduleId");
     const moduleId = params?.moduleId;
     const { toast } = useToast();
     const [executionResult, setExecutionResult] = useState<any>(null);
+    const [selectedConfigId, setSelectedConfigId] = useState<string>("");
 
     // 1. Resolve Contract
     const contract = moduleId ? CONTRACT_REGISTRY[moduleId] : undefined;
 
-    // 2. Execution Mutation
+    // 2. Fetch Available Configurations
+    const { data: configurations, isLoading: configsLoading, error: configsError } = useQuery<Configuration[]>({
+        queryKey: ["/api/configurations"],
+        retry: 3,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+
+    // 3. Execution Mutation
     const runMutation = useMutation({
         mutationFn: async () => {
-            // For Demo: Use ID 1 (hardcoded until Context Selector is added)
-            const configId = 1;
+            if (!selectedConfigId) {
+                throw new Error("Please select a context to run the analysis");
+            }
+            const configId = parseInt(selectedConfigId);
             const res = await apiRequest("POST", `/api/modules/${moduleId}/run`, { configId });
             return res.json();
         },
@@ -77,7 +90,7 @@ export function ModuleShell() {
             <header className="border-b bg-background px-6 py-5">
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-4">
                             <Badge variant="outline" className="text-xs font-normal">
                                 {contract.layer} Layer
                             </Badge>
@@ -97,11 +110,51 @@ export function ModuleShell() {
                         <p className="text-muted-foreground">
                             {contract.description}
                         </p>
+
+                        {/* Context Selector */}
+                        <div className="mt-4 space-y-2">
+                            <label className="text-sm font-medium">Select Context for Analysis</label>
+                            <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                                {configsLoading ? (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Loading contexts...
+                                    </div>
+                                ) : configsError ? (
+                                    <div className="text-sm text-destructive">
+                                        Failed to load contexts
+                                    </div>
+                                ) : configurations?.length ? (
+                                    <Select value={selectedConfigId} onValueChange={setSelectedConfigId}>
+                                        <SelectTrigger className="w-80">
+                                            <SelectValue placeholder="Choose a context..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {configurations.map((config) => (
+                                                <SelectItem key={config.id} value={config.id.toString()}>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium">{config.name}</span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {config.brand.name} • {config.brand.domain}
+                                                        </span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <div className="text-sm text-muted-foreground">
+                                        No contexts available. Create one first.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             onClick={() => runMutation.mutate()}
-                            disabled={runMutation.isPending}
+                            disabled={runMutation.isPending || !selectedConfigId || configsLoading}
                         >
                             {runMutation.isPending ? (
                                 <>
