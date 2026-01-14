@@ -10,7 +10,10 @@ import {
   UCR_SECTION_NAMES,
   getModuleDefinition,
   canModuleExecute,
-  type UCRSection
+  CONTRACT_REGISTRY,
+  getContractById,
+  type UCRSection,
+  type ModuleContract
 } from '@shared/module.contract';
 import type { Configuration } from '@shared/schema';
 
@@ -127,11 +130,55 @@ function generateUCRVersion(config: Configuration): string {
 
 /**
  * Validates if a module can execute with the given configuration
+ * Supports both legacy MODULE_REGISTRY and new CONTRACT_REGISTRY
  */
 export function validateModuleExecution(
   moduleId: string,
   config: Configuration
 ): UCRValidationResult {
+  // First try new CONTRACT_REGISTRY (for moduleIds like "seo.keyword_gap_visibility.v1")
+  const contract = getContractById(CONTRACT_REGISTRY, moduleId);
+  
+  if (contract) {
+    // Use contract-based validation
+    const availableSections = getAvailableSections(config);
+    const requiredSections = contract.contextInjection.requiredSections;
+    const optionalSections = contract.contextInjection.optionalSections;
+    
+    const missingSections = requiredSections.filter(
+      section => !availableSections.includes(section)
+    );
+    
+    const missingOptional = optionalSections.filter(
+      section => !availableSections.includes(section)
+    );
+    
+    const warnings: string[] = [];
+    if (missingOptional.length > 0) {
+      warnings.push(
+        `Missing optional sections: ${missingOptional.map(s => `${s} (${UCR_SECTION_NAMES[s]})`).join(', ')}. Results may be less accurate.`
+      );
+    }
+    
+    const missingDetails = missingSections.map(section => ({
+      section,
+      name: UCR_SECTION_NAMES[section],
+      role: getSectionRole(section)
+    }));
+    
+    return {
+      isValid: missingSections.length === 0,
+      moduleId,
+      moduleName: contract.name,
+      availableSections,
+      missingSections,
+      missingDetails,
+      warnings,
+      ucrVersion: generateUCRVersion(config)
+    };
+  }
+  
+  // Fallback to legacy MODULE_REGISTRY (for moduleIds like "seo_visibility_gap")
   const module = getModuleDefinition(moduleId);
 
   if (!module) {
