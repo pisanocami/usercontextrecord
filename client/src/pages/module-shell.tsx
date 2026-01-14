@@ -27,6 +27,7 @@ import {
 import { CONTRACT_REGISTRY } from "@shared/module.contract";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { ModuleVisualizer } from "@/components/module-visualizer";
 import type { Configuration } from "@shared/schema";
 
@@ -34,6 +35,7 @@ export function ModuleShell() {
     const [match, params] = useRoute("/modules/:moduleId");
     const moduleId = params?.moduleId;
     const { toast } = useToast();
+    const { user } = useAuth();
     const [executionResult, setExecutionResult] = useState<any>(null);
     const [selectedConfigId, setSelectedConfigId] = useState<string>("");
 
@@ -54,7 +56,11 @@ export function ModuleShell() {
                 throw new Error("Please select a context to run the analysis");
             }
             const configId = parseInt(selectedConfigId);
-            const res = await apiRequest("POST", `/api/modules/${moduleId}/run`, { configId });
+            const payload: any = { configId };
+            if (user?.id) {
+                payload.userId = user.id;
+            }
+            const res = await apiRequest("POST", `/api/modules/${moduleId}/run`, payload);
             return res.json();
         },
         onSuccess: (data) => {

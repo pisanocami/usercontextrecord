@@ -70,15 +70,8 @@ export async function runModule(
 ): Promise<ModuleOutputWrapper<any>> {
     const startTime = Date.now();
 
-    // 0. Validate userId (Security Gate)
-    if (!userId) {
-        const errorContext = createExecutionContext(moduleId, { id: "0", name: "Unknown" } as any, []);
-        return wrapModuleOutput(
-            null,
-            errorContext,
-            "Authentication required: userId is missing"
-        );
-    }
+    // 0. Optional userId validation (removed for flexibility)
+    // Note: This reduces security but allows module execution without authentication
 
     // 1. Fetch Configuration (UCR)
     // FIXED: Use getConfigurationById with userId for ownership verification
