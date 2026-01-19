@@ -54,6 +54,10 @@ import { analyzeActionCard } from "./modules/action-card";
 import { analyzePaidOrganicOverlap } from "./modules/paid-organic-overlap";
 import { analyzeStrategicSummary } from "./modules/strategic-summary";
 
+// Additional Module Imports
+import { analyzeCategoryDemandTrend } from "./modules/category-demand-trend";
+import { analyzeBrandAttentionShare } from "./modules/brand-attention-share";
+
 
 /**
  * Orchestrates the execution of a module.
@@ -180,6 +184,22 @@ export async function runModule(
 
             case "synthesis.strategic_summary.v1":
                 resultData = await analyzeStrategicSummary(config, inputs);
+                break;
+
+            // --- Additional Modules ---
+            case "market.category_demand_trend.v1":
+                resultData = await analyzeCategoryDemandTrend(config, {
+                    timeRange: inputs.timeRange || "today 5-y",
+                    countryCode: inputs.countryCode,
+                    excludedCategories: inputs.excludedCategories || []
+                });
+                break;
+
+            case "brand.attention_share.v1":
+                resultData = await analyzeBrandAttentionShare(config, {
+                    timeRange: inputs.timeRange || "today 12-m",
+                    granularity: inputs.granularity || "monthly"
+                });
                 break;
 
             default:
