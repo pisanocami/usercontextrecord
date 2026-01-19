@@ -1,0 +1,36 @@
+
+por que crees que este no es el mejor request para obtenre oportunidades de keywords para oofos: v
+No es el mejor request para encontrar oportunidades específicas para OOFOS porque está pensado como un “topic research genérico” de moda, no como un análisis del universo real de búsquedas alrededor de la marca y su categoría.
+​
+
+Problemas del request actual
+Keywords demasiado genéricas: “sustainable fashion brands”, “spring fashion trends 2025”, “online shopping tips” hablan de moda y consumo general, no de recovery footwear, sandalias cómodas, dolor de pies, etc., que es donde vive OOFOS.
+​
+
+No parte de la realidad de OOFOS: no estás usando ni la marca (“oofos”), ni queries de producto, ni pain points típicos del usuario (plantar fasciitis, recovery sandals, arch support, etc.).
+
+Mezcla de intenciones distintas: hay info-intent (“how to style outfits”) mezclado con comparadores (“fashion accessories guide”) y temas de awareness (“eco-friendly clothing”), lo que hace difícil derivar clusters accionables para una marca concreta.
+
+No usa la ventaja competitiva de Ahrefs: el endpoint de overview con una lista manual de keywords ignora que puedes empezar por keywords reales (brand + competidores) y ramificar desde ahí con “related terms”, “having same terms”, etc.
+
+Qué haría distinto para OOFOS
+Semilla centrada en la marca y categoría:
+
+“oofos”, “oofos sandals”, “recovery sandals”, “recovery slides”, “arch support sandals”, “sandals for plantar fasciitis”, “post run recovery shoes”, etc.
+
+Apalancar datos existentes: primero sacar /v3/site-explorer/organic-keywords para oofos.com y competidores (Crocs, Hoka recovery, Kane, Vionic, etc.) y desde ahí alimentar Keywords Explorer con las queries con más potencial, gaps y pain points.
+​
+
+Separar objetivos: un request para términos transaccionales (comprar, best, review) y otro para términos de problema/condición (pain, plantar fasciitis, recovery, support), en lugar de un mix de lifestyle/fashion.
+
+Cómo reorientar el request
+Ejemplo de enfoque más útil (a alto nivel, no literal):
+
+Paso 1: sacar organic keywords de oofos.com y 3–5 competidores directos con /v3/site-explorer/organic-keywords.
+​
+
+Paso 2: seleccionar 50–100 keywords relevantes (dolor, recovery, comfort, arch support, plantar fasciitis, etc.).
+
+Paso 3: mandar esas como keywords= al endpoint de /v3/keywords-explorer/overview (o related terms) para ampliar universo y detectar oportunidades (alta demanda, baja dificultad, alto traffic potential).
+
+Si me cuentas el objetivo concreto (nuevo contenido, capturar non-brand, defender brand, etc.), puedo proponerte una lista de seeds y un par de requests “ideales” para ese use case.
