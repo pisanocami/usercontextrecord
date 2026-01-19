@@ -14,6 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
     AlertTriangle,
     BrainCircuit,
     Database,
@@ -22,7 +30,10 @@ import {
     Target,
     Loader2,
     Play,
-    Building2
+    Building2,
+    CheckCircle2,
+    AlertCircle,
+    Zap
 } from "lucide-react";
 import { CONTRACT_REGISTRY } from "@shared/module.contract";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,6 +42,35 @@ import { useAuth } from "@/hooks/use-auth";
 import { ModuleVisualizer } from "@/components/module-visualizer";
 import type { Configuration } from "@shared/schema";
 
+type ProviderType = "dataforseo" | "ahrefs";
+
+interface ProviderStatus {
+    provider: ProviderType;
+    available: boolean;
+    configured: boolean;
+    name: string;
+    description: string;
+}
+
+interface AhrefsEstimate {
+    provider: string;
+    configurationName: string;
+    brandDomain: string;
+    competitorDomains: string[];
+    estimate: {
+        totalUnits: number;
+        breakdown: Array<{
+            domain: string;
+            cached: boolean;
+            estimatedUnits: number;
+            estimatedRows: number;
+        }>;
+        warnings: string[];
+        requiresConfirmation: boolean;
+        message?: string;
+    };
+}
+
 export function ModuleShell() {
     const [match, params] = useRoute("/modules/:moduleId");
     const moduleId = params?.moduleId;
@@ -38,6 +78,12 @@ export function ModuleShell() {
     const { user } = useAuth();
     const [executionResult, setExecutionResult] = useState<any>(null);
     const [selectedConfigId, setSelectedConfigId] = useState<string>("");
+    const [selectedProvider, setSelectedProvider] = useState<ProviderType>("ahrefs");
+    const [showAhrefsConfirm, setShowAhrefsConfirm] = useState(false);
+    const [ahrefsEstimate, setAhrefsEstimate] = useState<AhrefsEstimate | null>(null);
+
+    // Check if this is the keyword gap module
+    const isKeywordGapModule = moduleId === "seo.keyword_gap_visibility.v1";
 
     // 1. Resolve Contract
     const contract = moduleId ? CONTRACT_REGISTRY[moduleId] : undefined;
@@ -46,10 +92,75 @@ export function ModuleShell() {
     const { data: configurations, isLoading: configsLoading, error: configsError } = useQuery<Configuration[]>({
         queryKey: ["/api/configurations"],
         retry: 3,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 5 * 60 * 1000,
     });
 
-    // 3. Execution Mutation
+    // 3. Fetch provider status for keyword gap module
+    const { data: providersData } = useQuery<{ providers: ProviderStatus[] }>({
+        queryKey: ["/api/keyword-gap-lite/providers"],
+        enabled: isKeywordGapModule,
+    });
+
+    // 4. Ahrefs estimate mutation
+    const estimateMutation = useMutation({
+        mutationFn: async (params: { configurationId: number; provider: ProviderType }) => {
+            const response = await apiRequest("POST", "/api/keyword-gap-lite/estimate", {
+                configurationId: params.configurationId,
+                provider: params.provider,
+                limitPerDomain: 200,
+                maxCompetitors: 5,
+            });
+            return response.json() as Promise<AhrefsEstimate>;
+        },
+        onSuccess: (data) => {
+            setAhrefsEstimate(data);
+            if (data.estimate.requiresConfirmation) {
+                setShowAhrefsConfirm(true);
+            } else {
+                // No confirmation needed - run directly
+                runKeywordGapMutation.mutate({
+                    configurationId: parseInt(selectedConfigId),
+                    provider: selectedProvider,
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast({
+                title: "Error estimating API units",
+                description: error.message,
+                variant: "destructive",
+            });
+        },
+    });
+
+    // 5. Keyword gap specific mutation using the lite endpoint
+    const runKeywordGapMutation = useMutation({
+        mutationFn: async (params: { configurationId: number; provider: ProviderType }) => {
+            const response = await apiRequest("POST", "/api/keyword-gap-lite/run", {
+                configurationId: params.configurationId,
+                limitPerDomain: 200,
+                locationCode: 2840,
+                languageCode: "en",
+                maxCompetitors: 5,
+                provider: params.provider,
+                forceRefresh: false,
+            });
+            return response.json();
+        },
+        onSuccess: (data) => {
+            if (data.success !== false) {
+                setExecutionResult(data);
+                toast({ title: "Analysis Complete", description: "Keyword Gap analysis executed successfully." });
+            } else {
+                toast({ title: "Analysis Failed", description: data.error, variant: "destructive" });
+            }
+        },
+        onError: (err: Error) => {
+            toast({ title: "Error", description: err.message || "Failed to run keyword gap analysis.", variant: "destructive" });
+        },
+    });
+
+    // 6. Generic module execution mutation
     const runMutation = useMutation({
         mutationFn: async () => {
             if (!selectedConfigId) {
@@ -76,6 +187,45 @@ export function ModuleShell() {
         }
     });
 
+    // Handle run button click
+    const handleRunAnalysis = () => {
+        if (!selectedConfigId) {
+            toast({ title: "Error", description: "Please select a context first", variant: "destructive" });
+            return;
+        }
+
+        if (isKeywordGapModule) {
+            // Use keyword gap specific logic with provider selection
+            if (selectedProvider === "ahrefs") {
+                // Get estimate first for Ahrefs
+                estimateMutation.mutate({
+                    configurationId: parseInt(selectedConfigId),
+                    provider: selectedProvider,
+                });
+            } else {
+                // Run directly for DataForSEO
+                runKeywordGapMutation.mutate({
+                    configurationId: parseInt(selectedConfigId),
+                    provider: selectedProvider,
+                });
+            }
+        } else {
+            // Use generic module execution
+            runMutation.mutate();
+        }
+    };
+
+    // Confirm and run after Ahrefs estimate
+    const handleConfirmAhrefsRun = () => {
+        setShowAhrefsConfirm(false);
+        runKeywordGapMutation.mutate({
+            configurationId: parseInt(selectedConfigId),
+            provider: "ahrefs",
+        });
+    };
+
+    const isRunning = runMutation.isPending || runKeywordGapMutation.isPending || estimateMutation.isPending;
+
     if (!moduleId || !contract) {
         return (
             <div className="p-8">
@@ -92,7 +242,7 @@ export function ModuleShell() {
 
     return (
         <div className="flex h-full flex-col overflow-hidden bg-slate-50/50 dark:bg-slate-950/50">
-            {/* 3. Header */}
+            {/* Header */}
             <header className="border-b bg-background px-6 py-5">
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1.5">
@@ -133,7 +283,7 @@ export function ModuleShell() {
                                     </div>
                                 ) : configurations?.length ? (
                                     <Select value={selectedConfigId} onValueChange={setSelectedConfigId}>
-                                        <SelectTrigger className="w-80">
+                                        <SelectTrigger className="w-80" data-testid="select-config">
                                             <SelectValue placeholder="Choose a context..." />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -156,13 +306,59 @@ export function ModuleShell() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Provider Selector - Only for Keyword Gap Module */}
+                        {isKeywordGapModule && (
+                            <div className="mt-4 space-y-2">
+                                <label className="text-sm font-medium">Data Provider</label>
+                                <div className="flex items-center gap-3">
+                                    <Select value={selectedProvider} onValueChange={(v) => setSelectedProvider(v as ProviderType)}>
+                                        <SelectTrigger className="w-48" data-testid="select-provider">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ahrefs">
+                                                <div className="flex items-center gap-2">
+                                                    <Zap className="h-3 w-3 text-orange-500" />
+                                                    Ahrefs
+                                                </div>
+                                            </SelectItem>
+                                            <SelectItem value="dataforseo">
+                                                <div className="flex items-center gap-2">
+                                                    <Database className="h-3 w-3 text-blue-500" />
+                                                    DataForSEO
+                                                </div>
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {providersData?.providers && (
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            {providersData.providers.find(p => p.provider === selectedProvider)?.configured ? (
+                                                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                            ) : (
+                                                <AlertCircle className="h-3 w-3 text-amber-500" />
+                                            )}
+                                            {providersData.providers.find(p => p.provider === selectedProvider)?.configured 
+                                                ? "Configured" 
+                                                : "Not configured"}
+                                        </div>
+                                    )}
+                                </div>
+                                {selectedProvider === "ahrefs" && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Ahrefs provides more accurate keyword data. Cost estimate shown before running.
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
-                            onClick={() => runMutation.mutate()}
-                            disabled={runMutation.isPending || !selectedConfigId || configsLoading}
+                            onClick={handleRunAnalysis}
+                            disabled={isRunning || !selectedConfigId || configsLoading}
+                            data-testid="button-run-analysis"
                         >
-                            {runMutation.isPending ? (
+                            {isRunning ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Running...
@@ -192,7 +388,7 @@ export function ModuleShell() {
                 </div>
             </header>
 
-            {/* 4. Main Content */}
+            {/* Main Content */}
             <main className="flex-1 overflow-auto p-6">
                 <div className="grid gap-6 md:grid-cols-3">
 
@@ -283,6 +479,90 @@ export function ModuleShell() {
                     </div>
                 </div>
             </main>
+
+            {/* Ahrefs Confirmation Dialog */}
+            <Dialog open={showAhrefsConfirm} onOpenChange={setShowAhrefsConfirm}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Zap className="h-5 w-5 text-orange-500" />
+                            Confirm Ahrefs API Usage
+                        </DialogTitle>
+                        <DialogDescription>
+                            This analysis will consume Ahrefs API units. Review the estimate below.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {ahrefsEstimate && (
+                        <div className="space-y-4">
+                            <div className="rounded-lg bg-orange-50 dark:bg-orange-950/20 p-4 border border-orange-200 dark:border-orange-800">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-sm font-medium">Total API Units</span>
+                                    <span className="text-2xl font-bold text-orange-600">
+                                        {ahrefsEstimate.estimate.totalUnits.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="space-y-2">
+                                    {ahrefsEstimate.estimate.breakdown.map((item, idx) => (
+                                        <div key={idx} className="flex items-center justify-between text-sm">
+                                            <span className="text-muted-foreground truncate max-w-[200px]">
+                                                {item.domain}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                {item.cached && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        Cached
+                                                    </Badge>
+                                                )}
+                                                <span className="font-mono">
+                                                    {item.estimatedUnits.toLocaleString()} units
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {ahrefsEstimate.estimate.warnings.length > 0 && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Warnings</AlertTitle>
+                                    <AlertDescription>
+                                        <ul className="list-disc list-inside">
+                                            {ahrefsEstimate.estimate.warnings.map((w, i) => (
+                                                <li key={i}>{w}</li>
+                                            ))}
+                                        </ul>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                        </div>
+                    )}
+
+                    <DialogFooter className="flex gap-2">
+                        <Button variant="outline" onClick={() => setShowAhrefsConfirm(false)}>
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleConfirmAhrefsRun}
+                            disabled={runKeywordGapMutation.isPending}
+                            data-testid="button-confirm-ahrefs"
+                        >
+                            {runKeywordGapMutation.isPending ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Running...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                    Confirm & Run
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
