@@ -1082,31 +1082,106 @@ export async function computeKeywordGap(
   let irrelevantEntityCount = 0;
   let lowCapabilityCount = 0;
   
+  // Step 1: Evaluate all keywords and collect data
+  const preliminaryResults: Array<{
+    kw: GapKeyword;
+    competitors: string[];
+    evaluation: KeywordEvaluation;
+    theme: string;
+    isHardGateBlocked: boolean;
+  }> = [];
+  
   allKeywordsMap.forEach(({ keyword: kw, competitors }) => {
     const evaluation = evaluateKeyword(
       kw.keyword, config, kw.searchVolume, kw.cpc,
       kw.keywordDifficulty, kw.competitorPosition
     );
     const demandTheme = assignTheme(kw.keyword, config);
-    
-    // Use intent type as fallback when no demand_definition match
     const theme = demandTheme !== "Other" 
       ? demandTheme 
       : intentTypeToTheme(evaluation.intentType);
     
+    // Hard gates: exclusions, competitor brands, irrelevant entities, variants
+    const isHardGateBlocked = 
+      evaluation.flags.includes("excluded") ||
+      evaluation.flags.includes("competitor_brand") ||
+      evaluation.flags.includes("irrelevant_entity") ||
+      evaluation.intentType === "variant_or_size";
+    
+    preliminaryResults.push({ kw, competitors, evaluation, theme, isHardGateBlocked });
+    
+    if (evaluation.flags.includes("competitor_brand")) competitorBrandCount++;
+    if (evaluation.flags.includes("size_variant")) variantCount++;
+    if (evaluation.flags.includes("irrelevant_entity")) irrelevantEntityCount++;
+  });
+  
+  // Step 2: Calculate opportunityScore percentiles for non-blocked keywords
+  const eligibleScores = preliminaryResults
+    .filter(r => !r.isHardGateBlocked)
+    .map(r => r.evaluation.opportunityScore)
+    .sort((a, b) => b - a);
+  
+  const totalEligible = eligibleScores.length;
+  const passThresholdIndex = Math.floor(totalEligible * 0.25); // Top 25%
+  const reviewThresholdIndex = Math.floor(totalEligible * 0.60); // Top 60%
+  
+  const passThresholdScore = eligibleScores[passThresholdIndex] ?? 0;
+  const reviewThresholdScore = eligibleScores[reviewThresholdIndex] ?? 0;
+  
+  // Step 3: Assign final dispositions based on opportunityScore percentiles
+  for (const item of preliminaryResults) {
+    const { kw, competitors, evaluation, theme, isHardGateBlocked } = item;
+    
+    let finalStatus: KeywordStatus;
+    let finalDisposition: Disposition;
+    let finalStatusIcon: string;
+    let finalReason = evaluation.reason;
+    const finalReasons = [...evaluation.reasons];
+    
+    if (isHardGateBlocked) {
+      // Hard gate blocked - always OUT_OF_PLAY
+      finalStatus = "out_of_play";
+      finalDisposition = "OUT_OF_PLAY";
+      finalStatusIcon = "X";
+    } else {
+      // Use opportunityScore percentiles for classification
+      const score = evaluation.opportunityScore;
+      
+      if (score >= passThresholdScore && passThresholdScore > 0) {
+        finalStatus = "pass";
+        finalDisposition = "PASS";
+        finalStatusIcon = "Y";
+        finalReason = `Top opportunity (score: ${score.toFixed(0)})`;
+        finalReasons.push(`Opportunity score in top 25% (≥${passThresholdScore.toFixed(0)})`);
+      } else if (score >= reviewThresholdScore && reviewThresholdScore > 0) {
+        finalStatus = "review";
+        finalDisposition = "REVIEW";
+        finalStatusIcon = "?";
+        finalReason = `Review opportunity (score: ${score.toFixed(0)})`;
+        finalReasons.push(`Opportunity score in top 60% (≥${reviewThresholdScore.toFixed(0)})`);
+      } else {
+        finalStatus = "out_of_play";
+        finalDisposition = "OUT_OF_PLAY";
+        finalStatusIcon = "X";
+        finalReason = `Low opportunity score (${score.toFixed(0)})`;
+        finalReasons.push(`Opportunity score below threshold`);
+        lowCapabilityCount++;
+      }
+    }
+    
     results.push({
       keyword: kw.keyword,
       normalizedKeyword: normalizeKeyword(kw.keyword),
-      status: evaluation.status,
-      disposition: evaluation.disposition,
-      statusIcon: evaluation.statusIcon,
+      status: finalStatus,
+      disposition: finalDisposition,
+      statusIcon: finalStatusIcon,
       intentType: evaluation.intentType,
       capabilityScore: evaluation.capabilityScore,
       opportunityScore: evaluation.opportunityScore,
       difficultyFactor: evaluation.difficultyFactor,
       positionFactor: evaluation.positionFactor,
-      reason: evaluation.reason,
-      reasons: evaluation.reasons,
+      reason: finalReason,
+      reasons: finalReasons,
       flags: evaluation.flags,
       confidence: evaluation.confidence,
       competitorsSeen: competitors,
@@ -1118,26 +1193,18 @@ export async function computeKeywordGap(
       trace: evaluation.trace,
     });
     
-    if (evaluation.status === "pass") stats.passed++;
-    else if (evaluation.status === "review") stats.review++;
+    if (finalStatus === "pass") stats.passed++;
+    else if (finalStatus === "review") stats.review++;
     else stats.outOfPlay++;
-    
-    if (evaluation.flags.includes("competitor_brand")) competitorBrandCount++;
-    if (evaluation.flags.includes("size_variant")) variantCount++;
-    if (evaluation.flags.includes("irrelevant_entity")) irrelevantEntityCount++;
-    if (evaluation.reason === "Low capability fit") lowCapabilityCount++;
-  });
+  }
   
   const total = results.length || 1;
   stats.percentPassed = Math.round((stats.passed / total) * 100);
   stats.percentReview = Math.round((stats.review / total) * 100);
   stats.percentOutOfPlay = Math.round((stats.outOfPlay / total) * 100);
   
+  // Sort by opportunityScore (highest first), then by status
   results.sort((a, b) => {
-    const statusOrder: Record<KeywordStatus, number> = { pass: 0, review: 1, out_of_play: 2 };
-    if (a.status !== b.status) {
-      return statusOrder[a.status] - statusOrder[b.status];
-    }
     return (b.opportunityScore || 0) - (a.opportunityScore || 0);
   });
   

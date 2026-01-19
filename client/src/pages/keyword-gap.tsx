@@ -208,6 +208,19 @@ function TraceDisplay({ trace }: { trace: ItemTrace[] }) {
   );
 }
 
+function getDispositionBadge(disposition: string | undefined) {
+  switch (disposition) {
+    case "PASS":
+      return <Badge className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700">PASS</Badge>;
+    case "REVIEW":
+      return <Badge className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700">REVIEW</Badge>;
+    case "OUT_OF_PLAY":
+      return <Badge variant="secondary" className="text-xs">OUT</Badge>;
+    default:
+      return <Badge variant="outline" className="text-xs">{disposition || "-"}</Badge>;
+  }
+}
+
 function KeywordRowWithTrace({ 
   kw, 
   index, 
@@ -219,50 +232,39 @@ function KeywordRowWithTrace({
   testIdPrefix: string;
   showScore?: boolean;
 }) {
-  const [showTrace, setShowTrace] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const hasTrace = kw.trace && kw.trace.length > 0;
+  const hasReasons = kw.reasons && kw.reasons.length > 0;
+  const canExpand = hasTrace || hasReasons;
   
   return (
     <>
       <TableRow data-testid={`row-${testIdPrefix}-${index}`}>
-        <TableCell className="font-medium">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span>{kw.keyword}</span>
-            {kw.disposition && (
-              <Badge variant="outline" className="text-xs font-mono">
-                {kw.disposition}
-              </Badge>
-            )}
-            {kw.flags?.includes("outside_fence") && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      Fence
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs max-w-[200px]">Outside current category scope. Verify alignment.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
+        <TableCell className="font-medium max-w-[200px]">
+          <span className="truncate block" title={kw.keyword}>{kw.keyword}</span>
         </TableCell>
-        <TableCell>
-          <Badge variant="outline" className="text-xs capitalize">
-            {kw.intentType.replace(/_/g, " ")}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-right">
+        <TableCell className="text-right font-mono text-sm">
           {kw.searchVolume?.toLocaleString() || "-"}
         </TableCell>
-        <TableCell className="text-right font-mono text-xs">
+        <TableCell className="text-right font-mono text-sm">
           {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
         </TableCell>
+        <TableCell className="text-right font-mono text-sm">
+          {kw.cpc != null ? `$${kw.cpc.toFixed(2)}` : "-"}
+        </TableCell>
+        <TableCell className="text-center">
+          {getDispositionBadge(kw.disposition)}
+        </TableCell>
+        <TableCell>
+          <span className="text-xs text-muted-foreground capitalize">
+            {kw.intentType.replace(/_/g, " ")}
+          </span>
+        </TableCell>
+        <TableCell className="text-right font-mono text-sm">
+          {Math.round(kw.capabilityScore * 100)}%
+        </TableCell>
         {showScore && (
-          <TableCell className="text-right font-mono text-xs">
+          <TableCell className="text-right font-mono text-sm">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -280,39 +282,46 @@ function KeywordRowWithTrace({
             </TooltipProvider>
           </TableCell>
         )}
-        <TableCell className="text-right">
-          <Badge variant={kw.capabilityScore >= 0.7 ? "default" : "secondary"} className="text-xs">
-            {Math.round(kw.capabilityScore * 100)}%
-          </Badge>
-        </TableCell>
-        <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate" title={kw.reason}>
-          {kw.reason}
+        <TableCell className="text-xs text-muted-foreground max-w-[150px]">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="truncate block cursor-help" title={kw.reason}>{kw.reason}</span>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[300px]">
+                <p className="text-xs">{kw.reason}</p>
+                {kw.reasons && kw.reasons.length > 1 && (
+                  <p className="text-xs text-muted-foreground mt-1">{kw.reasons.slice(1).join(" | ")}</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </TableCell>
         <TableCell className="text-center">
-          <Badge 
-            variant={kw.confidence === "high" ? "default" : kw.confidence === "medium" ? "secondary" : "outline"}
-            className="text-xs capitalize"
-          >
-            {kw.confidence || "medium"}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-center">
-          {hasTrace && (
+          {canExpand && (
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => setShowTrace(!showTrace)}
-              data-testid={`btn-trace-${testIdPrefix}-${index}`}
+              onClick={() => setShowDetails(!showDetails)}
+              data-testid={`btn-details-${testIdPrefix}-${index}`}
             >
-              <ChevronRight className={`h-4 w-4 transition-transform ${showTrace ? 'rotate-90' : ''}`} />
+              <ChevronRight className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-90' : ''}`} />
             </Button>
           )}
         </TableCell>
       </TableRow>
-      {hasTrace && showTrace && (
+      {canExpand && showDetails && (
         <TableRow className="bg-muted/30">
-          <TableCell colSpan={showScore ? 9 : 8} className="p-0">
-            <TraceDisplay trace={kw.trace!} />
+          <TableCell colSpan={showScore ? 10 : 9} className="p-3">
+            <div className="text-xs space-y-2">
+              {hasReasons && (
+                <div>
+                  <span className="font-medium text-muted-foreground">Reasons: </span>
+                  <span>{kw.reasons!.join(" | ")}</span>
+                </div>
+              )}
+              {hasTrace && <TraceDisplay trace={kw.trace!} />}
+            </div>
           </TableCell>
         </TableRow>
       )}
@@ -1334,19 +1343,20 @@ export default function KeywordGap() {
                       No top opportunities found. Check "Needs Review" for borderline keywords.
                     </div>
                   ) : (
-                    <div className="border rounded-md">
+                    <div className="border rounded-md overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Keyword</TableHead>
-                            <TableHead>Intent</TableHead>
                             <TableHead className="text-right">Volume</TableHead>
                             <TableHead className="text-right">KD</TableHead>
-                            <TableHead className="text-right">Score</TableHead>
+                            <TableHead className="text-right">CPC</TableHead>
+                            <TableHead className="text-center">Status</TableHead>
+                            <TableHead>Intent</TableHead>
                             <TableHead className="text-right">Capability</TableHead>
+                            <TableHead className="text-right">Score</TableHead>
                             <TableHead>Reason</TableHead>
-                            <TableHead className="text-center">Confidence</TableHead>
-                            <TableHead className="text-center">Trace</TableHead>
+                            <TableHead className="text-center w-10"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1374,18 +1384,19 @@ export default function KeywordGap() {
                       No keywords need review.
                     </div>
                   ) : (
-                    <div className="border rounded-md border-amber-200 dark:border-amber-900">
+                    <div className="border rounded-md border-amber-200 dark:border-amber-900 overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Keyword</TableHead>
-                            <TableHead>Intent</TableHead>
                             <TableHead className="text-right">Volume</TableHead>
                             <TableHead className="text-right">KD</TableHead>
+                            <TableHead className="text-right">CPC</TableHead>
+                            <TableHead className="text-center">Status</TableHead>
+                            <TableHead>Intent</TableHead>
                             <TableHead className="text-right">Capability</TableHead>
                             <TableHead>Reason</TableHead>
-                            <TableHead className="text-center">Confidence</TableHead>
-                            <TableHead className="text-center">Trace</TableHead>
+                            <TableHead className="text-center w-10"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
