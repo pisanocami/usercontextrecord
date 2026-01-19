@@ -238,9 +238,9 @@ export async function analyzeCategoryDemandTrend(
     if (config.competitors?.competitors?.length) sectionsUsed.push("C");
     if (config.category_definition) sectionsUsed.push("D");
     if (config.strategic_intent) sectionsUsed.push("E");
-    if (config.channel_priorities) sectionsUsed.push("F");
+    if (config.channel_context) sectionsUsed.push("F");
     if (config.negative_scope) sectionsUsed.push("G");
-    if (config.score_thresholds) sectionsUsed.push("H");
+    if (config.scoring_config) sectionsUsed.push("H");
 
     const timingRecommendationStr = bestMonths.length > 0
         ? `Optimal timing: ${bestMonths.join(", ")}. Avoid: ${avoidMonths.join(", ") || "N/A"}. Next window: ${nextOptimalWindow || "N/A"}.`

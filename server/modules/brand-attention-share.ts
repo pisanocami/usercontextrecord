@@ -161,10 +161,20 @@ export async function analyzeBrandAttentionShare(
     
     const queries = [brandName, ...approvedCompetitors.map((c: any) => c.name || c.domain)];
     
-    let trendsData;
+    let trendsData: { data: { query: string; data: { date: string; value: number }[] }[] };
     let isSimulated = false;
     try {
-        trendsData = await provider.fetchInterestOverTime(queries, "US", timeRange);
+        const results = await provider.compareQueries(queries, {
+            country: "US",
+            timeRange: timeRange,
+            interval: "monthly",
+        });
+        trendsData = {
+            data: results.map((r, idx) => ({
+                query: queries[idx],
+                data: r.data.map(d => ({ date: d.date, value: d.value })),
+            })),
+        };
     } catch (error) {
         console.warn("[BrandAttentionShare] Trends fetch failed, using simulated data - results should be treated as estimates");
         isSimulated = true;
@@ -172,7 +182,7 @@ export async function analyzeBrandAttentionShare(
         trendsData = {
             data: queries.map((q, idx) => ({
                 query: q,
-                data: Array.from({ length: 12 }, (_, i) => ({
+                data: Array.from({ length: 12 }, (_, i: number) => ({
                     date: new Date(baseDate.getTime() - (11 - i) * 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
                     value: 50 + (idx === 0 ? 20 : idx * -3),
                 })),
@@ -203,7 +213,7 @@ export async function analyzeBrandAttentionShare(
         currentShare: Math.round(brandCurrentShare * 10) / 10,
         shareChange: Math.round(brandShareChange * 10) / 10,
         trend: determineTrend(brandShare),
-        dataPoints: dates.map((date, i) => ({
+        dataPoints: dates.map((date: string, i: number) => ({
             date,
             share: Math.round(brandShare[i] * 10) / 10,
         })),
@@ -245,7 +255,7 @@ export async function analyzeBrandAttentionShare(
     if (config.strategic_intent) sectionsUsed.push("E");
     else sectionsMissing.push("E");
     
-    if (config.score_thresholds) sectionsUsed.push("H");
+    if (config.scoring_config) sectionsUsed.push("H");
     else sectionsMissing.push("H");
 
     const shareTrendDirection = brandShareData.trend === "rising" ? "gaining" : brandShareData.trend === "falling" ? "losing" : "stable";
