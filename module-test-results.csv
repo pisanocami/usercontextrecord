@@ -1,0 +1,33 @@
+Module ID,Module Name,Layer,Status,Error Category,Error Message,Proposed Solution,Priority
+seo.keyword_gap_visibility.v1,Keyword Gap & Visibility,Signal,WORKING,-,-,-,-
+market.category_demand_trend.v1,Category Demand Trend,Signal,WORKING,-,-,-,-
+market.demand_seasonality.v1,Market Demand & Seasonality,Signal,WORKING,-,-,-,-
+synthesis.strategic_summary.v1,Strategic Summary,Synthesis,WORKING,-,-,-,-
+brand.attention_share.v1,Brand Attention & Share of Search,Signal,FAIL,Config Data,No approved competitors in configuration,Approve competitors in config or update module logic,MEDIUM
+action.card_generator.v1,Action Cards,Action,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use sem.action_card.v1 or add case in runner,HIGH
+action.priority_scoring.v1,Priority Scoring,Action,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use seo.priority_scoring.v1 or add case in runner,HIGH
+signal.branded_demand.v1,Branded vs Non-Branded,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use market.branded_demand.v1 or add case in runner,HIGH
+signal.breakout_terms.v1,Breakout Terms,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use market.breakout_terms.v1 or add case in runner,HIGH
+signal.category_visibility.v1,Category Visibility,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use seo.category_visibility.v1 or add case in runner,HIGH
+signal.competitor_strategy.v1,Competitor Strategy,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use market.competitor_strategy.v1 or add case in runner,HIGH
+action.deprioritization.v1,Deprioritization Flags,Action,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use seo.deprioritization.v1 or add case in runner,HIGH
+signal.emerging_competitor.v1,Emerging Competitor Watch,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use market.emerging_competitor.v1 or add case in runner,HIGH
+signal.link_authority.v1,Link Authority & Technical,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use seo.link_authority.v1 or add case in runner,HIGH
+signal.market_momentum.v1,Market Momentum,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use market.market_momentum.v1 or add case in runner,HIGH
+synthesis.os_drop.v1,OS Drop,Synthesis,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use seo.os_drop.v1 or add case in runner,HIGH
+signal.paid_organic.v1,Paid vs Organic,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use sem.paid_organic_overlap.v1 or add case in runner,HIGH
+signal.share_of_voice.v1,Share of Voice,Signal,FAIL,ID Mismatch,Module implementation not connected to runner,Update CONTRACT_REGISTRY to use market.share_of_voice.v1 or add case in runner,HIGH
+seo.priority_scoring.v1,Priority Scoring (SEO),SEO,FAIL,Not Registered,Module not found in registry,Add contract with ID seo.priority_scoring.v1 to CONTRACT_REGISTRY,HIGH
+seo.category_visibility.v1,Category Visibility (SEO),SEO,FAIL,Not Registered,Module not found in registry,Add contract with ID seo.category_visibility.v1 to CONTRACT_REGISTRY,HIGH
+seo.link_authority.v1,Link Authority (SEO),SEO,FAIL,Not Registered,Module not found in registry,Add contract with ID seo.link_authority.v1 to CONTRACT_REGISTRY,HIGH
+seo.os_drop.v1,OS Drop (SEO),SEO,FAIL,Not Registered,Module not found in registry,Add contract with ID seo.os_drop.v1 to CONTRACT_REGISTRY,HIGH
+seo.deprioritization.v1,Deprioritization (SEO),SEO,FAIL,Not Registered,Module not found in registry,Add contract with ID seo.deprioritization.v1 to CONTRACT_REGISTRY,HIGH
+market.share_of_voice.v1,Share of Voice (Market),Market,FAIL,Not Registered,Module not found in registry,Add contract with ID market.share_of_voice.v1 to CONTRACT_REGISTRY,HIGH
+market.branded_demand.v1,Branded Demand (Market),Market,FAIL,Not Registered,Module not found in registry,Add contract with ID market.branded_demand.v1 to CONTRACT_REGISTRY,HIGH
+market.breakout_terms.v1,Breakout Terms (Market),Market,FAIL,Not Registered,Module not found in registry,Add contract with ID market.breakout_terms.v1 to CONTRACT_REGISTRY,HIGH
+market.competitor_strategy.v1,Competitor Strategy (Market),Market,FAIL,Not Registered,Module not found in registry,Add contract with ID market.competitor_strategy.v1 to CONTRACT_REGISTRY,HIGH
+market.emerging_competitor.v1,Emerging Competitor (Market),Market,FAIL,Not Registered,Module not found in registry,Add contract with ID market.emerging_competitor.v1 to CONTRACT_REGISTRY,HIGH
+market.market_momentum.v1,Market Momentum (Market),Market,FAIL,Not Registered,Module not found in registry,Add contract with ID market.market_momentum.v1 to CONTRACT_REGISTRY,HIGH
+sem.action_card.v1,Action Cards (SEM),Action,FAIL,Not Registered,Module not found in registry,Add contract with ID sem.action_card.v1 to CONTRACT_REGISTRY,HIGH
+sem.paid_organic_overlap.v1,Paid/Organic Overlap (SEM),Action,FAIL,Not Registered,Module not found in registry,Add contract with ID sem.paid_organic_overlap.v1 to CONTRACT_REGISTRY,HIGH
+brand.attention.v1,Brand Attention,Brand,FAIL,Not Registered,Module not found in registry,Add contract with ID brand.attention.v1 to CONTRACT_REGISTRY,HIGH
