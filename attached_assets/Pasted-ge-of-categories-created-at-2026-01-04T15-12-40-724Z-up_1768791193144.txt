@@ -1,0 +1,19 @@
+ge of categories.","created_at":"2026-01-04T15:12:40.724Z","updated_at":"2026-01-04T15:12:40.724Z"},{"id":7,"userId":"anonymous-user","domain":"Halocollar.com","name":"Halo Collar","industry":"","business_model":"B2B","primary_geography":[],"revenue_band":"","target_market":"","created_at":"2026-01-04T15:12:40.724Z","updated_at":"2026-01-04T15:12:40.724Z"}]
+Module Execution Error [brand.attention_share.v1]: Error: No approved competitors in configuration for share comparison
+    at analyzeBrandAttentionShare (/home/runner/workspace/server/modules/brand-attention-share.ts:157:15)
+    at runModule (/home/runner/workspace/server/module-runner.ts:199:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2728:22)
+[MODULE_AUDIT] brand.attention_share.v1 | user:anonymous | config:69 | FAILED | 27ms | error: No approved competitors in configuration for share comparison
+2:51:27 AM [express] POST /api/modules/brand.attention_share.v1/run 400 in 28ms :: {"success":false,"data":null,"error":"No approved competitors in configuration for share comparison","context":{"ucr_version":"v69-mkc70btp","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-19T02:51:27.500Z","module_id":"brand.attention_share.v1"}}
+[DataForSEO] Fetching gap: cocacola.com vs pepsico.com
+[DataForSEO] Fetching gap: cocacola.com vs keurigdrpepper.com
+[DataForSEO] Fetching gap: cocacola.com vs nestle.com
+[DataForSEO] No intersection results for cocacola.com vs pepsico.com
+[DataForSEO] Got 0 gap keywords from pepsico.com
+[DataForSEO] No intersection results for cocacola.com vs nestle.com
+[DataForSEO] Got 0 gap keywords from nestle.com
+[DataForSEO] No intersection results for cocacola.com vs keurigdrpepper.com
+[DataForSEO] Got 0 gap keywords from keurigdrpepper.com
+[MODULE_AUDIT] seo.keyword_gap_visibility.v1 | user:anonymous | config:69 | SUCCESS | 556ms
+2:52:14 AM [express] POST /api/modules/seo.keyword_gap_visibility.v1/run 200 in 557ms :: {"success":true,"data":{"brandDomain":"cocacola.com","competitors":["pepsico.com","keurigdrpepper.com","nestle.com"],"totalGapKeywords":0,"topOpportunities":[],"needsReview":[],"outOfPlay":[],"grouped":{},"stats":{"passed":0,"review":0,"outOfPlay":0,"percentPassed":0,"percentReview":0,"percentOutOfPlay":0},"filtersApplied":{"excludedCategories":3,"excludedKeywords":4,"excludedUseCases":2,"competitorBrandTerms":0,"variantTerms":0,"irrelevantEntities":0,"lowCapability":0,"totalFilters":9},"contextVersion":1,"configurationName":"Cocacola Context","fromCache":false,"provider":"dataforseo","ucrContext":{"ucr_version":"v69-mkc70btp","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":["negative_scope.match"],"executed_at":"2026-01-19T02:52:14.406Z","module_id":"seo_visibility_gap"}},"error":null,"context":{"ucr_version":"v69-mkc70btp","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-19T02:52:14.406Z","module_id":"seo.keyword_gap_visibility.v1"}}

@@ -429,6 +429,58 @@ function normalizeDomain(input: string): string {
   return domain;
 }
 
+const KNOWN_COMPANY_DOMAINS: Record<string, string> = {
+  "philip morris international": "pmi.com",
+  "philip morris": "pmi.com",
+  "british american tobacco": "bat.com",
+  "imperial brands": "imperialbrandsplc.com",
+  "altria group": "altria.com",
+  "altria": "altria.com",
+  "swisher international": "swisher.com",
+  "davidoff cigars": "davidoff.com",
+  "davidoff": "davidoff.com",
+  "johnson & johnson": "jnj.com",
+  "procter & gamble": "pg.com",
+  "coca-cola": "coca-cola.com",
+  "pepsico": "pepsico.com",
+  "nestle": "nestle.com",
+  "unilever": "unilever.com",
+  "amazon": "amazon.com",
+  "google": "google.com",
+  "microsoft": "microsoft.com",
+  "apple": "apple.com",
+  "meta": "meta.com",
+  "facebook": "facebook.com",
+};
+
+function inferDomainFromCompanyName(companyName: string): string {
+  if (!companyName) return "";
+  
+  const lowerName = companyName.toLowerCase().trim();
+  
+  if (KNOWN_COMPANY_DOMAINS[lowerName]) {
+    return KNOWN_COMPANY_DOMAINS[lowerName];
+  }
+  
+  for (const [knownName, domain] of Object.entries(KNOWN_COMPANY_DOMAINS)) {
+    if (lowerName.includes(knownName) || knownName.includes(lowerName)) {
+      return domain;
+    }
+  }
+  
+  let domain = lowerName
+    .replace(/\s+(inc\.?|llc\.?|ltd\.?|corp\.?|corporation|company|co\.?|group|international|plc)$/i, "")
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+  
+  if (domain.length > 0) {
+    return domain + ".com";
+  }
+  
+  return companyName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".com";
+}
+
 async function generateCompleteConfiguration(
   domain: string,
   brandName: string | undefined,
@@ -488,18 +540,51 @@ Return a complete JSON object with ALL sections filled.`;
 
   const generated = JSON.parse(content);
 
+  console.log(`[Config Gen] GPT-4o competitors response:`, JSON.stringify(generated.competitors, null, 2));
+
   // Use Gemini with Google Search grounding to find REAL competitors
   console.log(`[Config Gen] Searching real competitors for ${domain} with Gemini + Google Search...`);
   const geminiCompetitors = await searchCompetitorsWithGemini(domain, brandName, primaryCategory);
 
   // Merge Gemini's search results with GPT-4o's suggestions, preferring Gemini
   const hasGeminiResults = geminiCompetitors.competitors_list.length > 0;
-  const competitorData = hasGeminiResults ? geminiCompetitors : generated.competitors;
+  let competitorData = hasGeminiResults ? geminiCompetitors : generated.competitors;
 
   if (hasGeminiResults) {
     console.log(`[Config Gen] Using ${geminiCompetitors.competitors_list.length} competitors from Gemini web search`);
   } else {
     console.log(`[Config Gen] Gemini search returned no results, falling back to GPT-4o suggestions`);
+  }
+
+  // FALLBACK: If competitors_list is empty but direct/indirect have data, build competitors_list from them
+  if ((!competitorData?.competitors_list || competitorData.competitors_list.length === 0) && 
+      ((competitorData?.direct?.length > 0) || (competitorData?.indirect?.length > 0))) {
+    console.log(`[Config Gen] Building competitors_list from direct/indirect arrays as fallback`);
+    
+    const buildCompetitorEntry = (entry: string, tier: "tier1" | "tier2" | "tier3") => {
+      const isAlreadyDomain = entry.includes(".") && !entry.includes(" ");
+      let name = entry;
+      let domain = entry;
+      
+      if (isAlreadyDomain) {
+        name = entry.split(".")[0].replace(/[-_]/g, " ").split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        domain = entry;
+      } else {
+        domain = inferDomainFromCompanyName(entry);
+      }
+      
+      return { name, domain, tier, why: `Inferred from ${tier === "tier1" ? "direct" : "indirect"} competitors list` };
+    };
+    
+    const directEntries = (competitorData?.direct || []).map((d: string) => buildCompetitorEntry(d, "tier1"));
+    const indirectEntries = (competitorData?.indirect || []).map((d: string) => buildCompetitorEntry(d, "tier2"));
+    
+    competitorData = {
+      ...competitorData,
+      competitors_list: [...directEntries, ...indirectEntries],
+    };
+    
+    console.log(`[Config Gen] Built ${competitorData.competitors_list.length} competitor entries from fallback`);
   }
 
   const today = new Date().toISOString().split("T")[0];
@@ -528,6 +613,7 @@ Return a complete JSON object with ALL sections filled.`;
       excluded: generated.category_definition?.excluded || [],
       approved_categories: [generated.category_definition?.primary_category || generated.brand?.industry || primaryCategory],
       alternative_categories: generated.category_definition?.alternative_categories || [],
+      semantic_extensions: generated.category_definition?.semantic_extensions || [],
     },
     competitors: {
       direct: (competitorData?.direct || []).map((d: string) => normalizeDomain(d)),
