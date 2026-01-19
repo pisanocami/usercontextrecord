@@ -218,13 +218,16 @@ export default function ModuleCenterPage() {
             </p>
           </div>
 
-          {/* Functional Modules - Currently Available */}
+          {/* Featured Modules - Quick Access */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
-              <h2 className="text-lg font-semibold">Functional Modules</h2>
-              <Badge variant="secondary" className="text-xs">2 Available</Badge>
+              <h2 className="text-lg font-semibold">All Modules Functional</h2>
+              <Badge variant="secondary" className="text-xs">{allContracts.length} Available</Badge>
             </div>
+            <p className="text-sm text-muted-foreground">
+              All modules are now connected and functional. Use the tabs below to explore by layer, or access featured modules with dedicated interfaces:
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20" data-testid="card-functional-keyword-gap">
                 <CardContent className="flex items-start gap-4 p-4">
@@ -234,7 +237,7 @@ export default function ModuleCenterPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold">Keyword Gap Analysis</h3>
-                      <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                      <Badge variant="default" className="text-xs bg-green-600">Featured</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Compare your brand against competitors to discover SEO keyword opportunities you're missing.
@@ -255,7 +258,7 @@ export default function ModuleCenterPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold">Market Demand Analysis</h3>
-                      <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                      <Badge variant="default" className="text-xs bg-green-600">Featured</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Analyze market demand signals and trends to understand consumer interest in your category.

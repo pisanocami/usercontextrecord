@@ -150,11 +150,11 @@ export async function analyzeBrandAttentionShare(
     const granularity = params.granularity || "monthly";
 
     const approvedCompetitors = (config.competitors?.competitors || [])
-        .filter((c: any) => c.status === "approved")
+        .filter((c: any) => c.status === "approved" || c.status === "pending_review")
         .slice(0, 5);
 
     if (approvedCompetitors.length === 0) {
-        throw new Error("No approved competitors in configuration for share comparison");
+        throw new Error("No approved or pending_review competitors in configuration for share comparison");
     }
 
     const provider = getDefaultTrendsProvider();
