@@ -30,7 +30,7 @@ function logModuleExecution(log: ModuleExecutionLog): void {
 }
 
 // Import Real Implementations
-import { computeKeywordGap } from "./keyword-gap-lite";
+import { computeKeywordGap, estimateKeywordGap } from "./keyword-gap-lite";
 import { marketDemandAnalyzer } from "./market-demand-analyzer";
 import { analyzeBrandAttention } from "./modules/brand-attention";
 
@@ -110,13 +110,25 @@ export async function runModule(
     try {
         switch (moduleId) {
             case "seo.keyword_gap_visibility.v1":
-                // Call Real Keyword Gap Logic
-                resultData = await computeKeywordGap(config, {
-                    limitPerDomain: inputs.limitPerDomain || 100,
-                    maxCompetitors: inputs.maxCompetitors || 3,
-                    locationCode: inputs.locationCode || 2840,
-                    languageCode: inputs.languageCode || "en"
-                });
+                // Call Real Keyword Gap Logic with provider and estimateOnly support
+                const provider = inputs.provider || "dataforseo";
+                
+                if (inputs.estimateOnly) {
+                    // Return cost estimate instead of running full analysis
+                    resultData = await estimateKeywordGap(config, {
+                        limitPerDomain: inputs.limitPerDomain || 100,
+                        maxCompetitors: inputs.maxCompetitors || 3,
+                        provider
+                    });
+                } else {
+                    resultData = await computeKeywordGap(config, {
+                        limitPerDomain: inputs.limitPerDomain || 100,
+                        maxCompetitors: inputs.maxCompetitors || 3,
+                        locationCode: inputs.locationCode || 2840,
+                        languageCode: inputs.languageCode || "en",
+                        provider
+                    });
+                }
                 break;
 
             case "market.demand_seasonality.v1":

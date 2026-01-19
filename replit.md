@@ -21,7 +21,10 @@ The frontend uses React 18 with TypeScript, styled with Tailwind CSS and `shadcn
 - **Data Storage**: PostgreSQL database managed by Drizzle ORM.
 - **AI Integration**: OpenAI via Replit AI Integrations (no API key required), utilizing `gpt-4o` for suggestions.
 - **Validation**: Zod schemas for shared client/server validation.
-- **Keyword Gap Analysis**: Multi-provider architecture supporting DataForSEO and Ahrefs, with a factory pattern for provider selection. Includes a "Keyword Gap Lite" module for fast, classified analysis with configurable scoring and UCR-based guardrails.
+- **Keyword Gap Analysis**: Multi-provider architecture supporting DataForSEO and Ahrefs, with a factory pattern for provider selection. Includes a "Keyword Gap Lite" module for fast, classified analysis with configurable scoring and UCR-based guardrails. The module `seo.keyword_gap_visibility.v1` now supports:
+  - Provider selection via `provider` input parameter ("dataforseo" or "ahrefs")
+  - Cost estimation via `estimateOnly: true` flag for Ahrefs API units
+  - Confirmation dialog in UI before running Ahrefs analysis (shows units per domain, cache status)
 - **Security**: All sensitive routes are protected with authentication middleware, ensuring user-scoped data access and HTTPS-only cookies in production.
 
 ### Feature Specifications

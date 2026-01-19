@@ -1208,6 +1208,135 @@ export async function computeKeywordGap(
   };
 }
 
+/**
+ * Estimate API units for Ahrefs provider before running keyword gap analysis
+ */
+export interface KeywordGapEstimate {
+  provider: "dataforseo" | "ahrefs";
+  configurationName: string;
+  brandDomain: string;
+  competitorDomains: string[];
+  estimate: {
+    totalUnits: number;
+    breakdown: Array<{
+      domain: string;
+      estimatedUnits: number;
+      cached: boolean;
+    }>;
+    requiresConfirmation: boolean;
+    warnings: string[];
+    message?: string;
+  };
+}
+
+export async function estimateKeywordGap(
+  config: Configuration,
+  options: {
+    limitPerDomain?: number;
+    maxCompetitors?: number;
+    provider?: "dataforseo" | "ahrefs";
+  } = {}
+): Promise<KeywordGapEstimate> {
+  const {
+    limitPerDomain = 200,
+    maxCompetitors = 5,
+    provider = "dataforseo",
+  } = options;
+
+  const brandDomain = normalizeDomain(config.brand?.domain || "");
+  
+  // Get competitors
+  const competitors = config.competitors || {};
+  let directCompetitors: string[] = [];
+  
+  if (competitors.competitors && Array.isArray(competitors.competitors)) {
+    directCompetitors = competitors.competitors
+      .filter((c: any) => c.domain && c.status === "approved")
+      .map((c: any) => normalizeDomain(c.domain))
+      .slice(0, maxCompetitors);
+  }
+  
+  if (directCompetitors.length === 0 && competitors.direct) {
+    const directArray = Array.isArray(competitors.direct) ? competitors.direct : [];
+    directCompetitors = directArray.slice(0, maxCompetitors).map((d: any) => {
+      if (typeof d === "string") {
+        return normalizeDomain(d.includes(".") ? d : `${d.toLowerCase().replace(/\s+/g, "")}.com`);
+      }
+      return normalizeDomain(d.domain || d.name || "");
+    }).filter(Boolean);
+  }
+
+  const allDomains = [brandDomain, ...directCompetitors].filter(Boolean);
+
+  // For DataForSEO, no per-query cost estimation
+  if (provider === "dataforseo") {
+    return {
+      provider,
+      configurationName: config.name || "Unknown",
+      brandDomain,
+      competitorDomains: directCompetitors,
+      estimate: {
+        totalUnits: 0,
+        breakdown: [],
+        requiresConfirmation: false,
+        warnings: [],
+        message: "DataForSEO uses subscription-based pricing, no per-query cost estimation available.",
+      },
+    };
+  }
+
+  // For Ahrefs, calculate estimated units
+  const keywordProvider = getProvider(provider);
+  const breakdown: KeywordGapEstimate["estimate"]["breakdown"] = [];
+  let totalUnits = 0;
+  const warnings: string[] = [];
+
+  // Check cache status for each competitor domain pair
+  // Uses the same cache key format as computeKeywordGap for consistency
+  const locationCode = 2840; // Default location code
+  const languageCode = "en"; // Default language code
+  
+  for (const competitorDomain of directCompetitors) {
+    const cacheKey = getCacheKey(brandDomain, competitorDomain, locationCode, languageCode, provider);
+    const cacheEntry = keywordCache.get(cacheKey);
+    const cached = cacheEntry && (Date.now() - cacheEntry.timestamp < CACHE_TTL_MS);
+    
+    // Ahrefs pricing: ~50 base units + rows returned
+    const BASE_UNITS = 50;
+    const ESTIMATED_ROWS = Math.min(limitPerDomain, 200);
+    const estimatedUnits = cached ? 0 : BASE_UNITS + ESTIMATED_ROWS;
+    
+    breakdown.push({
+      domain: competitorDomain,
+      estimatedUnits,
+      cached: !!cached,
+    });
+    
+    totalUnits += estimatedUnits;
+  }
+
+  // Add warnings for high usage
+  if (totalUnits > 5000) {
+    warnings.push(`High API usage: ${totalUnits} units estimated`);
+  }
+  if (!process.env.AHREFS_API_KEY) {
+    warnings.push("AHREFS_API_KEY not configured - will use simulated data");
+  }
+
+  return {
+    provider,
+    configurationName: config.name || "Unknown",
+    brandDomain,
+    competitorDomains: directCompetitors,
+    estimate: {
+      totalUnits,
+      breakdown,
+      requiresConfirmation: true,
+      warnings,
+    },
+  };
+}
+
 export function clearCache(): void {
   keywordCache.clear();
 }

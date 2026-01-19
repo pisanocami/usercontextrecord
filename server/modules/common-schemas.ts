@@ -106,12 +106,17 @@ export const StrategicSummaryInputSchema = z.object({
     includeSections: z.array(z.string()).optional()
 });
 
+// Provider type for keyword gap
+export const ProviderTypeSchema = z.enum(["dataforseo", "ahrefs"]).default("dataforseo");
+
 // Core Module Schemas
 export const KeywordGapInputSchema = z.object({
     limitPerDomain: LimitSchema.default(100),
     maxCompetitors: z.number().min(1).max(10).default(3),
     locationCode: LocationCodeSchema.optional(),
-    languageCode: LanguageCodeSchema.optional()
+    languageCode: LanguageCodeSchema.optional(),
+    provider: ProviderTypeSchema.optional(),
+    estimateOnly: z.boolean().default(false).optional()
 });
 
 export const MarketDemandInputSchema = z.object({

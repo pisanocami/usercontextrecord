@@ -44,7 +44,7 @@ import { analyzeActionCard } from "./action-card";
 import { analyzePaidOrganicOverlap } from "./paid-organic-overlap";
 import { analyzeStrategicSummary } from "./strategic-summary";
 import { analyzeBrandAttention } from "./brand-attention";
-import { computeKeywordGap } from "../keyword-gap-lite";
+import { computeKeywordGap, estimateKeywordGap } from "../keyword-gap-lite";
 import { marketDemandAnalyzer } from "../market-demand-analyzer";
 
 // Define module handlers
@@ -95,11 +95,23 @@ const modules: ModuleHandler[] = [
         inputSchema: KeywordGapInputSchema,
         execute: async (config, inputs) => {
             const typedInputs = inputs as z.infer<typeof KeywordGapInputSchema>;
+            const provider = typedInputs.provider || "dataforseo";
+            
+            // If estimateOnly, return cost estimate instead of running analysis
+            if (typedInputs.estimateOnly) {
+                return estimateKeywordGap(config, {
+                    limitPerDomain: typedInputs.limitPerDomain || 100,
+                    maxCompetitors: typedInputs.maxCompetitors || 3,
+                    provider
+                });
+            }
+            
             return computeKeywordGap(config, {
                 limitPerDomain: typedInputs.limitPerDomain || 100,
                 maxCompetitors: typedInputs.maxCompetitors || 3,
                 locationCode: typedInputs.locationCode || 2840,
-                languageCode: typedInputs.languageCode || "en"
+                languageCode: typedInputs.languageCode || "en",
+                provider
             });
         }
     },
