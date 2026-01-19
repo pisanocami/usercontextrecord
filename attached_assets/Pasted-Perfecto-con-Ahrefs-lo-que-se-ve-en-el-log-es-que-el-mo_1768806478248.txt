@@ -1,0 +1,44 @@
+Perfecto, con Ahrefs lo que se ve en el log es que **el modelo sí está encontrando huecos**, pero tus reglas de scoring/governance hacen que muchas cosas se sientan “raras” o poco útiles. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+
+## Qué está haciendo ahora mismo tu pipeline
+
+- Estás usando `site-explorer/organic-keywords` para brand y competidores y luego un gap interno: para Habanos, el cliente tiene 0 keywords y competidores tienen 7, 214 y 495, de donde salen 179 gap keywords. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+- A cada keyword le calculas un `opportunityScore` con factores como `searchVolume`, `difficultyFactor`, `positionFactor` y `capabilityScore`, y lo pasas por un módulo de gobernanza que las clasifica en `PASS`, `REVIEW` y `OUTOFPLAY`. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+- Estás aplicando un fence fuerte de “competitor brand term”: todo lo que es marca competidora (Padron, Arturo Fuente, etc.) cae en `OUTOFPLAY` con `capabilityScore=0` y `opportunityScore=0`, aunque tengan mucho volumen y gaps evidentes. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+
+## Por qué las oportunidades “se sienten malas”
+
+- Hay mezcla de keywords muy buenas con un montón de ruido de marca competidora.  
+  Ejemplo: `opus x cigars`, `best premium cigars`, `best cigar brands` salen con opportunityScore alto porque hay volumen y Habanos no captura nada, pero también hay cientos de long tails de marca competidora que el fence tira a OUTOFPLAY, saturando la vista mental de “qué hay”. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+- El cliente no rankea en nada.  
+  Como Habanos tiene 0 keywords en Ahrefs en ese país, todo es gap; sin un filtro mínimo de volumen/intent, tienes un mar de “oportunidades” que conceptualmente son huecos, pero estratégicamente no todas merecen atención. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+- Los themes/intents aún no están filtrando para el uso principal.  
+  Tienes `themeBrand`, `themeProblemSolution`, `intentTypeproblemsolution`, `intentTypebrandcapture`, etc., pero ahora mismo el módulo está consumiendo todas juntas; eso hace que el top 25 se mezcle entre comparativos, consulta genérica, y pure brand. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+
+## Ajustes concretos para que Ahrefs te dé “oportunidades que se sienten bien”
+
+- A nivel de filtros Ahrefs / gap  
+  - Mantén el gap tal cual, pero añade:  
+    - Volumen mínimo (ej. ≥ 200 búsquedas/mes) para entrar al top O1–O2.  
+    - Excluir explícitamente brand exacta de competidor en el fetch inicial cuando sólo quieras non-brand/competitive generics.  
+- A nivel de scoring interno  
+  - Reescalar `opportunityScore` para que:  
+    - O1: sólo keywords problema/solución con `intentType=problemsolution` o categoría genérica con volumen alto y KD razonable.  
+    - O2: brand/categoria premium (ej. `best premium cigars`, `best cigar brands`) donde Habanos puede posicionarse como “marca paraguas”, pero no competencia directa de un SKU de otro. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+  - Bajar peso a `difficultyFactor` cuando KD=0–3, porque muchos términos de marca tienen KD 0 y eso infla su score si no los filtra governance. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+- A nivel de governance (donde más duele ahora)  
+  - Mantén `OUTOFPLAY` para *exact competitor brand terms* (ej. “padron 1964 anniversary”), pero permite:  
+    - Comparativos tipo “best premium cigars”, “best cigar brands” como `PASS` o `REVIEW` aunque mencionen competidores en el contenido.  
+    - Category generics tipo “hand-rolled cigars”, “premium cigars” claramente dentro de fence. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+  - Introduce una etiqueta “*Competitor halo*”: keywords donde el título/serp es 80% marca competidora pero la query es genérica; eso debería ir a REVIEW, no a OUTOFPLAY.
+
+## Qué haría en el JSON de salida que ya tienes
+
+- Forzar top O1–O2 a venir solo de:  
+  - `status=PASS`  
+  - `intentType in [problemsolution, categorycapture]`  
+  - `searchVolume >= X`, `keywordDifficulty <= Y`  
+  - `flags` no contenga `competitorbrand`. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+- Dejar todo lo que es `competitorbrand` como “Threats” en un bloque separado, no en oportunidades, con una métrica simple: share of voice 0% en términos críticos de marca competidora. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
+
+Si quieres, en el siguiente mensaje pega sólo el bloque JSON de 5–10 oportunidades Ahrefs para un caso (Oofos o Habanos) y se devuelve reordenado y filtrado como O1–O4 listo para pegar en Growth Signal, respetando tu esquema de `status`, `flags` y `themes` actuales. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/39843594/cf66d19f-0b1f-42a9-bf01-a6b5b8192945/paste.txt)
