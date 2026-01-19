@@ -66,11 +66,13 @@ export interface KeywordGapResult {
   topOpportunities: KeywordResult[];
   needsReview: KeywordResult[];
   outOfPlay: KeywordResult[];
+  threats: KeywordResult[]; // Competitor brand terms - separate tracking
   grouped: Record<string, KeywordResult[]>;
   stats: {
     passed: number;
     review: number;
     outOfPlay: number;
+    threats: number;
     percentPassed: number;
     percentReview: number;
     percentOutOfPlay: number;
@@ -83,7 +85,15 @@ export interface KeywordGapResult {
     variantTerms: number;
     irrelevantEntities: number;
     lowCapability: number;
+    lowVolume: number;
     totalFilters: number;
+  };
+  thresholds: {
+    minVolume: number;
+    passPercentile: number;
+    reviewPercentile: number;
+    passScoreThreshold: number;
+    reviewScoreThreshold: number;
   };
   contextVersion: number;
   configurationName: string;
@@ -361,15 +371,38 @@ export function intentTypeToTheme(intentType: IntentType): string {
   return themeMap[intentType] || "Other";
 }
 
+// Patterns that indicate a generic/comparative query (not a direct brand search)
+const GENERIC_COMPARATOR_REGEX = /\b(best|top|vs|versus|compare|comparison|alternative|similar to|like|review|reviews|rating|ratings|better than|instead of|or|premium|luxury|affordable|cheap|expensive|quality|recommended)\b/i;
+
+// Check if a query is a "competitor halo" - mentions a competitor but is a generic/comparative query
+export function isCompetitorHalo(keyword: string, hasCompetitorBrand: boolean): boolean {
+  if (!hasCompetitorBrand) return false;
+  const normalizedKw = normalizeKeyword(keyword);
+  return GENERIC_COMPARATOR_REGEX.test(normalizedKw);
+}
+
 export function classifyIntent(keyword: string, config: Configuration): { intentType: IntentType; flags: string[] } {
   const normalizedKw = normalizeKeyword(keyword);
   const flags: string[] = [];
   
   const competitorBrands = getCompetitorBrandTerms(config);
+  let hasCompetitorBrand = false;
   for (const brand of competitorBrands) {
     if (normalizedKw.includes(brand)) {
-      flags.push("competitor_brand");
+      hasCompetitorBrand = true;
       break;
+    }
+  }
+  
+  // Check if this is a "competitor halo" - generic query mentioning competitor
+  // These should be REVIEW, not OUT_OF_PLAY
+  if (hasCompetitorBrand) {
+    if (isCompetitorHalo(keyword, true)) {
+      flags.push("competitor_halo");
+      // Don't add competitor_brand flag - let it pass to scoring
+    } else {
+      // Exact competitor brand term - hard block
+      flags.push("competitor_brand");
     }
   }
   
@@ -377,6 +410,7 @@ export function classifyIntent(keyword: string, config: Configuration): { intent
     flags.push("size_variant");
   }
   
+  // Competitor brand exact match -> brand_capture (will be blocked by hard gate)
   if (flags.includes("competitor_brand")) {
     return { intentType: "brand_capture", flags };
   }
@@ -496,6 +530,14 @@ export function computeDifficultyFactor(
     return 1.0;
   }
   const kd = Math.max(0, Math.min(100, keywordDifficulty));
+  
+  // Penalize very low KD (0-3) as these are usually branded terms
+  // that artificially inflate scores
+  if (kd <= 3) {
+    // Low KD gets a penalty instead of a bonus
+    return 0.7;
+  }
+  
   const rawFactor = 1 - (kd / 100);
   return 1 - (difficultyWeight * (1 - rawFactor));
 }
@@ -639,6 +681,7 @@ export function evaluateKeyword(
   }
   
   // Check competitor brand terms (also part of G - hard exclusion)
+  // But allow "competitor_halo" queries (generic comparatives) to pass to REVIEW
   if (flags.includes("competitor_brand")) {
     const reason = "Competitor brand term";
     trace.push(createTrace("negative_scope.competitor_brand", "G", reason, "high", keyword));
@@ -654,6 +697,14 @@ export function evaluateKeyword(
       confidence: "high",
       trace,
     };
+  }
+  
+  // Competitor halo: generic query mentioning competitor (e.g., "best X vs Y")
+  // These go to REVIEW for manual assessment, not OUT_OF_PLAY
+  if (flags.includes("competitor_halo")) {
+    resultFlags.push("competitor_halo");
+    trace.push(createTrace("governance.competitor_halo", "H", "Generic comparative query mentioning competitor", "medium", keyword));
+    reasons.push("Competitor halo: generic comparative query");
   }
   
   // Check for irrelevant entities (part of G - hard gate)
@@ -908,6 +959,9 @@ export async function computeKeywordGap(
     maxCompetitors?: number;
     provider?: "dataforseo" | "ahrefs";
     forceRefresh?: boolean;
+    minVolume?: number; // Minimum search volume for top opportunities
+    passPercentile?: number; // Top X% for PASS (default 25)
+    reviewPercentile?: number; // Top X% for REVIEW (default 60)
   } = {}
 ): Promise<KeywordGapResult> {
   const {
@@ -917,6 +971,9 @@ export async function computeKeywordGap(
     maxCompetitors = 5,
     provider = "dataforseo",
     forceRefresh = false,
+    minVolume = 100, // Default minimum volume
+    passPercentile = 25, // Top 25% = PASS
+    reviewPercentile = 60, // Top 60% = REVIEW
   } = options;
   
   const validation = validateModuleExecution(SEO_VISIBILITY_GAP.id, config);
@@ -953,8 +1010,9 @@ export async function computeKeywordGap(
       topOpportunities: [],
       needsReview: [],
       outOfPlay: [],
+      threats: [],
       grouped: {},
-      stats: { passed: 0, review: 0, outOfPlay: 0, percentPassed: 0, percentReview: 0, percentOutOfPlay: 0 },
+      stats: { passed: 0, review: 0, outOfPlay: 0, threats: 0, percentPassed: 0, percentReview: 0, percentOutOfPlay: 0 },
       filtersApplied: {
         excludedCategories: 0,
         excludedKeywords: 0,
@@ -963,7 +1021,15 @@ export async function computeKeywordGap(
         variantTerms: 0,
         irrelevantEntities: 0,
         lowCapability: 0,
+        lowVolume: 0,
         totalFilters: 0,
+      },
+      thresholds: {
+        minVolume,
+        passPercentile,
+        reviewPercentile,
+        passScoreThreshold: 0,
+        reviewScoreThreshold: 0,
       },
       contextVersion: 1,
       configurationName: config.name || "Unknown",
@@ -1076,11 +1142,13 @@ export async function computeKeywordGap(
   );
   
   const results: KeywordResult[] = [];
-  const stats = { passed: 0, review: 0, outOfPlay: 0, percentPassed: 0, percentReview: 0, percentOutOfPlay: 0 };
+  const threatResults: KeywordResult[] = []; // Separate array for competitor brand terms
+  const stats = { passed: 0, review: 0, outOfPlay: 0, threats: 0, percentPassed: 0, percentReview: 0, percentOutOfPlay: 0 };
   let competitorBrandCount = 0;
   let variantCount = 0;
   let irrelevantEntityCount = 0;
   let lowCapabilityCount = 0;
+  let lowVolumeCount = 0;
   
   // Step 1: Evaluate all keywords and collect data
   const preliminaryResults: Array<{
@@ -1116,14 +1184,15 @@ export async function computeKeywordGap(
   });
   
   // Step 2: Calculate opportunityScore percentiles for non-blocked keywords
+  // Also filter by minVolume for eligible scoring
   const eligibleScores = preliminaryResults
-    .filter(r => !r.isHardGateBlocked)
+    .filter(r => !r.isHardGateBlocked && r.kw.searchVolume >= minVolume)
     .map(r => r.evaluation.opportunityScore)
     .sort((a, b) => b - a);
   
   const totalEligible = eligibleScores.length;
-  const passThresholdIndex = Math.floor(totalEligible * 0.25); // Top 25%
-  const reviewThresholdIndex = Math.floor(totalEligible * 0.60); // Top 60%
+  const passThresholdIndex = Math.floor(totalEligible * (passPercentile / 100));
+  const reviewThresholdIndex = Math.floor(totalEligible * (reviewPercentile / 100));
   
   const passThresholdScore = eligibleScores[passThresholdIndex] ?? 0;
   const reviewThresholdScore = eligibleScores[reviewThresholdIndex] ?? 0;
@@ -1137,12 +1206,36 @@ export async function computeKeywordGap(
     let finalStatusIcon: string;
     let finalReason = evaluation.reason;
     const finalReasons = [...evaluation.reasons];
+    const isCompetitorBrand = evaluation.flags.includes("competitor_brand");
+    const isBelowMinVolume = kw.searchVolume < minVolume;
     
-    if (isHardGateBlocked) {
-      // Hard gate blocked - always OUT_OF_PLAY
+    if (isCompetitorBrand) {
+      // Competitor brand terms go to separate "threats" array
       finalStatus = "out_of_play";
       finalDisposition = "OUT_OF_PLAY";
       finalStatusIcon = "X";
+      finalReason = "Competitor brand term - tracked as threat";
+    } else if (isHardGateBlocked) {
+      // Other hard gate blocked - always OUT_OF_PLAY
+      finalStatus = "out_of_play";
+      finalDisposition = "OUT_OF_PLAY";
+      finalStatusIcon = "X";
+    } else if (isBelowMinVolume) {
+      // Below minimum volume threshold
+      finalStatus = "out_of_play";
+      finalDisposition = "OUT_OF_PLAY";
+      finalStatusIcon = "X";
+      finalReason = `Low volume (${kw.searchVolume} < ${minVolume})`;
+      finalReasons.push(`Below minimum volume threshold`);
+      lowVolumeCount++;
+    } else if (evaluation.flags.includes("competitor_halo")) {
+      // Competitor halo: generic/comparative query mentioning competitor
+      // Force to REVIEW for manual assessment
+      finalStatus = "review";
+      finalDisposition = "REVIEW";
+      finalStatusIcon = "?";
+      finalReason = "Competitor halo - generic comparative query";
+      finalReasons.push("Mentions competitor but is a generic/comparative query - requires manual review");
     } else {
       // Use opportunityScore percentiles for classification
       const score = evaluation.opportunityScore;
@@ -1152,13 +1245,13 @@ export async function computeKeywordGap(
         finalDisposition = "PASS";
         finalStatusIcon = "Y";
         finalReason = `Top opportunity (score: ${score.toFixed(0)})`;
-        finalReasons.push(`Opportunity score in top 25% (≥${passThresholdScore.toFixed(0)})`);
+        finalReasons.push(`Opportunity score in top ${passPercentile}% (≥${passThresholdScore.toFixed(0)})`);
       } else if (score >= reviewThresholdScore && reviewThresholdScore > 0) {
         finalStatus = "review";
         finalDisposition = "REVIEW";
         finalStatusIcon = "?";
         finalReason = `Review opportunity (score: ${score.toFixed(0)})`;
-        finalReasons.push(`Opportunity score in top 60% (≥${reviewThresholdScore.toFixed(0)})`);
+        finalReasons.push(`Opportunity score in top ${reviewPercentile}% (≥${reviewThresholdScore.toFixed(0)})`);
       } else {
         finalStatus = "out_of_play";
         finalDisposition = "OUT_OF_PLAY";
@@ -1169,7 +1262,7 @@ export async function computeKeywordGap(
       }
     }
     
-    results.push({
+    const keywordResult: KeywordResult = {
       keyword: kw.keyword,
       normalizedKeyword: normalizeKeyword(kw.keyword),
       status: finalStatus,
@@ -1191,11 +1284,18 @@ export async function computeKeywordGap(
       competitorPosition: kw.competitorPosition,
       theme,
       trace: evaluation.trace,
-    });
+    };
     
-    if (finalStatus === "pass") stats.passed++;
-    else if (finalStatus === "review") stats.review++;
-    else stats.outOfPlay++;
+    // Route competitor brand terms to threats array
+    if (isCompetitorBrand) {
+      threatResults.push(keywordResult);
+      stats.threats++;
+    } else {
+      results.push(keywordResult);
+      if (finalStatus === "pass") stats.passed++;
+      else if (finalStatus === "review") stats.review++;
+      else stats.outOfPlay++;
+    }
   }
   
   const total = results.length || 1;
@@ -1241,6 +1341,9 @@ export async function computeKeywordGap(
     console.error(`[KeywordGapLite] ALL competitors failed! Provider errors:`, providerErrors);
   }
   
+  // Sort threats by volume (highest first)
+  threatResults.sort((a, b) => (b.searchVolume || 0) - (a.searchVolume || 0));
+  
   return {
     brandDomain,
     competitors: directCompetitors,
@@ -1248,6 +1351,7 @@ export async function computeKeywordGap(
     topOpportunities,
     needsReview,
     outOfPlay,
+    threats: threatResults,
     grouped,
     stats,
     filtersApplied: {
@@ -1258,7 +1362,15 @@ export async function computeKeywordGap(
       variantTerms: variantCount,
       irrelevantEntities: irrelevantEntityCount,
       lowCapability: lowCapabilityCount,
-      totalFilters: excludedCategories + excludedKeywords + excludedUseCases + competitorBrandCount + variantCount + irrelevantEntityCount + lowCapabilityCount,
+      lowVolume: lowVolumeCount,
+      totalFilters: excludedCategories + excludedKeywords + excludedUseCases + competitorBrandCount + variantCount + irrelevantEntityCount + lowCapabilityCount + lowVolumeCount,
+    },
+    thresholds: {
+      minVolume,
+      passPercentile,
+      reviewPercentile,
+      passScoreThreshold: passThresholdScore,
+      reviewScoreThreshold: reviewThresholdScore,
     },
     contextVersion: 1,
     configurationName: config.name || "Unknown",

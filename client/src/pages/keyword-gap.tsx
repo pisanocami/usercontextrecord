@@ -344,11 +344,13 @@ interface KeywordGapLiteResult {
   topOpportunities: KeywordLiteResult[];
   needsReview: KeywordLiteResult[];
   outOfPlay: KeywordLiteResult[];
+  threats: KeywordLiteResult[]; // Competitor brand terms tracked separately
   grouped: Record<string, KeywordLiteResult[]>;
   stats: {
     passed: number;
     review: number;
     outOfPlay: number;
+    threats: number;
     percentPassed: number;
     percentReview: number;
     percentOutOfPlay: number;
@@ -361,7 +363,15 @@ interface KeywordGapLiteResult {
     variantTerms: number;
     irrelevantEntities: number;
     lowCapability: number;
+    lowVolume: number;
     totalFilters: number;
+  };
+  thresholds: {
+    minVolume: number;
+    passPercentile: number;
+    reviewPercentile: number;
+    passScoreThreshold: number;
+    reviewScoreThreshold: number;
   };
   contextVersion: number;
   configurationName: string;
@@ -1322,12 +1332,15 @@ export default function KeywordGap() {
               </div>
 
               <Tabs defaultValue="opportunities" className="w-full">
-                <TabsList className="mb-4">
+                <TabsList className="mb-4 flex-wrap gap-1">
                   <TabsTrigger value="opportunities" data-testid="tab-opportunities">
                     Top Opportunities ({liteResult.topOpportunities.length})
                   </TabsTrigger>
                   <TabsTrigger value="review" data-testid="tab-review">
                     Needs Review ({liteResult.needsReview.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="threats" data-testid="tab-threats">
+                    Threats ({liteResult.threats?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger value="out" data-testid="tab-out">
                     Out of Play ({liteResult.outOfPlay.length})
@@ -1408,6 +1421,58 @@ export default function KeywordGap() {
                               testIdPrefix="review"
                               showScore={false}
                             />
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="threats">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Competitor brand terms where you have 0% share of voice. Track to monitor competitive landscape.
+                  </p>
+                  {!liteResult.threats || liteResult.threats.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No competitor brand terms detected.
+                    </div>
+                  ) : (
+                    <div className="border rounded-md border-red-200 dark:border-red-900 overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Keyword</TableHead>
+                            <TableHead className="text-right">Volume</TableHead>
+                            <TableHead className="text-right">KD</TableHead>
+                            <TableHead className="text-right">CPC</TableHead>
+                            <TableHead>Competitor</TableHead>
+                            <TableHead>Intent</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {liteResult.threats.slice(0, 50).map((kw, i) => (
+                            <TableRow key={i} data-testid={`row-threat-${i}`}>
+                              <TableCell className="font-medium max-w-[200px]">
+                                <span className="truncate block" title={kw.keyword}>{kw.keyword}</span>
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm">
+                                {kw.searchVolume?.toLocaleString() || "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm">
+                                {kw.keywordDifficulty != null ? kw.keywordDifficulty : "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm">
+                                {kw.cpc != null ? `$${kw.cpc.toFixed(2)}` : "-"}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[150px]">
+                                <span className="truncate block">{kw.competitorsSeen?.join(", ") || "-"}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-xs text-muted-foreground capitalize">
+                                  {kw.intentType.replace(/_/g, " ")}
+                                </span>
+                              </TableCell>
+                            </TableRow>
                           ))}
                         </TableBody>
                       </Table>
