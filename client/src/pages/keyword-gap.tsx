@@ -13,6 +13,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -488,6 +496,25 @@ interface SavedAnalysis {
   created_at: string;
 }
 
+interface AhrefsEstimate {
+  provider: string;
+  configurationName: string;
+  brandDomain: string;
+  competitorDomains: string[];
+  estimate: {
+    totalUnits: number;
+    breakdown: Array<{
+      domain: string;
+      cached: boolean;
+      estimatedUnits: number;
+      estimatedRows: number;
+    }>;
+    warnings: string[];
+    requiresConfirmation: boolean;
+    message?: string;
+  };
+}
+
 export default function KeywordGap() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -496,6 +523,8 @@ export default function KeywordGap() {
   const [competitorDomain, setCompetitorDomain] = useState("");
   const [activeTab, setActiveTab] = useState("gap");
   const [selectedProvider, setSelectedProvider] = useState<ProviderType>("dataforseo");
+  const [showAhrefsConfirm, setShowAhrefsConfirm] = useState(false);
+  const [ahrefsEstimate, setAhrefsEstimate] = useState<AhrefsEstimate | null>(null);
 
   const configId = id ? parseInt(id, 10) : null;
   
@@ -567,6 +596,39 @@ export default function KeywordGap() {
     },
   });
 
+  // Ahrefs estimate mutation - calculates API units before running
+  // Uses same parameters as the actual run to ensure accurate estimates
+  const estimateMutation = useMutation({
+    mutationFn: async (params: { configurationId: number; provider: ProviderType }) => {
+      const response = await apiRequest("POST", "/api/keyword-gap-lite/estimate", {
+        configurationId: params.configurationId,
+        provider: params.provider,
+        limitPerDomain: 200, // Same as run endpoint default
+        maxCompetitors: 5,
+      });
+      return response.json() as Promise<AhrefsEstimate>;
+    },
+    onSuccess: (data) => {
+      setAhrefsEstimate(data);
+      if (data.estimate.requiresConfirmation) {
+        setShowAhrefsConfirm(true);
+      } else {
+        // No confirmation needed (DataForSEO or all cached)
+        liteMutation.mutate({
+          configurationId: Number(id),
+          provider: selectedProvider,
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error estimating API units",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const liteMutation = useMutation({
     mutationFn: async (params: { 
       configurationId: number; 
@@ -596,6 +658,32 @@ export default function KeywordGap() {
       });
     },
   });
+
+  // Handle run button click - show confirmation for Ahrefs
+  const handleRunKeywordGap = () => {
+    if (selectedProvider === "ahrefs") {
+      // Get estimate first for Ahrefs
+      estimateMutation.mutate({
+        configurationId: Number(id),
+        provider: selectedProvider,
+      });
+    } else {
+      // Run directly for DataForSEO
+      liteMutation.mutate({
+        configurationId: Number(id),
+        provider: selectedProvider,
+      });
+    }
+  };
+
+  // Confirm and run after Ahrefs estimate
+  const handleConfirmAhrefsRun = () => {
+    setShowAhrefsConfirm(false);
+    liteMutation.mutate({
+      configurationId: Number(id),
+      provider: "ahrefs",
+    });
+  };
 
   const handleAnalyze = () => {
     if (!competitorDomain.trim()) {
@@ -905,14 +993,11 @@ export default function KeywordGap() {
                   </Select>
                   <Button
                     className="flex-1"
-                    onClick={() => liteMutation.mutate({
-                      configurationId: Number(id),
-                      provider: selectedProvider,
-                    })}
-                    disabled={liteMutation.isPending || !canRunAnalysis}
+                    onClick={handleRunKeywordGap}
+                    disabled={liteMutation.isPending || estimateMutation.isPending || !canRunAnalysis}
                     data-testid="button-gap-lite"
                   >
-                    {liteMutation.isPending ? (
+                    {liteMutation.isPending || estimateMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
                       <Zap className="h-4 w-4 mr-2" />
@@ -1633,6 +1718,100 @@ export default function KeywordGap() {
           </Card>
         )}
       </div>
+
+      {/* Ahrefs API Units Confirmation Dialog */}
+      <Dialog open={showAhrefsConfirm} onOpenChange={setShowAhrefsConfirm}>
+        <DialogContent className="max-w-md" data-testid="dialog-ahrefs-confirm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirm Ahrefs API Usage
+            </DialogTitle>
+            <DialogDescription>
+              Running this analysis will consume Ahrefs API units from your plan.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {ahrefsEstimate && (
+            <div className="space-y-4">
+              <div className="bg-muted rounded-lg p-4 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Total API Units:</span>
+                  <span className="text-lg font-bold">{ahrefsEstimate.estimate.totalUnits.toLocaleString()}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Brand: {ahrefsEstimate.brandDomain}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Competitors: {ahrefsEstimate.competitorDomains.join(", ")}
+                </div>
+              </div>
+
+              {ahrefsEstimate.estimate.breakdown.length > 0 && (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Domain</TableHead>
+                        <TableHead className="text-xs text-right">Units</TableHead>
+                        <TableHead className="text-xs text-center">Cached</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ahrefsEstimate.estimate.breakdown.map((item, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-xs font-mono">{item.domain}</TableCell>
+                          <TableCell className="text-xs text-right">
+                            {item.cached ? "0" : item.estimatedUnits.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs text-center">
+                            {item.cached ? (
+                              <Badge variant="secondary" className="text-xs">Cached</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">API Call</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {ahrefsEstimate.estimate.warnings.length > 0 && (
+                <div className="space-y-1">
+                  {ahrefsEstimate.estimate.warnings.map((warning, i) => (
+                    <div key={i} className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                      {warning}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAhrefsConfirm(false)}
+              data-testid="button-cancel-ahrefs"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAhrefsRun}
+              disabled={liteMutation.isPending}
+              data-testid="button-confirm-ahrefs"
+            >
+              {liteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Confirm & Run Analysis
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ScrollArea>
   );
 }

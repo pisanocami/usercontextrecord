@@ -2066,6 +2066,92 @@ IMPORTANT:
     res.json({ providers: statuses });
   });
 
+  // Estimate Ahrefs API units before running keyword gap analysis
+  app.post("/api/keyword-gap-lite/estimate", async (req: any, res) => {
+    try {
+      const {
+        configurationId,
+        provider = "ahrefs" as ProviderType,
+        limitPerDomain = 2000,
+        maxCompetitors = 5,
+      } = req.body;
+
+      if (!configurationId) {
+        return res.status(400).json({ error: "configurationId is required" });
+      }
+
+      const userId = (req.user as any)?.id || "anonymous-user";
+      const config = await storage.getConfigurationById(configurationId, userId);
+
+      if (!config) {
+        return res.status(404).json({ error: "Configuration not found" });
+      }
+
+      const brandDomain = config.brand?.domain;
+      if (!brandDomain) {
+        return res.status(400).json({ error: "Configuration has no brand domain defined" });
+      }
+
+      // Get competitor domains from the competitors array (with name+domain objects)
+      const competitorsArray = config.competitors?.competitors || [];
+      const approvedCompetitors = competitorsArray
+        .filter((c: any) => c.status === "approved" && c.domain)
+        .map((c: any) => c.domain)
+        .slice(0, maxCompetitors);
+
+      // Fallback to direct array if competitors array is empty
+      const competitorDomains = approvedCompetitors.length > 0 
+        ? approvedCompetitors 
+        : (config.competitors?.direct || []).slice(0, maxCompetitors);
+
+      if (provider === "ahrefs") {
+        const { ahrefsProvider } = await import("./providers/ahrefs-provider");
+        
+        if (!ahrefsProvider.isConfigured()) {
+          return res.status(503).json({
+            error: "Ahrefs API not configured. Please set AHREFS_API_KEY environment variable.",
+            configured: false,
+          });
+        }
+
+        const estimate = ahrefsProvider.estimateUnits(brandDomain, competitorDomains, {
+          limit: limitPerDomain,
+        });
+
+        return res.json({
+          provider: "ahrefs",
+          configurationName: config.name,
+          brandDomain,
+          competitorDomains,
+          estimate: {
+            totalUnits: estimate.totalUnits,
+            breakdown: estimate.breakdown,
+            warnings: estimate.warnings,
+            requiresConfirmation: estimate.totalUnits > 0,
+          },
+        });
+      } else {
+        // DataForSEO doesn't charge per-unit, so no confirmation needed
+        return res.json({
+          provider: "dataforseo",
+          configurationName: config.name,
+          brandDomain,
+          competitorDomains,
+          estimate: {
+            totalUnits: 0,
+            breakdown: [],
+            warnings: [],
+            requiresConfirmation: false,
+            message: "DataForSEO uses subscription-based pricing, no per-query cost estimation available.",
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error("Error estimating keyword gap units:", error);
+      res.status(500).json({ error: error.message || "Failed to estimate units" });
+    }
+  });
+
   app.post("/api/keyword-gap-lite/run", async (req: any, res) => {
     try {
       const {

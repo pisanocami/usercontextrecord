@@ -360,6 +360,106 @@ export class AhrefsProvider implements KeywordDataProvider {
     organicKeywordsCache.clear();
     console.log("[Ahrefs] Cache cleared");
   }
+
+  /**
+   * Check if a domain's keywords are cached
+   */
+  isCached(domain: string, country: string = "us", limit: number = 2000): boolean {
+    const cacheKey = getCacheKey(normalizeDomain(domain), country, limit);
+    const cached = organicKeywordsCache.get(cacheKey);
+    return !!(cached && cached.expiresAt > Date.now());
+  }
+
+  /**
+   * Estimate API units for a keyword gap analysis
+   * Based on Ahrefs API v3 pricing:
+   * - Base cost: 50 units per request
+   * - Per-row cost: ~1 unit per row
+   * - Per-field cost: 1-5 units depending on field
+   * 
+   * Current fields requested: keyword, best_position, volume, keyword_difficulty, cpc (5 fields)
+   * Estimated cost per domain: 50 + (rows * 1) where rows ≈ 2000 max
+   */
+  estimateUnits(
+    brandDomain: string,
+    competitorDomains: string[],
+    options: {
+      country?: string;
+      limit?: number;
+    } = {}
+  ): {
+    totalUnits: number;
+    breakdown: Array<{
+      domain: string;
+      cached: boolean;
+      estimatedUnits: number;
+      estimatedRows: number;
+    }>;
+    warnings: string[];
+  } {
+    const { country = "us", limit = 2000 } = options;
+    const FIELDS_COUNT = 5; // keyword, best_position, volume, keyword_difficulty, cpc
+    const BASE_UNITS = 50;
+    const UNITS_PER_ROW = 1;
+    const FIELD_MULTIPLIER = 1; // Standard fields cost 1 unit each
+    
+    // Estimated rows per domain (conservative estimate based on typical sites)
+    const ESTIMATED_ROWS_PER_DOMAIN = Math.min(limit, 1500);
+    
+    const allDomains = [brandDomain, ...competitorDomains];
+    const breakdown: Array<{
+      domain: string;
+      cached: boolean;
+      estimatedUnits: number;
+      estimatedRows: number;
+    }> = [];
+    const warnings: string[] = [];
+    
+    let totalUnits = 0;
+    
+    for (const domain of allDomains) {
+      const isCachedDomain = this.isCached(domain, country, limit);
+      
+      if (isCachedDomain) {
+        breakdown.push({
+          domain: normalizeDomain(domain),
+          cached: true,
+          estimatedUnits: 0,
+          estimatedRows: 0,
+        });
+      } else {
+        // Cost formula: BASE + (rows * UNITS_PER_ROW * FIELD_MULTIPLIER)
+        const estimatedUnits = BASE_UNITS + (ESTIMATED_ROWS_PER_DOMAIN * UNITS_PER_ROW * FIELD_MULTIPLIER);
+        totalUnits += estimatedUnits;
+        
+        breakdown.push({
+          domain: normalizeDomain(domain),
+          cached: false,
+          estimatedUnits,
+          estimatedRows: ESTIMATED_ROWS_PER_DOMAIN,
+        });
+      }
+    }
+    
+    // Add warnings
+    if (competitorDomains.length > 5) {
+      warnings.push(`Analyzing ${competitorDomains.length} competitors will consume significant API units`);
+    }
+    
+    if (totalUnits > 5000) {
+      warnings.push(`High unit consumption detected (${totalUnits} units). Consider using cached data or fewer competitors.`);
+    }
+    
+    if (totalUnits === 0 && breakdown.every(b => b.cached)) {
+      warnings.push("All domains are cached - no API calls needed");
+    }
+    
+    return {
+      totalUnits,
+      breakdown,
+      warnings,
+    };
+  }
 }
 
 export const ahrefsProvider = new AhrefsProvider();
