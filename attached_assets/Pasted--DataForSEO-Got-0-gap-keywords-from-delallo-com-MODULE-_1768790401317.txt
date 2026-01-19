@@ -1,0 +1,16 @@
+
+[DataForSEO] Got 0 gap keywords from delallo.com
+[MODULE_AUDIT] seo.keyword_gap_visibility.v1 | user:anonymous | config:32 | SUCCESS | 10268ms
+2:37:47 AM [express] POST /api/modules/seo.keyword_gap_visibility.v1/run 200 in 10270ms :: {"success":true,"data":{"brandDomain":"mezzetta.com","competitors":["mtolivepickles.com","delallo.com","raos.com"],"totalGapKeywords":0,"topOpportunities":[],"needsReview":[],"outOfPlay":[],"grouped":{},"stats":{"passed":0,"review":0,"outOfPlay":0,"percentPassed":0,"percentReview":0,"percentOutOfPlay":0},"filtersApplied":{"excludedCategories":2,"excludedKeywords":2,"excludedUseCases":1,"competitorBrandTerms":0,"variantTerms":0,"irrelevantEntities":0,"lowCapability":0,"totalFilters":5},"contextVersion":1,"configurationName":"Mezzetta Context","fromCache":false,"provider":"dataforseo","ucrContext":{"ucr_version":"v32-mkc36f5i","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":["negative_scope.match"],"executed_at":"2026-01-19T02:37:47.724Z","module_id":"seo_visibility_gap"}},"error":null,"context":{"ucr_version":"v32-mkc36f5i","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-19T02:37:47.724Z","module_id":"seo.keyword_gap_visibility.v1"}}
+Module Execution Error [market.category_demand_trend.v1]: Error: Module implementation for "market.category_demand_trend.v1" is not yet connected to the runner.
+    at runModule (/home/runner/workspace/server/module-runner.ts:187:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2728:22)
+[MODULE_AUDIT] market.category_demand_trend.v1 | user:anonymous | config:32 | FAILED | 49ms | error: Module implementation for "market.category_demand_trend.v1" is not yet connected to the runner.
+2:39:13 AM [express] POST /api/modules/market.category_demand_trend.v1/run 400 in 50ms :: {"success":false,"data":null,"error":"Module implementation for \"market.category_demand_trend.v1\" is not yet connected to the runner.","context":{"ucr_version":"v32-mkc36f5i","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-19T02:39:13.442Z","module_id":"market.category_demand_trend.v1"}}
+Module Execution Error [brand.attention_share.v1]: Error: Module implementation for "brand.attention_share.v1" is not yet connected to the runner.
+    at runModule (/home/runner/workspace/server/module-runner.ts:187:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:2728:22)
+[MODULE_AUDIT] brand.attention_share.v1 | user:anonymous | config:35 | FAILED | 29ms | error: Module implementation for "brand.attention_share.v1" is not yet connected to the runner.
+2:39:33 AM [express] POST /api/modules/brand.attention_share.v1/run 400 in 31ms :: {"success":false,"data":null,"error":"Module implementation for \"brand.attention_share.v1\" is not yet connected to the runner.","context":{"ucr_version":"v35-mkc3y7na","sections_used":["A","B","C","D","E","F","G","H"],"rules_triggered":[],"executed_at":"2026-01-19T02:39:33.774Z","module_id":"brand.attention_share.v1"}}
